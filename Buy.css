@@ -1,0 +1,51 @@
+p {
+    font-family: Roboto;
+}
+.buy{
+        font-family: Roboto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: fit-content;
+        padding: 8px 12px;
+        margin: 20px auto 0;
+    
+    }
+    .Now{
+        font-family: Roboto;
+        font-size: 16px;
+        line-height: 16px;
+        background-color: lemonchiffon;
+        display: block;
+        margin: 0 auto;
+        width: fit-content;
+        border: none;
+        padding: 8px 12px;
+        cursor: pointer;
+        margin-left: 0px;
+        font-weight: bold;
+    }
+    .para{
+        font-family: Roboto;
+        font-size: 25px;
+        line-height: 20px;
+        width: 170px;
+        font-weight: bold;
+        margin: 0 auto 14px;
+        text-align: center;
+    }
+    .views{
+        font-family: Roboto;
+        font-size: 16px;
+        line-height: 16px;
+        margin-bottom: 0px;
+        text-align: center;
+    }   
+     .name{
+        font-family: Roboto;
+        font-size: 17px;
+        line-height: 20px;
+        margin: 0 auto 12px;
+        text-align: center;
+        margin-top: 0px;
+    }
