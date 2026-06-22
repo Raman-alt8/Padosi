@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Database files (auto-generated)
+*.db
+*.db-shm
+*.db-wal
+
+# Environment variables (keep .env.example, ignore .env)
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
