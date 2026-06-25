@@ -572,10 +572,7 @@ app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
   }
 });
 
-// ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
-app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'API route not found.' });
-});
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -584,6 +581,8 @@ app.use('/api', (req, res) => {
 //
 //   app.use('/api', (req, res) => { res.status(404).json(...) });
 // ─────────────────────────────────────────────────────────────────────────────
+
+
 
 
 
@@ -748,7 +747,11 @@ app.delete('/api/ride-routes/:id', requireAuth, async (req, res) => {
 });
 
 
-// ─── Serve React frontend (must be AFTER all API routes) ─────────────────────
+// ─── Serve React frontend (must be AFTER all API routes) ─────// ─── 404 fallback for unmatched /api/* routes ──
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API route not found.' });
+});
+
 app.use(express.static(path.join(__dirname, 'dist')));
 
 app.get('*', (req, res) => {
