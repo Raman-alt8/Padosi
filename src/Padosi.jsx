@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import Navbar from "./Navbar";
-import PadosiListings from "./PadosiListings";
+import Navbar from ".Components/Navbar";
+import PadosiListings from ".Components/PadosiListings";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_CHARS = 1000;
