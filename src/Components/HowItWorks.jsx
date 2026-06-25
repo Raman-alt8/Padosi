@@ -1,4 +1,4 @@
-// ─── How It Works ─────────────────────────────────────────────────────────────
+// ─── How It Works ────
 export default function HowItWorks({ dark }) {
   const steps = [
     { img: "https://cdn-icons-png.flaticon.com/512/1828/1828919.png", label: "Post your task" },
