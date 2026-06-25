@@ -1,9 +1,10 @@
+bash
+
+cat > /mnt/user-data/outputs/PadosiListings.jsx << 'ENDOFFILE'
 import { useState, useEffect } from "react";
 
 // ─── Padosi Listings Tab ───────────────────────────────────────────────────
-// Self-contained: the 4-tile grid (Rent a Vehicle / Buy Ticket / Service
-// Listings / Ride Share) PLUS the two full-page overlays that "Service
-// Listings" and "Ride Share" open. Everything this tab needs lives here.
+// Dark theme: pure #000 / #fff colour profile matching body.theme-dark CSS.
 
 const SERVICE_CATEGORIES = [
   { icon: "🔧", label: "Plumber",                  prompt: "Need a plumber to fix " },
@@ -40,18 +41,25 @@ function ListingsGrid({ showToast }) {
   ];
 
   return (
-    <div className="bg-gray-900 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] p-6">
+    // listings-section dark: bg:#000, border:1px solid #fff, box-shadow:none
+    <div className="bg-black rounded-2xl border border-white p-6">
+      {/* listings-title dark: color:#fff  |  span: color:#fff, text-decoration:underline */}
       <p className="text-lg font-black text-white mb-4">
-        Padosi <span className="text-red-500">Listings</span>
+        Padosi <span className="text-white underline">Listings</span>
       </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {tiles.map(({ icon, label, action }) => (
+          // quick-tab-item dark: bg:#000, border:1px solid #fff, box-shadow:none, hover:bg:#1a1a1a
           <button
             key={label}
             onClick={action}
-            className="bg-gray-800 border border-gray-700 rounded-2xl p-5 flex flex-col items-center gap-2.5 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.4)] hover:-translate-y-1 hover:shadow-[0_15px_35px_rgba(0,0,0,0.6)] hover:border-gray-600 transition-all"
+            className="bg-black border border-white rounded-2xl p-5 flex flex-col items-center gap-2.5 cursor-pointer hover:bg-[#1a1a1a] transition-colors"
           >
-            <span className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center text-xl">{icon}</span>
+            {/* quick-tab-icon dark: bg:#000, color:#fff, border:1px solid #fff */}
+            <span className="w-12 h-12 rounded-full bg-black border border-white text-white flex items-center justify-center text-xl">
+              {icon}
+            </span>
+            {/* quick-tab-label dark: color:#fff */}
             <span className="text-sm font-bold text-white text-center leading-tight">{label}</span>
           </button>
         ))}
@@ -60,7 +68,7 @@ function ListingsGrid({ showToast }) {
   );
 }
 
-// ─── Service Listings Page (opens on "Service Listings" tile) ─────────────
+// ─── Service Listings Page ─────────────────────────────────────────────────
 function ServiceListingsPage({ onSelectCategory }) {
   const [open, setOpen] = useState(false);
 
@@ -71,38 +79,48 @@ function ServiceListingsPage({ onSelectCategory }) {
   }, []);
 
   return (
-    <div className={`fixed inset-0 z-[5000] bg-[#0a0a0a] flex flex-col overflow-y-auto transition-opacity duration-300 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
-      {/* Header */}
-      <div className="h-[70px] flex items-center justify-between px-6 bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
+    // service-page dark: bg:#000
+    <div className={`fixed inset-0 z-[5000] bg-black flex flex-col overflow-y-auto transition-opacity duration-300 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
+
+      {/* service-page-header dark: bg:#000, border-bottom-color:#fff */}
+      <div className="h-[70px] flex items-center justify-between px-6 bg-black border-b border-white sticky top-0 z-10">
+        {/* service-back-btn dark: bg:#000, color:#fff, border:1px solid #fff */}
         <button
           onClick={() => setOpen(false)}
-          className="inline-flex items-center gap-2 bg-gray-800 border-none px-4 py-2 rounded-full text-sm font-bold text-gray-300 cursor-pointer hover:bg-red-500/10 hover:text-red-400 transition-colors"
+          className="inline-flex items-center gap-2 bg-black border border-white px-4 py-2 rounded-full text-sm font-bold text-white cursor-pointer hover:bg-[#1a1a1a] transition-colors"
         >
           ← Back
         </button>
-        <p className="text-base font-black text-white">Padosi <span className="text-red-500">Services</span></p>
+        {/* service-page-title dark: color:#fff  |  span: color:#fff, underline */}
+        <p className="text-base font-black text-white">
+          Padosi <span className="text-white underline">Services</span>
+        </p>
         <div className="w-20" />
       </div>
 
-      {/* Hero */}
-      <div className="bg-gradient-to-br from-red-600 to-red-500 text-white py-14 px-6 text-center">
+      {/* serve-hero dark: bg:#000, border-bottom:1px solid #fff, color:#fff — NO gradient */}
+      <div className="bg-black border-b border-white text-white py-14 px-6 text-center">
         <h1 className="text-5xl font-black">Serve</h1>
         <p className="mt-2.5 text-sm opacity-90 max-w-md mx-auto">
           Pick what you need help with — we'll get your task ready to post to neighbours nearby.
         </p>
       </div>
 
-      {/* Category grid */}
       <div className="flex justify-center px-6 pb-16">
         <div className="w-full max-w-[1100px] -mt-9">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {SERVICE_CATEGORIES.map((cat, i) => (
+              // service-card dark: bg:#000, border:1px solid #fff, box-shadow:none, hover:bg:#1a1a1a
               <button
                 key={i}
                 onClick={() => { setOpen(false); onSelectCategory(cat); }}
-                className="bg-gray-800 border border-gray-700 rounded-2xl py-5 px-3 flex flex-col items-center gap-3 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.4)] hover:-translate-y-1 hover:shadow-[0_15px_35px_rgba(0,0,0,0.6)] hover:border-gray-600 transition-all"
+                className="bg-black border border-white rounded-2xl py-5 px-3 flex flex-col items-center gap-3 cursor-pointer hover:bg-[#1a1a1a] transition-colors"
               >
-                <span className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center text-2xl">{cat.icon}</span>
+                {/* service-card-icon dark: bg:#000, color:#fff, border:1px solid #fff */}
+                <span className="w-12 h-12 rounded-full bg-black border border-white text-white flex items-center justify-center text-2xl">
+                  {cat.icon}
+                </span>
+                {/* service-card-label dark: color:#fff */}
                 <span className="text-xs font-bold text-white text-center leading-tight">{cat.label}</span>
               </button>
             ))}
@@ -113,7 +131,7 @@ function ServiceListingsPage({ onSelectCategory }) {
   );
 }
 
-// ─── Ride Share Page (opens on "Ride Share" tile) ──────────────────────────
+// ─── Ride Share Page ──────────────────────────────────────────────────────
 function RideSharePage({ currentUser, showToast }) {
   const [open, setOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -165,7 +183,7 @@ function RideSharePage({ currentUser, showToast }) {
     if (!deptTime) { setFormError("⚠️ Please enter your usual departure time."); return; }
     if (!desc)     { setFormError("⚠️ Please add a short description."); return; }
 
-    const name = currentUser?.full_name || "User";
+    const name  = currentUser?.full_name || "User";
     const inits = initials(name);
 
     if (editingRoute) {
@@ -196,37 +214,42 @@ function RideSharePage({ currentUser, showToast }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[5000] bg-[#0a0a0a] flex flex-col overflow-hidden">
+    // service-page dark: bg:#000
+    <div className="fixed inset-0 z-[5000] bg-black flex flex-col overflow-hidden">
 
-      {/* ── Header ── */}
-      <div className="h-[70px] flex items-center justify-between px-6 bg-gray-900 border-b border-gray-800 flex-shrink-0">
+      {/* ── Header ── service-page-header dark: bg:#000, border-bottom:#fff */}
+      <div className="h-[70px] flex items-center justify-between px-6 bg-black border-b border-white flex-shrink-0">
+        {/* service-back-btn dark: bg:#000, color:#fff, border:1px solid #fff */}
         <button
           onClick={() => setOpen(false)}
-          className="inline-flex items-center gap-2 bg-gray-800 border-none px-4 py-2 rounded-full text-sm font-bold text-gray-300 cursor-pointer hover:bg-red-500/10 hover:text-red-400 transition-colors"
+          className="inline-flex items-center gap-2 bg-black border border-white px-4 py-2 rounded-full text-sm font-bold text-white cursor-pointer hover:bg-[#1a1a1a] transition-colors"
         >
           ← Back
         </button>
-        <p className="text-base font-black text-white">Padosi <span className="text-red-500">Ride Share</span></p>
+        <p className="text-base font-black text-white">
+          Padosi <span className="text-white underline">Ride Share</span>
+        </p>
+        {/* ride-post-btn dark: bg:#fff, color:#000 */}
         <button
           onClick={() => {
             if (!currentUser) { showToast("👋 Please log in to post a route."); return; }
             openForm(null);
           }}
-          className="inline-flex items-center gap-2 bg-red-500 text-white border-none px-5 py-2 rounded-full text-sm font-bold cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(239,68,68,0.4)] transition-all"
+          className="inline-flex items-center gap-2 bg-white text-black border-none px-5 py-2 rounded-full text-sm font-bold cursor-pointer hover:bg-gray-200 transition-colors"
         >
           + Post a Route
         </button>
       </div>
 
-      {/* ── Search ── */}
+      {/* ── Search ── ride-search-input dark: bg:#000, border-color:#fff, color:#fff */}
       <div className="px-6 py-4 max-w-[600px] mx-auto w-full">
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white text-sm">🔍</span>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search routes, e.g. Vaishali to MI Road…"
-            className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-700 bg-gray-900 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-red-500 shadow-sm transition-colors"
+            className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white bg-black text-white placeholder-[#555] text-sm focus:outline-none"
           />
         </div>
       </div>
@@ -235,42 +258,48 @@ function RideSharePage({ currentUser, showToast }) {
       <div className="flex-1 overflow-y-auto px-6 pb-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-[1200px] mx-auto">
           {filtered.length === 0 ? (
+            // ride-empty dark: icon color:#333, strong color:#666
             <div className="col-span-3 text-center py-16 flex flex-col items-center gap-3">
-              <span className="text-5xl">🛣️</span>
-              <strong className="text-gray-500 text-base">
+              <span className="text-5xl text-[#333]">🛣️</span>
+              <strong className="text-[#666] text-base">
                 {search ? "No routes match your search." : "No routes posted yet."}
               </strong>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-[#555]">
                 {search ? "Try a different keyword." : "Be the first — post your route!"}
               </span>
             </div>
           ) : filtered.map(r => {
-            const isOwner = r.posterId === currentUser?.id;
+            const isOwner   = r.posterId === currentUser?.id;
             const freqLabel = r.freq === "7" ? "Daily" : `${r.freq}× a week`;
             return (
+              // ride-card dark: bg:#000, border-color:#fff, box-shadow:none
               <div
                 key={r.id}
-                className="bg-gray-800 rounded-2xl border border-gray-700 shadow-[0_6px_24px_rgba(0,0,0,0.4)] p-5 flex flex-col gap-3.5 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,0,0,0.6)] hover:border-gray-600 transition-all"
+                className="bg-black rounded-2xl border border-white p-5 flex flex-col gap-3.5 hover:bg-[#1a1a1a] transition-colors"
               >
                 {/* Route from → to */}
                 <div className="flex items-center gap-2.5">
                   <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                    <span className="w-0.5 h-5 bg-gray-600" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1a9e4a]" />
+                    {/* ride-dot-line dark: bg:#555 */}
+                    <span className="w-0.5 h-5 bg-[#555]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff2d55]" />
                   </div>
                   <div className="flex-1 min-w-0">
+                    {/* ride-card-from dark: color:#fff */}
                     <p className="text-sm font-bold text-white truncate">{r.from}</p>
-                    <p className="text-xs text-gray-400 mt-2 truncate">{r.to}</p>
+                    {/* ride-card-to dark: color:#ccc */}
+                    <p className="text-xs text-[#ccc] mt-2 truncate">{r.to}</p>
                   </div>
+                  {/* ride-owner-badge dark: bg:#000, color:#fff, border:1px solid #fff */}
                   {isOwner && (
-                    <span className="text-xs font-bold bg-red-500/10 text-red-400 px-2.5 py-0.5 rounded-full flex-shrink-0">
+                    <span className="text-xs font-bold bg-black text-white border border-white px-2.5 py-0.5 rounded-full flex-shrink-0">
                       Your route
                     </span>
                   )}
                 </div>
 
-                {/* Tags */}
+                {/* ride-chip dark: bg:#111, color:#fff, border:1px solid #fff */}
                 <div className="flex flex-wrap gap-2">
                   {[
                     { icon: "📅", text: freqLabel },
@@ -279,53 +308,60 @@ function RideSharePage({ currentUser, showToast }) {
                   ].map(({ icon, text }) => (
                     <span
                       key={text}
-                      className="inline-flex items-center gap-1 bg-gray-700 rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-300"
+                      className="inline-flex items-center gap-1 bg-[#111] border border-white rounded-lg px-2.5 py-1 text-xs font-semibold text-white"
                     >
                       {icon} {text}
                     </span>
                   ))}
                 </div>
 
+                {/* ride-card-desc dark: color:#ccc */}
                 {r.desc && (
-                  <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">{r.desc}</p>
+                  <p className="text-xs text-[#ccc] line-clamp-2 leading-relaxed">{r.desc}</p>
                 )}
 
-                {/* Footer */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-700 gap-2">
+                {/* ride-card-footer dark: border-top-color:#333 */}
+                <div className="flex items-center justify-between pt-3 border-t border-[#333] gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-full bg-red-500/10 text-red-400 text-xs font-bold flex items-center justify-center">
+                    {/* ride-card-avatar dark: bg:#222, color:#fff, border:1px solid #fff */}
+                    <span className="w-7 h-7 rounded-full bg-[#222] border border-white text-white text-xs font-bold flex items-center justify-center">
                       {r.posterInitials}
                     </span>
-                    <span className="text-xs font-semibold text-gray-300">{r.posterName}</span>
+                    {/* ride-card-poster-name dark: color:#fff */}
+                    <span className="text-xs font-semibold text-white">{r.posterName}</span>
                   </div>
 
                   {isOwner ? (
                     <div className="flex gap-2">
+                      {/* ride-edit-btn dark: bg:#000, color:#fff, border:1px solid #fff, hover:bg:#1a1a1a */}
                       <button
                         onClick={() => openForm(r)}
-                        className="text-xs bg-blue-500/10 text-blue-400 px-3 py-1.5 rounded-lg font-bold cursor-pointer border-none hover:bg-blue-500/20 transition-colors"
+                        className="text-xs bg-black text-white border border-white px-3 py-1.5 rounded-lg font-bold cursor-pointer hover:bg-[#1a1a1a] transition-colors"
                       >
                         ✏️ Edit
                       </button>
+                      {/* ride-delete-btn dark: bg:#000, color:#fff, border:1px solid #fff, hover:bg:#1a1a1a */}
                       <button
                         onClick={() => { setRoutes(p => p.filter(x => x.id !== r.id)); showToast("🗑️ Route removed"); }}
-                        className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded-lg font-bold cursor-pointer border-none hover:bg-red-500/20 transition-colors"
+                        className="text-xs bg-black text-white border border-white px-3 py-1.5 rounded-lg font-bold cursor-pointer hover:bg-[#1a1a1a] transition-colors"
                       >
                         🗑️ Remove
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-black text-red-400">
+                      {/* ride-card-price: kept as red (not overridden in original dark CSS) */}
+                      <span className="text-sm font-black text-[#ff2d55]">
                         {r.price > 0 ? `₹${r.price}` : "Free"}
-                        <span className="text-xs font-normal text-gray-500">/seat</span>
+                        <span className="text-xs font-normal text-[#999]">/seat</span>
                       </span>
+                      {/* ride-card-contact-btn dark: bg:#fff, color:#000 */}
                       <button
                         onClick={() => {
                           if (!currentUser) { showToast("👋 Please log in first."); return; }
                           showToast("💬 Chat coming soon! Route by " + r.posterName);
                         }}
-                        className="text-xs bg-gray-700 text-white px-3 py-1.5 rounded-lg font-bold cursor-pointer border-none hover:bg-green-600 transition-colors"
+                        className="text-xs bg-white text-black px-3 py-1.5 rounded-lg font-bold cursor-pointer border-none hover:bg-gray-200 transition-colors"
                       >
                         Contact
                       </button>
@@ -338,65 +374,69 @@ function RideSharePage({ currentUser, showToast }) {
         </div>
       </div>
 
-      {/* ── Post / Edit route form overlay ── */}
+      {/* ── Post / Edit Route Form Overlay ── */}
       {formOpen && (
-        <div className="absolute inset-0 z-10 bg-[#0a0a0a] flex flex-col">
+        <div className="absolute inset-0 z-10 bg-black flex flex-col">
 
           {/* Form header */}
-          <div className="h-[70px] flex items-center justify-between px-6 bg-gray-900 border-b border-gray-800 flex-shrink-0">
+          <div className="h-[70px] flex items-center justify-between px-6 bg-black border-b border-white flex-shrink-0">
             <button
               onClick={() => { setFormOpen(false); resetForm(); }}
-              className="inline-flex items-center gap-2 bg-gray-800 border-none px-4 py-2 rounded-full text-sm font-bold text-gray-300 cursor-pointer hover:bg-red-500/10 hover:text-red-400 transition-colors"
+              className="inline-flex items-center gap-2 bg-black border border-white px-4 py-2 rounded-full text-sm font-bold text-white cursor-pointer hover:bg-[#1a1a1a] transition-colors"
             >
               ← Back
             </button>
-            <p className="text-base font-black text-white">Post a <span className="text-red-500">Route</span></p>
+            <p className="text-base font-black text-white">
+              Post a <span className="text-white underline">Route</span>
+            </p>
             <div className="w-20" />
           </div>
 
           <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
-            {/* Map pane */}
-            <div className="flex-1 relative bg-gray-900 min-h-[200px]">
+            {/* Map pane — ride-map-placeholder dark: bg:#111, text color:#555 */}
+            <div className="flex-1 relative bg-[#111] min-h-[200px]">
               {mapSrc && (
                 <iframe src={mapSrc} className="w-full h-full border-none" allowFullScreen loading="lazy" />
               )}
               {mapHidden && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-900">
-                  <span className="text-5xl text-gray-700">🗺️</span>
-                  <p className="text-sm text-gray-500 text-center max-w-[180px] leading-snug">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#111]">
+                  <span className="text-5xl text-[#333]">🗺️</span>
+                  <p className="text-sm text-[#555] text-center max-w-[180px] leading-snug">
                     Enter your route to preview it on the map
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Form pane */}
-            <div className="w-full md:w-[400px] flex-shrink-0 bg-gray-900 border-l border-gray-800 overflow-y-auto p-7">
+            {/* Form pane — ride-form-panel dark: bg:#000, border-left:1px solid #fff */}
+            <div className="w-full md:w-[400px] flex-shrink-0 bg-black border-l border-white overflow-y-auto p-7">
+              {/* ride-form-title dark: color:#fff */}
               <h2 className="text-xl font-black text-white mb-1">
                 {editingRoute ? "Edit your route" : "Your route details"}
               </h2>
-              <p className="text-xs text-gray-500 mb-6">
+              {/* ride-form-sub dark: color:#ccc */}
+              <p className="text-xs text-[#ccc] mb-6">
                 Share your regular trip so neighbours can ride along.
               </p>
 
-              {/* From / To inputs */}
+              {/* From / To — ride-label dark: color:#fff  |  ride-input dark: bg:#000, border-color:#fff, color:#fff */}
               {[
                 { label: "🟢 From", id: "rideFrom", val: from, set: setFrom, placeholder: "Starting point, e.g. Vaishali Nagar" },
                 { label: "📍 To",   id: "rideTo",   val: to,   set: setTo,   placeholder: "Destination, e.g. MI Road" },
               ].map(({ label, id, val, set, placeholder }) => (
                 <div key={id} className="mb-4">
-                  <label className="text-xs font-bold text-gray-400 mb-2 block">{label}</label>
+                  <label className="text-xs font-bold text-white mb-2 block">{label}</label>
                   <input
                     value={val}
                     onChange={e => set(e.target.value)}
                     placeholder={placeholder}
-                    className="w-full px-3.5 py-3 rounded-xl border border-gray-700 text-sm bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:bg-gray-750 transition-colors"
+                    className="w-full px-3.5 py-3 rounded-xl border border-white text-sm bg-black text-white placeholder-[#555] focus:outline-none transition-colors"
                   />
                 </div>
               ))}
 
-              {/* Map preview trigger */}
+              {/* ride-map-preview-btn dark: bg:#000, border-color:#fff, color:#fff */}
               <button
                 onClick={() => {
                   if (!from || !to) { showToast("⚠️ Enter both a starting point and destination first."); return; }
@@ -404,16 +444,17 @@ function RideSharePage({ currentUser, showToast }) {
                   setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
                   setMapHidden(false);
                 }}
-                className="w-full py-3 rounded-xl border border-gray-700 bg-gray-800 text-sm font-bold text-gray-300 cursor-pointer hover:border-red-500 hover:text-red-400 transition-colors mb-5"
+                className="w-full py-3 rounded-xl border border-white bg-black text-sm font-bold text-white cursor-pointer hover:bg-[#1a1a1a] transition-colors mb-5"
               >
                 🗺️ Preview on Map
               </button>
 
-              <hr className="border-gray-800 my-5" />
+              {/* ride-divider dark: border-top-color:#333 */}
+              <hr className="border-[#333] my-5" />
 
-              {/* Frequency selector */}
+              {/* Frequency — ride-freq-btn dark: bg:#000, border-color:#fff, color:#fff  |  active: bg:#fff, color:#000 */}
               <div className="mb-4">
-                <label className="text-xs font-bold text-gray-400 mb-2 block">📅 Times per week</label>
+                <label className="text-xs font-bold text-white mb-2 block">📅 Times per week</label>
                 <div className="flex gap-2 flex-wrap">
                   {["1","2","3","4","5","6","7"].map(v => (
                     <button
@@ -421,8 +462,8 @@ function RideSharePage({ currentUser, showToast }) {
                       onClick={() => setFreq(v)}
                       className={`px-3 py-2 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
                         freq === v
-                          ? "bg-red-500 border-red-500 text-white"
-                          : "border-gray-700 bg-gray-800 text-gray-300 hover:border-red-400 hover:text-red-400"
+                          ? "bg-white border-white text-black"
+                          : "bg-black border-white text-white hover:bg-[#1a1a1a]"
                       }`}
                     >
                       {v === "7" ? "Daily" : `${v}×`}
@@ -434,26 +475,28 @@ function RideSharePage({ currentUser, showToast }) {
               {/* Departure time + seats */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-xs font-bold text-gray-400 mb-2 block">🕐 Departs at</label>
+                  <label className="text-xs font-bold text-white mb-2 block">🕐 Departs at</label>
+                  {/* ride-input dark */}
                   <input
                     type="time"
                     value={deptTime}
                     onChange={e => setDeptTime(e.target.value)}
                     style={{ colorScheme: "dark" }}
-                    className="w-full px-3.5 py-3 rounded-xl border border-gray-700 text-sm bg-gray-800 text-white focus:outline-none focus:border-red-500 transition-colors"
+                    className="w-full px-3.5 py-3 rounded-xl border border-white text-sm bg-black text-white focus:outline-none transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-400 mb-2 block">👥 Seats available</label>
+                  <label className="text-xs font-bold text-white mb-2 block">👥 Seats available</label>
+                  {/* ride-seat-btn dark: bg:#000, border:#fff, color:#fff  |  ride-seats-val dark: color:#fff */}
                   <div className="flex items-center gap-3 mt-1">
                     <button
                       onClick={() => setSeats(s => Math.max(1, s - 1))}
-                      className="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 text-lg font-bold text-gray-300 flex items-center justify-center cursor-pointer hover:border-red-400 hover:text-red-400 transition-colors"
+                      className="w-8 h-8 rounded-full border border-white bg-black text-lg font-bold text-white flex items-center justify-center cursor-pointer hover:bg-[#1a1a1a] transition-colors"
                     >−</button>
                     <span className="text-xl font-black text-white min-w-[20px] text-center">{seats}</span>
                     <button
                       onClick={() => setSeats(s => Math.min(8, s + 1))}
-                      className="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 text-lg font-bold text-gray-300 flex items-center justify-center cursor-pointer hover:border-red-400 hover:text-red-400 transition-colors"
+                      className="w-8 h-8 rounded-full border border-white bg-black text-lg font-bold text-white flex items-center justify-center cursor-pointer hover:bg-[#1a1a1a] transition-colors"
                     >+</button>
                   </div>
                 </div>
@@ -461,37 +504,38 @@ function RideSharePage({ currentUser, showToast }) {
 
               {/* Price */}
               <div className="mb-4">
-                <label className="text-xs font-bold text-gray-400 mb-2 block">₹ Price per seat</label>
+                <label className="text-xs font-bold text-white mb-2 block">₹ Price per seat</label>
                 <input
                   type="number"
                   value={priceVal}
                   onChange={e => setPriceVal(e.target.value)}
                   placeholder="e.g. 50"
                   min="0"
-                  className="w-full px-3.5 py-3 rounded-xl border border-gray-700 text-sm bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+                  className="w-full px-3.5 py-3 rounded-xl border border-white text-sm bg-black text-white placeholder-[#555] focus:outline-none transition-colors"
                 />
               </div>
 
-              {/* Description */}
+              {/* Description — ride-textarea dark: bg:#000, border:#fff, color:#fff  |  ride-char-count dark: color:#555 */}
               <div className="mb-4">
-                <label className="text-xs font-bold text-gray-400 mb-2 block">📝 Description</label>
+                <label className="text-xs font-bold text-white mb-2 block">📝 Description</label>
                 <textarea
                   value={desc}
                   onChange={e => setDesc(e.target.value.slice(0, 400))}
                   placeholder="e.g. I drive to Malviya Nagar every morning around 8 AM, AC car, non-smoker, happy to drop anyone along the route."
                   rows={4}
-                  className="w-full px-3.5 py-3 rounded-xl border border-gray-700 text-sm bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors resize-y leading-relaxed"
+                  className="w-full px-3.5 py-3 rounded-xl border border-white text-sm bg-black text-white placeholder-[#555] focus:outline-none transition-colors resize-y leading-relaxed"
                 />
-                <p className="text-xs text-gray-600 text-right mt-1">{desc.length} / 400</p>
+                <p className="text-xs text-[#555] text-right mt-1">{desc.length} / 400</p>
               </div>
 
               {formError && (
-                <p className="text-red-400 text-sm font-semibold mb-3">{formError}</p>
+                <p className="text-[#ff2d55] text-sm font-semibold mb-3">{formError}</p>
               )}
 
+              {/* ride-submit-btn dark: bg:#fff, color:#000, box-shadow:none */}
               <button
                 onClick={handleSubmit}
-                className="w-full py-4 rounded-2xl bg-red-500 text-white text-sm font-bold cursor-pointer border-none hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(239,68,68,0.4)] transition-all"
+                className="w-full py-4 rounded-2xl bg-white text-black text-sm font-bold cursor-pointer border-none hover:bg-gray-200 transition-colors"
               >
                 {editingRoute ? "💾 Save Changes" : "🚗 Post Route"}
               </button>
