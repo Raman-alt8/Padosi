@@ -49,18 +49,17 @@ function renderStars(rating) {
 }
 
 // ─── Dark mode token helper ───────────────────────────────────────────────────
-// Usage: dm(dark, "dark-class", "light-class")
 function dm(dark, darkCls, lightCls) {
   return dark ? darkCls : lightCls;
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
-function Toast({ message }) {
+function Toast({ message, dark }) {
   return (
     <div
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-white text-black border border-black px-6 py-3 rounded-full text-sm font-semibold z-[9999] pointer-events-none transition-all duration-300 ${
-        message ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-      }`}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-sm font-semibold z-[9999] pointer-events-none transition-all duration-300 ${
+        dark ? "bg-white text-black" : "bg-[#111] text-white"
+      } ${message ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
     >
       {message}
     </div>
@@ -93,15 +92,15 @@ function Modal({ open, onClose, children, maxWidth = "max-w-md", dark }) {
       className="fixed inset-0 bg-black/60 z-[2000] flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className={`rounded-2xl p-9 w-full ${maxWidth} relative shadow-2xl border ${
+      <div className={`rounded-2xl p-9 w-full ${maxWidth} relative border ${
         dark
-          ? "bg-black text-white border-white/20"
-          : "bg-white text-gray-900 border-transparent"
+          ? "bg-black text-white border-white shadow-none"
+          : "bg-white text-[#111] border-transparent shadow-[0_20px_60px_rgba(0,0,0,0.15)]"
       }`}>
         <button
           onClick={onClose}
           className={`absolute top-4 right-5 text-2xl leading-none bg-transparent border-none cursor-pointer ${
-            dark ? "text-white/50 hover:text-white" : "text-gray-400 hover:text-red-500"
+            dark ? "text-[#888] hover:text-white" : "text-[#999] hover:text-[#ff2d55]"
           }`}
         >
           ×
@@ -114,8 +113,10 @@ function Modal({ open, onClose, children, maxWidth = "max-w-md", dark }) {
 
 function ModalTag({ children, dark }) {
   return (
-    <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full mb-4 ${
-      dark ? "bg-white/10 text-white" : "bg-red-50 text-red-500"
+    <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full mb-4 border ${
+      dark
+        ? "bg-black text-white border-white"
+        : "bg-[#fff0f3] text-[#ff2d55] border-transparent"
     }`}>
       {children}
     </span>
@@ -150,10 +151,14 @@ function NearbyTaskCard({ task, showToast, dark }) {
   const modeLabel = task.mode === "now" ? "🟢 Now" : "🕒 Scheduled";
 
   return (
-    <div className={`rounded-xl p-2.5 mb-2.5 text-sm ${dm(dark, "bg-white/10", "bg-gray-100")}`}>
-      <p className={`font-semibold mb-1.5 leading-snug break-words ${dm(dark, "text-white", "text-gray-900")}`}>{task.text}</p>
-      <div className={`flex items-center gap-2 flex-wrap text-xs ${dm(dark, "text-white/60", "text-gray-500")}`}>
-        <span className={`font-bold px-2 py-0.5 rounded-lg ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>₹{task.price}</span>
+    <div className={`rounded-xl p-2.5 mb-2.5 text-sm ${
+      dark ? "bg-black border border-white" : "bg-[#f4f4f4]"
+    }`}>
+      <p className={`font-semibold mb-1.5 leading-snug break-words ${dark ? "text-white" : "text-[#111]"}`}>{task.text}</p>
+      <div className={`flex items-center gap-2 flex-wrap text-xs ${dark ? "text-[#aaa]" : "text-[#888]"}`}>
+        <span className={`font-bold px-2 py-0.5 rounded-lg ${
+          dark ? "bg-black text-white border border-white" : "bg-[#fff0f3] text-[#ff2d55]"
+        }`}>₹{task.price}</span>
         <span>{modeLabel}</span>
       </div>
 
@@ -162,16 +167,20 @@ function NearbyTaskCard({ task, showToast, dark }) {
           <button
             onClick={handleAccept}
             disabled={state === "loading"}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold hover:bg-green-600 transition-colors disabled:opacity-60 cursor-pointer border-none ${
-              dm(dark, "bg-white text-black hover:bg-green-600 hover:text-white", "bg-gray-900 text-white")
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-60 cursor-pointer border-none ${
+              dark
+                ? "bg-white text-black hover:bg-[#1a9e4a] hover:text-white"
+                : "bg-[#111] text-white hover:bg-[#1a9e4a]"
             }`}
           >
             {state === "loading" ? "Sending…" : "🤝 Accept"}
           </button>
           <button
             onClick={handleDecline}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border-none ${
-              dm(dark, "bg-white/10 text-white/60 hover:bg-red-500/20 hover:text-red-400", "bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500")
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border ${
+              dark
+                ? "bg-black text-[#aaa] border-white hover:bg-white hover:text-black"
+                : "bg-[#f0f0f0] text-[#888] border-transparent hover:bg-[#ffe0e6] hover:text-[#ff2d55]"
             }`}
           >
             ✕ Decline
@@ -179,18 +188,22 @@ function NearbyTaskCard({ task, showToast, dark }) {
         </div>
       ) : (
         <div className="mt-2">
-          <div className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 mb-1.5 ${dm(dark, "bg-white/10", "bg-white")}`}>
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>
+          <div className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 mb-1.5 border ${
+            dark ? "bg-black border-white" : "bg-white border-[#eee]"
+          }`}>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+              dark ? "bg-black text-white border border-white" : "bg-[#fff0f3] text-[#ff2d55]"
+            }`}>
               {poster?.initials || "U"}
             </span>
             {poster?.phone
-              ? <span className={`text-xs font-bold ${dm(dark, "text-white", "text-gray-900")}`}>+91 {poster.phone}</span>
-              : <span className={`text-xs italic ${dm(dark, "text-white/40", "text-gray-400")}`}>No phone on file</span>
+              ? <span className={`text-xs font-bold ${dark ? "text-white" : "text-[#111]"}`}>+91 {poster.phone}</span>
+              : <span className={`text-xs italic ${dark ? "text-[#666]" : "text-[#aaa]"}`}>No phone on file</span>
             }
           </div>
           <div className="flex gap-1.5">
             {poster?.phone && (
-              <a href={`tel:${poster.phone}`} className="flex-1 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold text-center no-underline">📞 Call</a>
+              <a href={`tel:${poster.phone}`} className="flex-1 py-1.5 rounded-lg bg-[#1a9e4a] text-white text-xs font-bold text-center no-underline">📞 Call</a>
             )}
             <button
               onClick={() => {
@@ -202,7 +215,7 @@ function NearbyTaskCard({ task, showToast, dark }) {
                 }
               }}
               className={`${poster?.phone ? "flex-1" : "w-full"} py-1.5 rounded-lg text-xs font-bold cursor-pointer border-none transition-colors ${
-                dm(dark, "bg-white text-black hover:bg-white/80", "bg-gray-900 text-white hover:bg-gray-700")
+                dark ? "bg-white text-black hover:bg-[#ddd]" : "bg-[#111] text-white hover:bg-[#2a2a2a]"
               }`}
             >
               💬 Chat
@@ -217,15 +230,17 @@ function NearbyTaskCard({ task, showToast, dark }) {
 // ─── Nearby Panel ─────────────────────────────────────────────────────────────
 function NearbyPanel({ tasks, showToast, dark }) {
   return (
-    <div className={`w-64 rounded-2xl p-4 shadow-xl max-h-[480px] overflow-y-auto flex-shrink-0 border ${
-      dm(dark, "bg-black border-white/20", "bg-white border-transparent")
+    <div className={`w-64 rounded-2xl p-4 max-h-[480px] overflow-y-auto flex-shrink-0 border ${
+      dark
+        ? "bg-black border-white shadow-none"
+        : "bg-white border-transparent shadow-[0_15px_40px_rgba(0,0,0,0.1)]"
     }`}>
-      <div className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${dm(dark, "text-white/40", "text-gray-400")}`}>
-        <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
+      <div className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${dark ? "text-[#888]" : "text-[#999]"}`}>
+        <span className="w-2 h-2 rounded-full bg-[#1a9e4a] inline-block animate-pulse" />
         Nearby Tasks
       </div>
       {tasks.length === 0
-        ? <p className={`text-xs text-center py-4 ${dm(dark, "text-white/40", "text-gray-400")}`}>No nearby tasks right now.</p>
+        ? <p className={`text-xs text-center py-4 ${dark ? "text-[#888]" : "text-[#bbb]"}`}>No nearby tasks right now.</p>
         : tasks.map(t => <NearbyTaskCard key={t.id} task={t} showToast={showToast} dark={dark} />)
       }
     </div>
@@ -236,43 +251,53 @@ function NearbyPanel({ tasks, showToast, dark }) {
 function MyTaskCard({ task, onEdit, onDelete, dark }) {
   return (
     <div className={`rounded-xl p-3 mb-2.5 text-sm border ${
-      dm(dark, "bg-white/5 border-white/10", "bg-white border-gray-100")
+      dark ? "bg-black border-white" : "bg-white border-[#eee]"
     }`}>
-      <p className={`font-semibold leading-snug mb-1 break-words ${dm(dark, "text-white", "text-gray-900")}`}>
+      <p className={`font-semibold leading-snug mb-1 break-words ${dark ? "text-white" : "text-[#111]"}`}>
         {task.text}
-        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg ${
+        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg border ${
           task.accepted
-            ? dm(dark, "bg-green-500/20 text-green-400", "bg-green-50 text-green-700")
-            : dm(dark, "bg-yellow-500/20 text-yellow-400", "bg-yellow-50 text-yellow-700")
+            ? dark ? "bg-black text-white border-white" : "bg-[#e3fbe8] text-[#1a9e4a] border-transparent"
+            : dark ? "bg-black text-white border-white" : "bg-[#fff3cd] text-[#856404] border-transparent"
         }`}>
           {task.accepted ? "Accepted" : "Pending"}
         </span>
       </p>
-      <p className={`text-xs mt-1 ${dm(dark, "text-white/50", "text-gray-500")}`}>
+      <p className={`text-xs mt-1 ${dark ? "text-[#aaa]" : "text-[#888]"}`}>
         ₹{task.price} • {task.mode === "now" ? "🟢 Now" : "🕒 " + formatDateTime(task.date, task.time)}
       </p>
 
       {task.accepted && task.helper && (
-        <div className={`mt-2 border rounded-xl p-2.5 ${dm(dark, "border-white/10", "border-gray-100")}`}>
+        <div className={`mt-2 border rounded-xl p-2.5 ${dark ? "border-white" : "border-[#eee]"}`}>
           <div className="flex items-center gap-2.5">
-            <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>
+            <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+              dark ? "bg-black text-white border border-white" : "bg-[#fff0f3] text-[#ff2d55]"
+            }`}>
               {task.helper.initials}
             </span>
             <div>
-              <p className={`text-xs font-bold ${dm(dark, "text-white", "text-gray-900")}`}>{task.helper.name} ✅</p>
-              <p className="text-xs text-yellow-500">{renderStars(task.helper.rating)} {task.helper.rating.toFixed(1)} ({task.helper.reviews})</p>
+              <p className={`text-xs font-bold ${dark ? "text-white" : "text-[#111]"}`}>{task.helper.name} ✅</p>
+              <p className="text-xs text-[#ff9500]">{renderStars(task.helper.rating)} {task.helper.rating.toFixed(1)} ({task.helper.reviews})</p>
             </div>
           </div>
-          <div className={`flex justify-between items-center mt-2 pt-2 border-t ${dm(dark, "border-white/10", "border-gray-100")}`}>
-            <span className={`text-xs font-semibold ${dm(dark, "text-white/70", "text-gray-600")}`}>{task.helper.phone}</span>
-            <a href={`tel:${task.helper.phone?.replace(/\s/g, "")}`} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg no-underline font-bold">📞 Call</a>
+          <div className={`flex justify-between items-center mt-2 pt-2 border-t ${dark ? "border-white" : "border-[#f0f0f0]"}`}>
+            <span className={`text-xs font-semibold ${dark ? "text-[#ccc]" : "text-[#555]"}`}>{task.helper.phone}</span>
+            <a href={`tel:${task.helper.phone?.replace(/\s/g, "")}`} className="text-xs bg-[#1a9e4a] text-white px-3 py-1.5 rounded-lg no-underline font-bold">📞 Call</a>
           </div>
         </div>
       )}
 
       <div className="flex gap-2 mt-2 flex-wrap">
-        <button onClick={() => onEdit(task)} className={`text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border-none transition-colors ${dm(dark, "bg-white/10 text-white hover:bg-white/20", "bg-blue-50 text-blue-600 hover:bg-blue-100")}`}>Edit</button>
-        <button onClick={() => onDelete(task.id)} className={`text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border-none transition-colors ${dm(dark, "bg-white/10 text-red-400 hover:bg-red-500/20", "bg-red-50 text-red-500 hover:bg-red-100")}`}>Delete</button>
+        <button onClick={() => onEdit(task)} className={`text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border transition-colors ${
+          dark
+            ? "bg-black text-white border-white hover:bg-[#1a1a1a]"
+            : "bg-[#e8eaff] text-[#4453ff] border-transparent hover:bg-[#d0d3ff]"
+        }`}>Edit</button>
+        <button onClick={() => onDelete(task.id)} className={`text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border transition-colors ${
+          dark
+            ? "bg-black text-white border-white hover:bg-[#1a1a1a]"
+            : "bg-[#ffe0e6] text-[#ff2d55] border-transparent hover:bg-[#ffccd5]"
+        }`}>Delete</button>
       </div>
     </div>
   );
@@ -283,13 +308,13 @@ function TasksSidebar({ tasks, visible, onEdit, onDelete, dark }) {
   return (
     <div className={`transition-all duration-500 ease-in-out overflow-hidden flex-shrink-0 ${visible ? "w-[300px] min-w-[300px] opacity-100" : "w-0 min-w-0 opacity-0"}`}>
       <div className="w-[300px] px-5 pt-6 pb-6">
-        <h3 className={`text-sm font-bold flex items-center gap-2 mb-1 ${dm(dark, "text-white", "text-gray-900")}`}>
-          <span className="text-red-500">✅</span> My Tasks
+        <h3 className={`text-sm font-bold flex items-center gap-2 mb-1 ${dark ? "text-white" : "text-[#111]"}`}>
+          <span className="text-[#ff2d55]">✅</span> My Tasks
         </h3>
-        <p className={`text-xs mb-4 ${dm(dark, "text-white/40", "text-gray-400")}`}>Track the tasks you've posted</p>
+        <p className={`text-xs mb-4 ${dark ? "text-[#888]" : "text-[#999]"}`}>Track the tasks you've posted</p>
         <div className="flex flex-col gap-2 max-h-[480px] overflow-y-auto">
           {tasks.length === 0
-            ? <p className={`text-xs text-center py-5 ${dm(dark, "text-white/40", "text-gray-400")}`}>No tasks yet — post one to get started.</p>
+            ? <p className={`text-xs text-center py-5 ${dark ? "text-[#888]" : "text-[#bbb]"}`}>No tasks yet — post one to get started.</p>
             : tasks.map(t => <MyTaskCard key={t.id} task={t} onEdit={onEdit} onDelete={onDelete} dark={dark} />)
           }
         </div>
@@ -414,11 +439,11 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
     showToast("🛠️ " + cat.label + " — tell us what you need");
   };
 
-  // Shared input class
-  const inputCls = `px-4 py-3.5 rounded-xl border text-sm text-gray-900 focus:outline-none transition-colors ${
+  // Input class — matches file 2's input styling
+  const inputCls = `px-4 py-3.5 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
-      ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
-      : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+      ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
+      : "bg-white border-[#ddd] text-[#111] placeholder:text-[#aaa] focus:border-[#ff2d55]"
   }`;
 
   return (
@@ -436,35 +461,46 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
           <div className="w-full max-w-[1200px] flex flex-col gap-5">
 
             {/* Hero card */}
-            <div className={`rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] p-8 w-full border ${
-              dm(dark, "bg-black border-white/15", "bg-white border-transparent")
+            <div className={`rounded-2xl p-8 w-full border ${
+              dark
+                ? "bg-black border-white shadow-none"
+                : "bg-white border-transparent shadow-[0_10px_40px_rgba(0,0,0,0.06)]"
             }`}>
               <div className="flex justify-between items-start gap-10 flex-wrap">
                 <div className="flex-1 min-w-0">
+                  {/* Location button */}
                   <button
                     onClick={handleLocationClick}
-                    className={`inline-flex items-center gap-1.5 border-none px-4 py-2 rounded-full text-sm font-semibold cursor-pointer mb-4 transition-colors ${
-                      dm(dark, "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white", "bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500")
+                    className={`inline-flex items-center gap-1.5 border px-4 py-2 rounded-full text-sm font-semibold cursor-pointer mb-4 transition-colors ${
+                      dark
+                        ? "bg-black text-[#aaa] border-white hover:bg-white hover:text-black"
+                        : "bg-[#f3f3f3] text-[#555] border-transparent hover:bg-[#ffe0e6] hover:text-[#ff2d55]"
                     }`}
                   >
                     📍 {locationName}
                   </button>
 
-                  <h1 className={`text-4xl font-bold leading-tight mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>
+                  <h1 className={`text-4xl font-bold leading-tight mb-4 ${dark ? "text-white" : "text-[#111]"}`}>
                     Get help nearby with <br />
-                    <span className="text-red-500 text-5xl">Padosi</span>
+                    <span className={`text-5xl ${dark ? "text-white underline" : "text-[#ff2d55]"}`}>Padosi</span>
                   </h1>
 
                   {/* Mode toggle */}
-                  <div className={`inline-flex rounded-full p-1 mb-4 ${dm(dark, "bg-white/10", "bg-gray-100")}`}>
+                  <div className={`inline-flex rounded-full p-1 mb-4 border ${
+                    dark ? "bg-black border-white" : "bg-[#f3f3f3] border-transparent"
+                  }`}>
                     {["now", "later"].map(m => (
                       <button
                         key={m}
                         onClick={() => setMode(m)}
                         className={`px-4 py-2.5 rounded-full text-sm cursor-pointer border-none transition-all ${
                           mode === m
-                            ? dm(dark, "bg-white text-black font-semibold shadow", "bg-white shadow text-gray-900 font-semibold")
-                            : dm(dark, "text-white/60 hover:text-white bg-transparent", "text-gray-600 hover:text-gray-900 bg-transparent")
+                            ? dark
+                              ? "bg-white text-black font-semibold"
+                              : "bg-white shadow text-[#111] font-semibold"
+                            : dark
+                              ? "text-[#aaa] hover:text-white bg-transparent"
+                              : "text-[#555] hover:text-[#111] bg-transparent"
                         }`}
                       >
                         {m === "now" ? "Call now" : "Schedule later"}
@@ -473,7 +509,9 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                   </div>
 
                   {/* Input card */}
-                  <div className={`mt-2 p-4 rounded-2xl ${dm(dark, "bg-white/5", "bg-gray-50")}`}>
+                  <div className={`mt-2 p-4 rounded-2xl border ${
+                    dark ? "bg-black border-white" : "bg-[#fafafa] border-transparent"
+                  }`}>
                     <div className="flex gap-3 flex-wrap">
                       <input
                         type="text"
@@ -494,7 +532,11 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                       />
                     </div>
 
-                    <p className={`text-xs mt-1.5 ${taskText.length >= MAX_CHARS ? "text-red-500 font-semibold" : dm(dark, "text-white/40", "text-gray-400")}`}>
+                    <p className={`text-xs mt-1.5 ${
+                      taskText.length >= MAX_CHARS
+                        ? "text-[#ff2d55] font-semibold"
+                        : dark ? "text-[#888]" : "text-[#999]"
+                    }`}>
                       {taskText.length} / {MAX_CHARS} characters
                     </p>
 
@@ -505,21 +547,23 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                       </div>
                     )}
 
-                    {error && <p className="text-red-400 text-xs mt-2 font-medium">⚠️ {error}</p>}
+                    {error && <p className="text-[#ff2d55] text-xs mt-2 font-medium">⚠️ {error}</p>}
 
                     <div className="flex items-center gap-2 mt-3">
                       <button
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="px-7 py-3.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all disabled:opacity-60 disabled:translate-y-0 cursor-pointer border-none"
+                        className="px-7 py-3.5 rounded-xl bg-[#ff2d55] text-white font-semibold text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all disabled:opacity-60 disabled:translate-y-0 cursor-pointer border-none"
                       >
                         {loading ? "Saving…" : editingId ? "Save Changes" : "Find Help"}
                       </button>
                       {editingId && (
                         <button
                           onClick={exitEditMode}
-                          className={`px-7 py-3.5 rounded-xl border font-semibold text-sm transition-colors cursor-pointer ${
-                            dm(dark, "border-white/20 bg-transparent text-white/70 hover:bg-white/10", "border-gray-200 bg-white text-gray-600 hover:bg-gray-50")
+                          className={`px-7 py-3.5 rounded-xl border font-semibold text-sm transition-colors cursor-pointer bg-transparent ${
+                            dark
+                              ? "border-white text-[#aaa] hover:bg-[#1a1a1a]"
+                              : "border-[#ddd] text-[#555] hover:bg-[#f3f3f3]"
                           }`}
                         >
                           Cancel
@@ -543,10 +587,15 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
       {/* Location map modal */}
       <Modal open={showMap} onClose={() => setShowMap(false)} maxWidth="max-w-xl" dark={dark}>
         <ModalTag dark={dark}>Your Location</ModalTag>
-        <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Choose your location</h2>
+        <h2 className={`text-xl font-bold mb-4 ${dark ? "text-white" : "text-[#111]"}`}>Choose your location</h2>
         {mapSrc && <iframe src={mapSrc} className="w-full h-80 rounded-xl border-none" allowFullScreen loading="lazy" />}
-        <p className={`text-xs mt-2.5 text-center ${dm(dark, "text-white/40", "text-gray-400")}`}>{mapLabel}</p>
-        <button onClick={() => setShowMap(false)} className="mt-4 w-full py-3 bg-red-500 text-white rounded-xl font-semibold cursor-pointer border-none hover:opacity-90 transition-opacity">
+        <p className={`text-xs mt-2.5 text-center ${dark ? "text-[#888]" : "text-[#888]"}`}>{mapLabel}</p>
+        <button
+          onClick={() => setShowMap(false)}
+          className={`mt-4 w-full py-3 rounded-xl font-semibold cursor-pointer border-none transition-opacity hover:opacity-90 ${
+            dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"
+          }`}
+        >
           ✓ Confirm Location
         </button>
       </Modal>
@@ -594,75 +643,86 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
     finally { setSignupLoading(false); }
   };
 
+  // Input styling matching file 2
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
-      ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
-      : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+      ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
+      : "bg-white border-[#ddd] text-[#111] placeholder:text-[#aaa] focus:border-[#ff2d55]"
   }`;
 
+  // Google button matching file 2's .google-btn
   const GoogleButton = () => (
     <a
       href="/auth/google"
       className={`flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 text-sm font-semibold transition-all no-underline ${
         dark
-          ? "border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/40"
-          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-md"
+          ? "border-white bg-black text-white hover:bg-[#1a1a1a]"
+          : "border-[#ddd] bg-white text-[#333] hover:border-[#bbb] hover:shadow-md"
       }`}
-      style={{ boxShadow: dark ? "none" : "0 1px 3px rgba(0,0,0,0.08)" }}
     >
       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 flex-shrink-0" alt="Google" />
       <span>Continue with Google</span>
     </a>
   );
 
+  // Divider matching file 2's .or-divider
   const Divider = () => (
-    <div className={`flex items-center gap-2.5 text-xs ${dm(dark, "text-white/30", "text-gray-300")}`}>
-      <span className={`flex-1 h-px ${dm(dark, "bg-white/10", "bg-gray-100")}`} />
+    <div className={`flex items-center gap-2.5 text-xs ${dark ? "text-[#888]" : "text-[#bbb]"}`}>
+      <span className={`flex-1 h-px ${dark ? "bg-white" : "bg-[#eee]"}`} />
       or
-      <span className={`flex-1 h-px ${dm(dark, "bg-white/10", "bg-gray-100")}`} />
+      <span className={`flex-1 h-px ${dark ? "bg-white" : "bg-[#eee]"}`} />
     </div>
   );
+
+  // Submit button matching file 2's .auth-submit-btn
+  const submitBtnCls = `py-3 rounded-xl font-semibold text-sm cursor-pointer border-none transition-opacity disabled:opacity-60 mt-1 ${
+    dark ? "bg-white text-black hover:opacity-80" : "bg-[#ff2d55] text-white hover:opacity-90"
+  }`;
 
   return (
     <>
       {/* Login */}
       <Modal open={loginOpen} onClose={() => onClose("login")} dark={dark}>
         <ModalTag dark={dark}>Welcome back</ModalTag>
-        <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Log in to Padosi</h2>
+        <h2 className={`text-xl font-bold mb-4 ${dark ? "text-white" : "text-[#111]"}`}>Log in to Padosi</h2>
         <div className="flex flex-col gap-3">
           <GoogleButton />
           <Divider />
           <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyPress={e => e.key === "Enter" && handleLogin()} placeholder="Email address" className={inputCls} />
           <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyPress={e => e.key === "Enter" && handleLogin()} placeholder="Password" className={inputCls} />
-          {loginError && <p className="text-red-400 text-xs font-medium">{loginError}</p>}
-          <button onClick={handleLogin} disabled={loginLoading} className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1">
+          {loginError && <p className="text-[#ff2d55] text-xs font-medium">{loginError}</p>}
+          <button onClick={handleLogin} disabled={loginLoading} className={submitBtnCls}>
             {loginLoading ? "Logging in…" : "Log in"}
           </button>
         </div>
-        <p className={`text-xs text-center mt-3 ${dm(dark, "text-white/50", "text-gray-500")}`}>
+        <p className={`text-xs text-center mt-3 ${dark ? "text-[#888]" : "text-[#666]"}`}>
           Don't have an account?{" "}
-          <button onClick={() => onClose("login")} className={`font-semibold bg-transparent border-none cursor-pointer ${dm(dark, "text-white hover:text-red-400", "text-red-500")}`}>Sign up</button>
+          <button onClick={() => onClose("login")} className={`font-semibold bg-transparent border-none cursor-pointer ${
+            dark ? "text-white underline" : "text-[#ff2d55]"
+          }`}>Sign up</button>
         </p>
       </Modal>
 
       {/* Signup */}
       <Modal open={signupOpen} onClose={() => onClose("signup")} dark={dark}>
         <ModalTag dark={dark}>Join Padosi</ModalTag>
-        <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Create your account</h2>
+        <h2 className={`text-xl font-bold mb-4 ${dark ? "text-white" : "text-[#111]"}`}>Create your account</h2>
         <div className="flex flex-col gap-3">
           <GoogleButton />
           <Divider />
           <input type="text" value={signupName} onChange={e => setSignupName(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Full name" className={inputCls} />
           <input type="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Email address" className={inputCls} />
           <input type="password" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Password (min 6 characters)" className={inputCls} />
-          {signupError && <p className="text-red-400 text-xs font-medium">{signupError}</p>}
-          <button onClick={handleSignup} disabled={signupLoading} className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1">
+          {signupError && <p className="text-[#ff2d55] text-xs font-medium">{signupError}</p>}
+          <button onClick={handleSignup} disabled={signupLoading} className={submitBtnCls}>
             {signupLoading ? "Creating account…" : "Sign up"}
           </button>
         </div>
-        <p className={`text-xs text-center mt-3 ${dm(dark, "text-white/50", "text-gray-500")}`}>
+        <p className={`text-xs text-center mt-3 ${dark ? "text-[#888]" : "text-[#666]"}`}>
           Already have an account?{" "}
-          <button onClick={() => onClose("signup")} className={`font-semibold bg-transparent border-none cursor-pointer ${dm(dark, "text-white hover:text-red-400", "text-red-500")}`}>Log in</button>
+          <button onClick={() => onClose("signup")} className={`font-semibold bg-transparent border-none cursor-pointer ${
+            dark ? "text-white underline" : "text-[#ff2d55]"
+          }`}>Log in</button>
         </p>
       </Modal>
     </>
@@ -701,25 +761,28 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
   const verified = !!(currentUser?.phone);
 
+  // Input class — matches file 2 .manage-field input
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
-      ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
-      : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+      ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
+      : "bg-white border-[#ddd] text-[#111] focus:border-[#ff2d55]"
   }`;
 
   return (
     <Modal open={open} onClose={onClose} dark={dark}>
       <ModalTag dark={dark}>Account settings</ModalTag>
-      <h2 className={`text-xl font-bold mb-5 ${dm(dark, "text-white", "text-gray-900")}`}>Manage account</h2>
+      <h2 className={`text-xl font-bold mb-5 ${dark ? "text-white" : "text-[#111]"}`}>Manage account</h2>
 
       <div className="flex items-center gap-3.5 mb-6">
-        <span className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>{initial}</span>
+        <span className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 border ${
+          dark ? "bg-black text-white border-white" : "bg-[#fff0f3] text-[#ff2d55] border-transparent"
+        }`}>{initial}</span>
         <div>
-          <p className={`text-sm font-bold ${dm(dark, "text-white", "text-gray-900")}`}>{currentUser?.full_name || "User"}</p>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 mt-1 ${
+          <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>{currentUser?.full_name || "User"}</p>
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 mt-1 border ${
             verified
-              ? dm(dark, "bg-green-500/20 text-green-400", "bg-green-50 text-green-700")
-              : dm(dark, "bg-yellow-500/20 text-yellow-400", "bg-yellow-50 text-yellow-700")
+              ? dark ? "bg-black text-white border-white" : "bg-[#e3fbe8] text-[#1a9e4a] border-transparent"
+              : dark ? "bg-black text-white border-white" : "bg-[#fff3cd] text-[#856404] border-transparent"
           }`}>
             {verified ? "✅ Verified member" : "⚠️ Not verified — add a phone"}
           </span>
@@ -727,26 +790,28 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
       </div>
 
       <div className="mb-4">
-        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dm(dark, "text-white/40", "text-gray-400")}`}>Full name</label>
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dark ? "text-[#888]" : "text-[#999]"}`}>Full name</label>
         <input value={name} onChange={e => setName(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSave()} className={inputCls} />
       </div>
 
       <div className="mb-4">
-        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dm(dark, "text-white/40", "text-gray-400")}`}>Email address</label>
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dark ? "text-[#888]" : "text-[#999]"}`}>Email address</label>
         <input
           value={currentUser?.email || ""}
           disabled
           className={`w-full px-4 py-3 rounded-xl border text-sm cursor-not-allowed ${
-            dm(dark, "bg-white/5 border-white/10 text-white/30", "bg-gray-50 border-gray-200 text-gray-400")
+            dark
+              ? "bg-[#1a1a1a] border-[#333] text-[#555]"
+              : "bg-[#f6f7fb] border-[#ddd] text-[#999]"
           }`}
         />
-        <span className={`text-xs mt-1 block ${dm(dark, "text-white/30", "text-gray-300")}`}>Your email can't be changed yet.</span>
+        <span className={`text-xs mt-1 block ${dark ? "text-[#666]" : "text-[#bbb]"}`}>Your email can't be changed yet.</span>
       </div>
 
       <div className="mb-5">
-        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dm(dark, "text-white/40", "text-gray-400")}`}>Phone number</label>
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dark ? "text-[#888]" : "text-[#999]"}`}>Phone number</label>
         <div className="relative">
-          <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none ${dm(dark, "text-white/50", "text-gray-500")}`}>🇮🇳 +91</span>
+          <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none ${dark ? "text-[#888]" : "text-[#555]"}`}>🇮🇳 +91</span>
           <input
             type="tel"
             value={phone}
@@ -755,17 +820,19 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
             placeholder="10-digit mobile number"
             className={`w-full pl-16 pr-10 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
               dark
-                ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
-                : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+                ? "bg-black border-white text-white placeholder:text-[#666]"
+                : "bg-white border-[#ddd] text-[#111] focus:border-[#ff2d55]"
             }`}
           />
-          {phone.length === 10 && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">✓</span>}
+          {phone.length === 10 && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#1a9e4a]">✓</span>}
         </div>
-        {phoneError && <p className="text-red-400 text-xs mt-1">{phoneError}</p>}
+        {phoneError && <p className="text-[#ff2d55] text-xs mt-1">{phoneError}</p>}
       </div>
 
-      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
-      <button onClick={handleSave} disabled={loading} className="w-full py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60">
+      {error && <p className="text-[#ff2d55] text-xs mb-3">{error}</p>}
+      <button onClick={handleSave} disabled={loading} className={`w-full py-3 rounded-xl font-semibold text-sm cursor-pointer border-none transition-opacity disabled:opacity-60 ${
+        dark ? "bg-white text-black hover:opacity-80" : "bg-[#ff2d55] text-white hover:opacity-90"
+      }`}>
         {loading ? "Saving…" : "Save changes"}
       </button>
     </Modal>
@@ -776,22 +843,22 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
 function TaskSummaryCard({ task, dark }) {
   const accepted = task.accepted;
   return (
-    <div className={`rounded-xl p-3 mb-2.5 text-sm border ${dm(dark, "bg-white/5 border-white/10", "bg-white border-gray-100")}`}>
-      <p className={`font-semibold leading-snug mb-1 break-words ${dm(dark, "text-white", "text-gray-900")}`}>
+    <div className={`rounded-xl p-3 mb-2.5 text-sm border ${dark ? "bg-black border-white" : "bg-white border-[#eee]"}`}>
+      <p className={`font-semibold leading-snug mb-1 break-words ${dark ? "text-white" : "text-[#111]"}`}>
         {task.text}
-        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg ${
+        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg border ${
           accepted
-            ? dm(dark, "bg-green-500/20 text-green-400", "bg-green-50 text-green-700")
-            : dm(dark, "bg-yellow-500/20 text-yellow-400", "bg-yellow-50 text-yellow-700")
+            ? dark ? "bg-black text-white border-white" : "bg-[#e3fbe8] text-[#1a9e4a] border-transparent"
+            : dark ? "bg-black text-white border-white" : "bg-[#fff3cd] text-[#856404] border-transparent"
         }`}>
           {accepted ? "Accepted" : "Pending"}
         </span>
       </p>
-      <p className={`text-xs mt-1 ${dm(dark, "text-white/50", "text-gray-500")}`}>₹{task.price} • {task.mode === "now" ? "🟢 Now" : "🕒 " + formatDateTime(task.date, task.time)}</p>
+      <p className={`text-xs mt-1 ${dark ? "text-[#aaa]" : "text-[#888]"}`}>₹{task.price} • {task.mode === "now" ? "🟢 Now" : "🕒 " + formatDateTime(task.date, task.time)}</p>
       {accepted && task.helper && (
-        <p className="text-xs text-green-500 font-semibold mt-1">✅ {task.helper.name} • {task.helper.phone}</p>
+        <p className="text-xs text-[#1a9e4a] font-semibold mt-1">✅ {task.helper.name} • {task.helper.phone}</p>
       )}
-      {task.created_at && <p className={`text-xs mt-1 ${dm(dark, "text-white/25", "text-gray-300")}`}>{formatPostedDate(task.created_at)}</p>}
+      {task.created_at && <p className={`text-xs mt-1 ${dark ? "text-[#555]" : "text-[#bbb]"}`}>{formatPostedDate(task.created_at)}</p>}
     </div>
   );
 }
@@ -802,9 +869,9 @@ function ActivityModal({ open, onClose, tasks, dark }) {
   return (
     <Modal open={open} onClose={onClose} dark={dark}>
       <ModalTag dark={dark}>Your Activity</ModalTag>
-      <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Task Status</h2>
+      <h2 className={`text-xl font-bold mb-4 ${dark ? "text-white" : "text-[#111]"}`}>Task Status</h2>
       {tasks.length === 0 ? (
-        <p className={`text-xs ${dm(dark, "text-white/40", "text-gray-400")}`}>You haven't posted any tasks yet.</p>
+        <p className={`text-xs ${dark ? "text-[#888]" : "text-[#bbb]"}`}>You haven't posted any tasks yet.</p>
       ) : (
         <>
           {[
@@ -812,12 +879,14 @@ function ActivityModal({ open, onClose, tasks, dark }) {
             { label: "✅ Accepted", list: accepted, empty: "No accepted tasks yet." }
           ].map(({ label, list, empty }) => (
             <div key={label} className="mb-5">
-              <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-3 ${dm(dark, "text-white/40", "text-gray-500")}`}>
+              <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-3 ${dark ? "text-[#888]" : "text-[#555]"}`}>
                 {label}
-                <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${dm(dark, "bg-white/10 text-white/60", "bg-gray-100 text-gray-500")}`}>{list.length}</span>
+                <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full border ${
+                  dark ? "bg-black text-[#aaa] border-white" : "bg-[#f0f0f0] text-[#888] border-transparent"
+                }`}>{list.length}</span>
               </div>
               {list.length === 0
-                ? <p className={`text-xs ${dm(dark, "text-white/40", "text-gray-400")}`}>{empty}</p>
+                ? <p className={`text-xs ${dark ? "text-[#888]" : "text-[#bbb]"}`}>{empty}</p>
                 : list.map(t => <TaskSummaryCard key={t.id} task={t} dark={dark} />)
               }
             </div>
@@ -832,11 +901,11 @@ function HistoryModal({ open, onClose, tasks, dark }) {
   return (
     <Modal open={open} onClose={onClose} dark={dark}>
       <ModalTag dark={dark}>My Tasks</ModalTag>
-      <h2 className={`text-xl font-bold mb-1 ${dm(dark, "text-white", "text-gray-900")}`}>Task History</h2>
-      <p className={`text-xs mb-4 ${dm(dark, "text-white/40", "text-gray-400")}`}>Your most recent 10 tasks</p>
+      <h2 className={`text-xl font-bold mb-1 ${dark ? "text-white" : "text-[#111]"}`}>Task History</h2>
+      <p className={`text-xs mb-4 ${dark ? "text-[#888]" : "text-[#999]"}`}>Your most recent 10 tasks</p>
       <div className="max-h-[420px] overflow-y-auto">
         {tasks.length === 0
-          ? <p className={`text-xs ${dm(dark, "text-white/40", "text-gray-400")}`}>No task history yet — post your first task to get started.</p>
+          ? <p className={`text-xs ${dark ? "text-[#888]" : "text-[#bbb]"}`}>No task history yet — post your first task to get started.</p>
           : tasks.slice(0, 10).map(t => <TaskSummaryCard key={t.id} task={t} dark={dark} />)
         }
       </div>
@@ -845,10 +914,14 @@ function HistoryModal({ open, onClose, tasks, dark }) {
 }
 
 // ─── Sections ─────────────────────────────────────────────────────────────────
-function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage }) {
+function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage, dark }) {
   if (currentUser?.phone) return null;
   return (
-    <div className="mx-auto max-w-[1200px] my-16 bg-gradient-to-br from-red-600 to-red-400 rounded-2xl p-10 text-white">
+    <div className={`mx-auto max-w-[1200px] my-16 rounded-2xl p-10 ${
+      dark
+        ? "bg-black border border-white text-white"
+        : "bg-gradient-to-br from-[#ff2d55] to-[#ff6b81] text-white"
+    }`}>
       <div className="flex items-center justify-between gap-10 flex-wrap">
         <div>
           <h2 className="text-3xl font-bold mb-2">Become a Verified Member</h2>
@@ -858,30 +931,45 @@ function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage 
               if (!currentUser) { showToast("👋 Please log in first"); onRequireLogin(); return; }
               onOpenManage();
             }}
-            className="px-6 py-3 bg-white text-red-500 rounded-xl font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity"
+            className={`px-6 py-3 rounded-xl font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity ${
+              dark ? "bg-white text-black" : "bg-white text-[#ff2d55]"
+            }`}
           >
             Get Verified
           </button>
         </div>
-        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" className="w-48 opacity-90" alt="Verified" />
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+          className={`w-48 opacity-90 ${dark ? "invert" : ""}`}
+          alt="Verified"
+        />
       </div>
     </div>
   );
 }
 
 function HowItWorks({ dark }) {
+  const steps = [
+    { img: "https://cdn-icons-png.flaticon.com/512/1828/1828919.png", label: "Post your task" },
+    { img: "https://cdn-icons-png.flaticon.com/512/942/942748.png",   label: "Get responses" },
+    { img: "https://cdn-icons-png.flaticon.com/512/190/190411.png",   label: "Get it done" },
+  ];
+
   return (
-    <div className={`py-16 px-5 text-center border-t-2 ${dm(dark, "bg-black border-white/10", "bg-white border-gray-100")}`}>
-      <h2 className={`text-2xl font-bold mb-10 ${dm(dark, "text-white", "text-gray-900")}`}>How Padosi works</h2>
+    <div className={`py-16 px-5 text-center border-t-2 ${dark ? "bg-black border-white" : "bg-white border-[#f0f0f0]"}`}>
+      <h2 className={`text-2xl font-bold mb-10 ${dark ? "text-white" : "text-[#111]"}`}>How Padosi works</h2>
       <div className="flex justify-center gap-10 flex-wrap">
-        {[
-          { img: "https://cdn-icons-png.flaticon.com/512/1828/1828919.png", label: "Post your task" },
-          { img: "https://cdn-icons-png.flaticon.com/512/942/942748.png",   label: "Get responses" },
-          { img: "https://cdn-icons-png.flaticon.com/512/190/190411.png",   label: "Get it done" },
-        ].map(({ img, label }) => (
+        {steps.map(({ img, label }) => (
           <div key={label} className="max-w-[200px] flex flex-col items-center gap-4">
-            <img src={img} className={`w-20 ${dm(dark, "invert opacity-80", "")}`} alt={label} />
-            <h3 className={`font-bold ${dm(dark, "text-white", "text-gray-900")}`}>{label}</h3>
+            {dark ? (
+              /* In dark mode, file 2 wraps icons in a white circle */
+              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center p-3.5 box-border">
+                <img src={img} className="w-full h-full object-contain" alt={label} />
+              </div>
+            ) : (
+              <img src={img} className="w-20" alt={label} />
+            )}
+            <h3 className={`font-bold ${dark ? "text-white" : "text-[#111]"}`}>{label}</h3>
           </div>
         ))}
       </div>
@@ -903,7 +991,7 @@ export default function App() {
   const [toastMsg, showToast] = useToast();
 
   useEffect(() => {
-    // Only set body background — all component colors are handled via dark prop
+    // Match file 2: pure #000 body in dark, clear in light
     document.body.style.background = darkMode ? "#000000" : "";
     localStorage.setItem("padosi-theme", darkMode ? "dark" : "default");
   }, [darkMode]);
@@ -944,7 +1032,7 @@ export default function App() {
   };
 
   return (
-    <div className={darkMode ? "bg-black text-white min-h-screen" : "bg-[#f6f7fb] text-gray-900 min-h-screen"}>
+    <div className={darkMode ? "bg-black text-white min-h-screen" : "bg-[#f6f7fb] text-[#111] min-h-screen"}>
       <Navbar
         currentUser={currentUser}
         onLogin={() => setLoginOpen(true)}
@@ -973,6 +1061,7 @@ export default function App() {
         showToast={showToast}
         onRequireLogin={() => setLoginOpen(true)}
         onOpenManage={() => setManageOpen(true)}
+        dark={darkMode}
       />
       <HowItWorks dark={darkMode} />
 
@@ -996,7 +1085,7 @@ export default function App() {
       <ActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} tasks={tasks} dark={darkMode} />
       <HistoryModal  open={historyOpen}  onClose={() => setHistoryOpen(false)}  tasks={tasks} dark={darkMode} />
 
-      <Toast message={toastMsg} />
+      <Toast message={toastMsg} dark={darkMode} />
     </div>
   );
 }
