@@ -6,14 +6,6 @@ import PadosiListings from "./Components/PadosiListings";
 const MAX_CHARS = 1000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function escapeHtml(str) {
-  return String(str ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 async function api(method, path, body) {
   const opts = { method, credentials: "include", headers: {} };
   if (body) {
@@ -56,11 +48,17 @@ function renderStars(rating) {
   return Array.from({ length: 5 }, (_, i) => (i < full ? "★" : "☆")).join("");
 }
 
+// ─── Dark mode token helper ───────────────────────────────────────────────────
+// Usage: dm(dark, "dark-class", "light-class")
+function dm(dark, darkCls, lightCls) {
+  return dark ? darkCls : lightCls;
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function Toast({ message }) {
   return (
     <div
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full text-sm font-semibold z-[9999] pointer-events-none transition-all duration-300 ${
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-white text-black border border-black px-6 py-3 rounded-full text-sm font-semibold z-[9999] pointer-events-none transition-all duration-300 ${
         message ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
       }`}
     >
@@ -81,7 +79,7 @@ function useToast() {
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
-function Modal({ open, onClose, children, maxWidth = "max-w-md" }) {
+function Modal({ open, onClose, children, maxWidth = "max-w-md", dark }) {
   useEffect(() => {
     if (!open) return;
     const onKey = e => { if (e.key === "Escape") onClose(); };
@@ -92,13 +90,19 @@ function Modal({ open, onClose, children, maxWidth = "max-w-md" }) {
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 bg-black/45 z-[2000] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 z-[2000] flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className={`bg-white rounded-2xl p-9 w-full ${maxWidth} relative shadow-2xl`}>
+      <div className={`rounded-2xl p-9 w-full ${maxWidth} relative shadow-2xl border ${
+        dark
+          ? "bg-black text-white border-white/20"
+          : "bg-white text-gray-900 border-transparent"
+      }`}>
         <button
           onClick={onClose}
-          className="absolute top-4 right-5 text-gray-400 hover:text-red-500 text-2xl leading-none bg-transparent border-none cursor-pointer"
+          className={`absolute top-4 right-5 text-2xl leading-none bg-transparent border-none cursor-pointer ${
+            dark ? "text-white/50 hover:text-white" : "text-gray-400 hover:text-red-500"
+          }`}
         >
           ×
         </button>
@@ -108,17 +112,19 @@ function Modal({ open, onClose, children, maxWidth = "max-w-md" }) {
   );
 }
 
-function ModalTag({ children }) {
+function ModalTag({ children, dark }) {
   return (
-    <span className="inline-block bg-red-50 text-red-500 text-xs font-semibold px-3 py-1 rounded-full mb-4">
+    <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full mb-4 ${
+      dark ? "bg-white/10 text-white" : "bg-red-50 text-red-500"
+    }`}>
       {children}
     </span>
   );
 }
 
 // ─── Nearby Task Card ─────────────────────────────────────────────────────────
-function NearbyTaskCard({ task, showToast }) {
-  const [state, setState] = useState("idle"); // idle | loading | accepted
+function NearbyTaskCard({ task, showToast, dark }) {
+  const [state, setState] = useState("idle");
   const [poster, setPoster] = useState(null);
   const [removing, setRemoving] = useState(false);
 
@@ -141,14 +147,13 @@ function NearbyTaskCard({ task, showToast }) {
   };
 
   if (removing) return null;
-
   const modeLabel = task.mode === "now" ? "🟢 Now" : "🕒 Scheduled";
 
   return (
-    <div className="bg-gray-100 rounded-xl p-2.5 mb-2.5 text-sm">
-      <p className="font-semibold text-gray-900 mb-1.5 leading-snug break-words">{task.text}</p>
-      <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500">
-        <span className="bg-red-50 text-red-500 font-bold px-2 py-0.5 rounded-lg">₹{task.price}</span>
+    <div className={`rounded-xl p-2.5 mb-2.5 text-sm ${dm(dark, "bg-white/10", "bg-gray-100")}`}>
+      <p className={`font-semibold mb-1.5 leading-snug break-words ${dm(dark, "text-white", "text-gray-900")}`}>{task.text}</p>
+      <div className={`flex items-center gap-2 flex-wrap text-xs ${dm(dark, "text-white/60", "text-gray-500")}`}>
+        <span className={`font-bold px-2 py-0.5 rounded-lg ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>₹{task.price}</span>
         <span>{modeLabel}</span>
       </div>
 
@@ -157,26 +162,30 @@ function NearbyTaskCard({ task, showToast }) {
           <button
             onClick={handleAccept}
             disabled={state === "loading"}
-            className="flex-1 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-bold hover:bg-green-600 transition-colors disabled:opacity-60 cursor-pointer border-none"
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold hover:bg-green-600 transition-colors disabled:opacity-60 cursor-pointer border-none ${
+              dm(dark, "bg-white text-black hover:bg-green-600 hover:text-white", "bg-gray-900 text-white")
+            }`}
           >
             {state === "loading" ? "Sending…" : "🤝 Accept"}
           </button>
           <button
             onClick={handleDecline}
-            className="flex-1 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-xs font-bold hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer border-none"
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border-none ${
+              dm(dark, "bg-white/10 text-white/60 hover:bg-red-500/20 hover:text-red-400", "bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500")
+            }`}
           >
             ✕ Decline
           </button>
         </div>
       ) : (
         <div className="mt-2">
-          <div className="flex items-center gap-2 bg-white rounded-lg px-2.5 py-1.5 mb-1.5">
-            <span className="w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
+          <div className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 mb-1.5 ${dm(dark, "bg-white/10", "bg-white")}`}>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>
               {poster?.initials || "U"}
             </span>
             {poster?.phone
-              ? <span className="text-xs font-bold text-gray-900">+91 {poster.phone}</span>
-              : <span className="text-xs text-gray-400 italic">No phone on file</span>
+              ? <span className={`text-xs font-bold ${dm(dark, "text-white", "text-gray-900")}`}>+91 {poster.phone}</span>
+              : <span className={`text-xs italic ${dm(dark, "text-white/40", "text-gray-400")}`}>No phone on file</span>
             }
           </div>
           <div className="flex gap-1.5">
@@ -192,7 +201,9 @@ function NearbyTaskCard({ task, showToast }) {
                   showToast("💬 Chat — coming soon!");
                 }
               }}
-              className={`${poster?.phone ? "flex-1" : "w-full"} py-1.5 rounded-lg bg-gray-900 text-white text-xs font-bold cursor-pointer border-none hover:bg-gray-700 transition-colors`}
+              className={`${poster?.phone ? "flex-1" : "w-full"} py-1.5 rounded-lg text-xs font-bold cursor-pointer border-none transition-colors ${
+                dm(dark, "bg-white text-black hover:bg-white/80", "bg-gray-900 text-white hover:bg-gray-700")
+              }`}
             >
               💬 Chat
             </button>
@@ -204,74 +215,82 @@ function NearbyTaskCard({ task, showToast }) {
 }
 
 // ─── Nearby Panel ─────────────────────────────────────────────────────────────
-function NearbyPanel({ tasks, showToast }) {
+function NearbyPanel({ tasks, showToast, dark }) {
   return (
-    <div className="w-64 bg-white rounded-2xl p-4 shadow-xl max-h-[480px] overflow-y-auto flex-shrink-0">
-      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full bg-green-600 inline-block animate-pulse" />
+    <div className={`w-64 rounded-2xl p-4 shadow-xl max-h-[480px] overflow-y-auto flex-shrink-0 border ${
+      dm(dark, "bg-black border-white/20", "bg-white border-transparent")
+    }`}>
+      <div className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${dm(dark, "text-white/40", "text-gray-400")}`}>
+        <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
         Nearby Tasks
       </div>
       {tasks.length === 0
-        ? <p className="text-xs text-gray-400 text-center py-4">No nearby tasks right now.</p>
-        : tasks.map(t => <NearbyTaskCard key={t.id} task={t} showToast={showToast} />)
+        ? <p className={`text-xs text-center py-4 ${dm(dark, "text-white/40", "text-gray-400")}`}>No nearby tasks right now.</p>
+        : tasks.map(t => <NearbyTaskCard key={t.id} task={t} showToast={showToast} dark={dark} />)
       }
     </div>
   );
 }
 
 // ─── My Task Card ─────────────────────────────────────────────────────────────
-function MyTaskCard({ task, onEdit, onDelete }) {
+function MyTaskCard({ task, onEdit, onDelete, dark }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-3 mb-2.5 text-sm">
-      <p className="font-semibold text-gray-900 leading-snug mb-1 break-words">
+    <div className={`rounded-xl p-3 mb-2.5 text-sm border ${
+      dm(dark, "bg-white/5 border-white/10", "bg-white border-gray-100")
+    }`}>
+      <p className={`font-semibold leading-snug mb-1 break-words ${dm(dark, "text-white", "text-gray-900")}`}>
         {task.text}
-        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg ${task.accepted ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>
+        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg ${
+          task.accepted
+            ? dm(dark, "bg-green-500/20 text-green-400", "bg-green-50 text-green-700")
+            : dm(dark, "bg-yellow-500/20 text-yellow-400", "bg-yellow-50 text-yellow-700")
+        }`}>
           {task.accepted ? "Accepted" : "Pending"}
         </span>
       </p>
-      <p className="text-xs text-gray-500 mt-1">
+      <p className={`text-xs mt-1 ${dm(dark, "text-white/50", "text-gray-500")}`}>
         ₹{task.price} • {task.mode === "now" ? "🟢 Now" : "🕒 " + formatDateTime(task.date, task.time)}
       </p>
 
       {task.accepted && task.helper && (
-        <div className="mt-2 border border-gray-100 rounded-xl p-2.5">
+        <div className={`mt-2 border rounded-xl p-2.5 ${dm(dark, "border-white/10", "border-gray-100")}`}>
           <div className="flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-sm font-bold flex-shrink-0">
+            <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>
               {task.helper.initials}
             </span>
             <div>
-              <p className="text-xs font-bold text-gray-900">{task.helper.name} ✅</p>
+              <p className={`text-xs font-bold ${dm(dark, "text-white", "text-gray-900")}`}>{task.helper.name} ✅</p>
               <p className="text-xs text-yellow-500">{renderStars(task.helper.rating)} {task.helper.rating.toFixed(1)} ({task.helper.reviews})</p>
             </div>
           </div>
-          <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
-            <span className="text-xs font-semibold text-gray-600">{task.helper.phone}</span>
+          <div className={`flex justify-between items-center mt-2 pt-2 border-t ${dm(dark, "border-white/10", "border-gray-100")}`}>
+            <span className={`text-xs font-semibold ${dm(dark, "text-white/70", "text-gray-600")}`}>{task.helper.phone}</span>
             <a href={`tel:${task.helper.phone?.replace(/\s/g, "")}`} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg no-underline font-bold">📞 Call</a>
           </div>
         </div>
       )}
 
       <div className="flex gap-2 mt-2 flex-wrap">
-        <button onClick={() => onEdit(task)} className="bg-blue-50 text-blue-600 text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border-none hover:bg-blue-100 transition-colors">Edit</button>
-        <button onClick={() => onDelete(task.id)} className="bg-red-50 text-red-500 text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border-none hover:bg-red-100 transition-colors">Delete</button>
+        <button onClick={() => onEdit(task)} className={`text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border-none transition-colors ${dm(dark, "bg-white/10 text-white hover:bg-white/20", "bg-blue-50 text-blue-600 hover:bg-blue-100")}`}>Edit</button>
+        <button onClick={() => onDelete(task.id)} className={`text-xs font-semibold px-3 py-1 rounded-lg cursor-pointer border-none transition-colors ${dm(dark, "bg-white/10 text-red-400 hover:bg-red-500/20", "bg-red-50 text-red-500 hover:bg-red-100")}`}>Delete</button>
       </div>
     </div>
   );
 }
 
 // ─── Tasks Sidebar ────────────────────────────────────────────────────────────
-function TasksSidebar({ tasks, visible, onEdit, onDelete }) {
+function TasksSidebar({ tasks, visible, onEdit, onDelete, dark }) {
   return (
     <div className={`transition-all duration-500 ease-in-out overflow-hidden flex-shrink-0 ${visible ? "w-[300px] min-w-[300px] opacity-100" : "w-0 min-w-0 opacity-0"}`}>
       <div className="w-[300px] px-5 pt-6 pb-6">
-        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-1">
+        <h3 className={`text-sm font-bold flex items-center gap-2 mb-1 ${dm(dark, "text-white", "text-gray-900")}`}>
           <span className="text-red-500">✅</span> My Tasks
         </h3>
-        <p className="text-xs text-gray-400 mb-4">Track the tasks you've posted</p>
+        <p className={`text-xs mb-4 ${dm(dark, "text-white/40", "text-gray-400")}`}>Track the tasks you've posted</p>
         <div className="flex flex-col gap-2 max-h-[480px] overflow-y-auto">
           {tasks.length === 0
-            ? <p className="text-xs text-gray-400 text-center py-5">No tasks yet — post one to get started.</p>
-            : tasks.map(t => <MyTaskCard key={t.id} task={t} onEdit={onEdit} onDelete={onDelete} />)
+            ? <p className={`text-xs text-center py-5 ${dm(dark, "text-white/40", "text-gray-400")}`}>No tasks yet — post one to get started.</p>
+            : tasks.map(t => <MyTaskCard key={t.id} task={t} onEdit={onEdit} onDelete={onDelete} dark={dark} />)
           }
         </div>
       </div>
@@ -280,7 +299,7 @@ function TasksSidebar({ tasks, visible, onEdit, onDelete }) {
 }
 
 // ─── Hero / Task Form ─────────────────────────────────────────────────────────
-function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onRequireLogin }) {
+function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onRequireLogin, dark }) {
   const [taskText, setTaskText] = useState("");
   const [price, setPrice] = useState("");
   const [mode, setMode] = useState("now");
@@ -395,45 +414,57 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
     showToast("🛠️ " + cat.label + " — tell us what you need");
   };
 
+  // Shared input class
+  const inputCls = `px-4 py-3.5 rounded-xl border text-sm text-gray-900 focus:outline-none transition-colors ${
+    dark
+      ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
+      : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+  }`;
+
   return (
     <>
       <div className="flex gap-0">
-        {/* Sidebar */}
         <TasksSidebar
           tasks={tasks}
           visible={!!currentUser && tasks.length > 0}
           onEdit={enterEditMode}
           onDelete={handleDelete}
+          dark={dark}
         />
 
-        {/* Main */}
         <div className="flex-1 min-w-0 p-6 flex justify-center">
           <div className="w-full max-w-[1200px] flex flex-col gap-5">
 
             {/* Hero card */}
-            <div className="bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.06)] p-8 w-full">
+            <div className={`rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] p-8 w-full border ${
+              dm(dark, "bg-black border-white/15", "bg-white border-transparent")
+            }`}>
               <div className="flex justify-between items-start gap-10 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <button
                     onClick={handleLocationClick}
-                    className="inline-flex items-center gap-1.5 bg-gray-100 border-none px-4 py-2 rounded-full text-sm font-semibold text-gray-600 cursor-pointer mb-4 hover:bg-red-50 hover:text-red-500 transition-colors"
+                    className={`inline-flex items-center gap-1.5 border-none px-4 py-2 rounded-full text-sm font-semibold cursor-pointer mb-4 transition-colors ${
+                      dm(dark, "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white", "bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500")
+                    }`}
                   >
                     📍 {locationName}
                   </button>
 
-                  <h1 className="text-4xl font-bold leading-tight text-gray-900 mb-4">
+                  <h1 className={`text-4xl font-bold leading-tight mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>
                     Get help nearby with <br />
                     <span className="text-red-500 text-5xl">Padosi</span>
                   </h1>
 
                   {/* Mode toggle */}
-                  <div className="inline-flex bg-gray-100 rounded-full p-1 mb-4">
+                  <div className={`inline-flex rounded-full p-1 mb-4 ${dm(dark, "bg-white/10", "bg-gray-100")}`}>
                     {["now", "later"].map(m => (
                       <button
                         key={m}
                         onClick={() => setMode(m)}
                         className={`px-4 py-2.5 rounded-full text-sm cursor-pointer border-none transition-all ${
-                          mode === m ? "bg-white shadow text-gray-900 font-semibold" : "text-gray-600 hover:text-gray-900 bg-transparent"
+                          mode === m
+                            ? dm(dark, "bg-white text-black font-semibold shadow", "bg-white shadow text-gray-900 font-semibold")
+                            : dm(dark, "text-white/60 hover:text-white bg-transparent", "text-gray-600 hover:text-gray-900 bg-transparent")
                         }`}
                       >
                         {m === "now" ? "Call now" : "Schedule later"}
@@ -442,7 +473,7 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                   </div>
 
                   {/* Input card */}
-                  <div className="mt-2 p-4 rounded-2xl bg-gray-50">
+                  <div className={`mt-2 p-4 rounded-2xl ${dm(dark, "bg-white/5", "bg-gray-50")}`}>
                     <div className="flex gap-3 flex-wrap">
                       <input
                         type="text"
@@ -451,7 +482,7 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                         onKeyPress={e => e.key === "Enter" && handleSubmit()}
                         placeholder="What do you need help with"
                         maxLength={MAX_CHARS}
-                        className="flex-1 min-w-[200px] px-4 py-3.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white"
+                        className={`flex-1 min-w-[200px] ${inputCls}`}
                       />
                       <input
                         type="text"
@@ -459,22 +490,22 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                         onChange={e => setPrice(e.target.value)}
                         onKeyPress={e => e.key === "Enter" && handleSubmit()}
                         placeholder="Your budget (₹)"
-                        className="w-40 px-4 py-3.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white"
+                        className={`w-40 ${inputCls}`}
                       />
                     </div>
 
-                    <p className={`text-xs mt-1.5 ${taskText.length >= MAX_CHARS ? "text-red-500 font-semibold" : "text-gray-400"}`}>
+                    <p className={`text-xs mt-1.5 ${taskText.length >= MAX_CHARS ? "text-red-500 font-semibold" : dm(dark, "text-white/40", "text-gray-400")}`}>
                       {taskText.length} / {MAX_CHARS} characters
                     </p>
 
                     {mode === "later" && (
                       <div className="flex gap-3 flex-wrap mt-3">
-                        <input type="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white" />
-                        <input type="time" value={time} onChange={e => setTime(e.target.value)} className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white" />
+                        <input type="date" value={date} min={today} onChange={e => setDate(e.target.value)} className={inputCls} />
+                        <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputCls} />
                       </div>
                     )}
 
-                    {error && <p className="text-red-500 text-xs mt-2 font-medium">⚠️ {error}</p>}
+                    {error && <p className="text-red-400 text-xs mt-2 font-medium">⚠️ {error}</p>}
 
                     <div className="flex items-center gap-2 mt-3">
                       <button
@@ -485,7 +516,12 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                         {loading ? "Saving…" : editingId ? "Save Changes" : "Find Help"}
                       </button>
                       {editingId && (
-                        <button onClick={exitEditMode} className="px-7 py-3.5 rounded-xl border border-gray-200 bg-white text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-colors cursor-pointer">
+                        <button
+                          onClick={exitEditMode}
+                          className={`px-7 py-3.5 rounded-xl border font-semibold text-sm transition-colors cursor-pointer ${
+                            dm(dark, "border-white/20 bg-transparent text-white/70 hover:bg-white/10", "border-gray-200 bg-white text-gray-600 hover:bg-gray-50")
+                          }`}
+                        >
                           Cancel
                         </button>
                       )}
@@ -493,26 +529,23 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                   </div>
                 </div>
 
-                {/* Nearby panel */}
                 <div className="hidden md:block flex-shrink-0">
-                  <NearbyPanel tasks={nearbyTasks} showToast={showToast} />
+                  <NearbyPanel tasks={nearbyTasks} showToast={showToast} dark={dark} />
                 </div>
               </div>
             </div>
 
-            {/* Listings tabs */}
-            <PadosiListings showToast={showToast} currentUser={currentUser} onSelectCategory={prefillCategory} />
-
+            <PadosiListings showToast={showToast} currentUser={currentUser} onSelectCategory={prefillCategory} dark={dark} />
           </div>
         </div>
       </div>
 
       {/* Location map modal */}
-      <Modal open={showMap} onClose={() => setShowMap(false)} maxWidth="max-w-xl">
-        <ModalTag>Your Location</ModalTag>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Choose your location</h2>
+      <Modal open={showMap} onClose={() => setShowMap(false)} maxWidth="max-w-xl" dark={dark}>
+        <ModalTag dark={dark}>Your Location</ModalTag>
+        <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Choose your location</h2>
         {mapSrc && <iframe src={mapSrc} className="w-full h-80 rounded-xl border-none" allowFullScreen loading="lazy" />}
-        <p className="text-xs text-gray-400 mt-2.5 text-center">{mapLabel}</p>
+        <p className={`text-xs mt-2.5 text-center ${dm(dark, "text-white/40", "text-gray-400")}`}>{mapLabel}</p>
         <button onClick={() => setShowMap(false)} className="mt-4 w-full py-3 bg-red-500 text-white rounded-xl font-semibold cursor-pointer border-none hover:opacity-90 transition-opacity">
           ✓ Confirm Location
         </button>
@@ -522,7 +555,7 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
 }
 
 // ─── Auth Modals ──────────────────────────────────────────────────────────────
-function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToast }) {
+function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToast, dark }) {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -561,116 +594,75 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
     finally { setSignupLoading(false); }
   };
 
-  // ── Shared Google button ────────────────────────────────────────────
+  const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
+    dark
+      ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
+      : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+  }`;
+
   const GoogleButton = () => (
     <a
       href="/auth/google"
-      className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:border-gray-300 hover:shadow-md transition-all no-underline"
-      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
+      className={`flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 text-sm font-semibold transition-all no-underline ${
+        dark
+          ? "border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/40"
+          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-md"
+      }`}
+      style={{ boxShadow: dark ? "none" : "0 1px 3px rgba(0,0,0,0.08)" }}
     >
-      <img
-        src="https://www.svgrepo.com/show/475656/google-color.svg"
-        className="w-5 h-5 flex-shrink-0"
-        alt="Google"
-      />
+      <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 flex-shrink-0" alt="Google" />
       <span>Continue with Google</span>
     </a>
   );
 
-  // ── Divider ─────────────────────────────────────────────────────────
   const Divider = () => (
-    <div className="flex items-center gap-2.5 text-xs text-gray-300">
-      <span className="flex-1 h-px bg-gray-100" /> or <span className="flex-1 h-px bg-gray-100" />
+    <div className={`flex items-center gap-2.5 text-xs ${dm(dark, "text-white/30", "text-gray-300")}`}>
+      <span className={`flex-1 h-px ${dm(dark, "bg-white/10", "bg-gray-100")}`} />
+      or
+      <span className={`flex-1 h-px ${dm(dark, "bg-white/10", "bg-gray-100")}`} />
     </div>
   );
 
   return (
     <>
-      {/* ── Login modal ── */}
-      <Modal open={loginOpen} onClose={() => onClose("login")}>
-        <ModalTag>Welcome back</ModalTag>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Log in to Padosi</h2>
+      {/* Login */}
+      <Modal open={loginOpen} onClose={() => onClose("login")} dark={dark}>
+        <ModalTag dark={dark}>Welcome back</ModalTag>
+        <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Log in to Padosi</h2>
         <div className="flex flex-col gap-3">
           <GoogleButton />
           <Divider />
-          <input
-            type="email"
-            value={loginEmail}
-            onChange={e => setLoginEmail(e.target.value)}
-            onKeyPress={e => e.key === "Enter" && handleLogin()}
-            placeholder="Email address"
-            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
-          />
-          <input
-            type="password"
-            value={loginPassword}
-            onChange={e => setLoginPassword(e.target.value)}
-            onKeyPress={e => e.key === "Enter" && handleLogin()}
-            placeholder="Password"
-            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
-          />
-          {loginError && <p className="text-red-500 text-xs font-medium">{loginError}</p>}
-          <button
-            onClick={handleLogin}
-            disabled={loginLoading}
-            className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1"
-          >
+          <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyPress={e => e.key === "Enter" && handleLogin()} placeholder="Email address" className={inputCls} />
+          <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyPress={e => e.key === "Enter" && handleLogin()} placeholder="Password" className={inputCls} />
+          {loginError && <p className="text-red-400 text-xs font-medium">{loginError}</p>}
+          <button onClick={handleLogin} disabled={loginLoading} className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1">
             {loginLoading ? "Logging in…" : "Log in"}
           </button>
         </div>
-        <p className="text-xs text-gray-500 text-center mt-3">
+        <p className={`text-xs text-center mt-3 ${dm(dark, "text-white/50", "text-gray-500")}`}>
           Don't have an account?{" "}
-          <button onClick={() => onClose("login")} className="text-red-500 font-semibold bg-transparent border-none cursor-pointer">
-            Sign up
-          </button>
+          <button onClick={() => onClose("login")} className={`font-semibold bg-transparent border-none cursor-pointer ${dm(dark, "text-white hover:text-red-400", "text-red-500")}`}>Sign up</button>
         </p>
       </Modal>
 
-      {/* ── Signup modal ── */}
-      <Modal open={signupOpen} onClose={() => onClose("signup")}>
-        <ModalTag>Join Padosi</ModalTag>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Create your account</h2>
+      {/* Signup */}
+      <Modal open={signupOpen} onClose={() => onClose("signup")} dark={dark}>
+        <ModalTag dark={dark}>Join Padosi</ModalTag>
+        <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Create your account</h2>
         <div className="flex flex-col gap-3">
           <GoogleButton />
           <Divider />
-          <input
-            type="text"
-            value={signupName}
-            onChange={e => setSignupName(e.target.value)}
-            onKeyPress={e => e.key === "Enter" && handleSignup()}
-            placeholder="Full name"
-            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
-          />
-          <input
-            type="email"
-            value={signupEmail}
-            onChange={e => setSignupEmail(e.target.value)}
-            onKeyPress={e => e.key === "Enter" && handleSignup()}
-            placeholder="Email address"
-            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
-          />
-          <input
-            type="password"
-            value={signupPassword}
-            onChange={e => setSignupPassword(e.target.value)}
-            onKeyPress={e => e.key === "Enter" && handleSignup()}
-            placeholder="Password (min 6 characters)"
-            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
-          />
-          {signupError && <p className="text-red-500 text-xs font-medium">{signupError}</p>}
-          <button
-            onClick={handleSignup}
-            disabled={signupLoading}
-            className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1"
-          >
+          <input type="text" value={signupName} onChange={e => setSignupName(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Full name" className={inputCls} />
+          <input type="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Email address" className={inputCls} />
+          <input type="password" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Password (min 6 characters)" className={inputCls} />
+          {signupError && <p className="text-red-400 text-xs font-medium">{signupError}</p>}
+          <button onClick={handleSignup} disabled={signupLoading} className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1">
             {signupLoading ? "Creating account…" : "Sign up"}
           </button>
         </div>
-        <p className="text-xs text-gray-500 text-center mt-3">
+        <p className={`text-xs text-center mt-3 ${dm(dark, "text-white/50", "text-gray-500")}`}>
           Already have an account?{" "}
-          <button onClick={() => onClose("signup")} className="text-red-500 font-semibold bg-transparent border-none cursor-pointer">
-            Log in
-          </button>
+          <button onClick={() => onClose("signup")} className={`font-semibold bg-transparent border-none cursor-pointer ${dm(dark, "text-white hover:text-red-400", "text-red-500")}`}>Log in</button>
         </p>
       </Modal>
     </>
@@ -678,7 +670,7 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
 }
 
 // ─── Manage Account Modal ─────────────────────────────────────────────────────
-function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast }) {
+function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, dark }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -709,64 +701,71 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast })
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
   const verified = !!(currentUser?.phone);
 
+  const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
+    dark
+      ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
+      : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+  }`;
+
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalTag>Account settings</ModalTag>
-      <h2 className="text-xl font-bold text-gray-900 mb-5">Manage account</h2>
+    <Modal open={open} onClose={onClose} dark={dark}>
+      <ModalTag dark={dark}>Account settings</ModalTag>
+      <h2 className={`text-xl font-bold mb-5 ${dm(dark, "text-white", "text-gray-900")}`}>Manage account</h2>
 
       <div className="flex items-center gap-3.5 mb-6">
-        <span className="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-2xl font-bold flex-shrink-0">{initial}</span>
+        <span className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 ${dm(dark, "bg-white/20 text-white", "bg-red-50 text-red-500")}`}>{initial}</span>
         <div>
-          <p className="text-sm font-bold text-gray-900">{currentUser?.full_name || "User"}</p>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 mt-1 ${verified ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>
+          <p className={`text-sm font-bold ${dm(dark, "text-white", "text-gray-900")}`}>{currentUser?.full_name || "User"}</p>
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 mt-1 ${
+            verified
+              ? dm(dark, "bg-green-500/20 text-green-400", "bg-green-50 text-green-700")
+              : dm(dark, "bg-yellow-500/20 text-yellow-400", "bg-yellow-50 text-yellow-700")
+          }`}>
             {verified ? "✅ Verified member" : "⚠️ Not verified — add a phone"}
           </span>
         </div>
       </div>
 
       <div className="mb-4">
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Full name</label>
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          onKeyPress={e => e.key === "Enter" && handleSave()}
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
-        />
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dm(dark, "text-white/40", "text-gray-400")}`}>Full name</label>
+        <input value={name} onChange={e => setName(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSave()} className={inputCls} />
       </div>
 
       <div className="mb-4">
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Email address</label>
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dm(dark, "text-white/40", "text-gray-400")}`}>Email address</label>
         <input
           value={currentUser?.email || ""}
           disabled
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
+          className={`w-full px-4 py-3 rounded-xl border text-sm cursor-not-allowed ${
+            dm(dark, "bg-white/5 border-white/10 text-white/30", "bg-gray-50 border-gray-200 text-gray-400")
+          }`}
         />
-        <span className="text-xs text-gray-300 mt-1 block">Your email can't be changed yet.</span>
+        <span className={`text-xs mt-1 block ${dm(dark, "text-white/30", "text-gray-300")}`}>Your email can't be changed yet.</span>
       </div>
 
       <div className="mb-5">
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Phone number</label>
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dm(dark, "text-white/40", "text-gray-400")}`}>Phone number</label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-500 pointer-events-none">🇮🇳 +91</span>
+          <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none ${dm(dark, "text-white/50", "text-gray-500")}`}>🇮🇳 +91</span>
           <input
             type="tel"
             value={phone}
             onChange={e => { const v = e.target.value.replace(/\D/g, ""); setPhone(v); setPhoneError(v && v.length < 10 ? "Phone must be exactly 10 digits." : ""); }}
             maxLength={10}
             placeholder="10-digit mobile number"
-            className="w-full pl-16 pr-10 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
+            className={`w-full pl-16 pr-10 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
+              dark
+                ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
+                : "bg-white border-gray-200 text-gray-900 focus:border-red-400"
+            }`}
           />
-          {phone.length === 10 && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600">✓</span>}
+          {phone.length === 10 && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">✓</span>}
         </div>
-        {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+        {phoneError && <p className="text-red-400 text-xs mt-1">{phoneError}</p>}
       </div>
 
-      {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
-      <button
-        onClick={handleSave}
-        disabled={loading}
-        className="w-full py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60"
-      >
+      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+      <button onClick={handleSave} disabled={loading} className="w-full py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60">
         {loading ? "Saving…" : "Save changes"}
       </button>
     </Modal>
@@ -774,34 +773,38 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast })
 }
 
 // ─── Activity / History Modal ─────────────────────────────────────────────────
-function TaskSummaryCard({ task }) {
+function TaskSummaryCard({ task, dark }) {
   const accepted = task.accepted;
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-3 mb-2.5 text-sm">
-      <p className="font-semibold text-gray-900 leading-snug mb-1 break-words">
+    <div className={`rounded-xl p-3 mb-2.5 text-sm border ${dm(dark, "bg-white/5 border-white/10", "bg-white border-gray-100")}`}>
+      <p className={`font-semibold leading-snug mb-1 break-words ${dm(dark, "text-white", "text-gray-900")}`}>
         {task.text}
-        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg ${accepted ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>
+        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-lg ${
+          accepted
+            ? dm(dark, "bg-green-500/20 text-green-400", "bg-green-50 text-green-700")
+            : dm(dark, "bg-yellow-500/20 text-yellow-400", "bg-yellow-50 text-yellow-700")
+        }`}>
           {accepted ? "Accepted" : "Pending"}
         </span>
       </p>
-      <p className="text-xs text-gray-500 mt-1">₹{task.price} • {task.mode === "now" ? "🟢 Now" : "🕒 " + formatDateTime(task.date, task.time)}</p>
+      <p className={`text-xs mt-1 ${dm(dark, "text-white/50", "text-gray-500")}`}>₹{task.price} • {task.mode === "now" ? "🟢 Now" : "🕒 " + formatDateTime(task.date, task.time)}</p>
       {accepted && task.helper && (
-        <p className="text-xs text-green-700 font-semibold mt-1">✅ {task.helper.name} • {task.helper.phone}</p>
+        <p className="text-xs text-green-500 font-semibold mt-1">✅ {task.helper.name} • {task.helper.phone}</p>
       )}
-      {task.created_at && <p className="text-xs text-gray-300 mt-1">{formatPostedDate(task.created_at)}</p>}
+      {task.created_at && <p className={`text-xs mt-1 ${dm(dark, "text-white/25", "text-gray-300")}`}>{formatPostedDate(task.created_at)}</p>}
     </div>
   );
 }
 
-function ActivityModal({ open, onClose, tasks }) {
+function ActivityModal({ open, onClose, tasks, dark }) {
   const pending  = tasks.filter(t => !t.accepted);
   const accepted = tasks.filter(t =>  t.accepted);
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalTag>Your Activity</ModalTag>
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Task Status</h2>
+    <Modal open={open} onClose={onClose} dark={dark}>
+      <ModalTag dark={dark}>Your Activity</ModalTag>
+      <h2 className={`text-xl font-bold mb-4 ${dm(dark, "text-white", "text-gray-900")}`}>Task Status</h2>
       {tasks.length === 0 ? (
-        <p className="text-xs text-gray-400">You haven't posted any tasks yet.</p>
+        <p className={`text-xs ${dm(dark, "text-white/40", "text-gray-400")}`}>You haven't posted any tasks yet.</p>
       ) : (
         <>
           {[
@@ -809,13 +812,13 @@ function ActivityModal({ open, onClose, tasks }) {
             { label: "✅ Accepted", list: accepted, empty: "No accepted tasks yet." }
           ].map(({ label, list, empty }) => (
             <div key={label} className="mb-5">
-              <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+              <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-3 ${dm(dark, "text-white/40", "text-gray-500")}`}>
                 {label}
-                <span className="ml-auto bg-gray-100 text-gray-500 text-xs font-bold px-2 py-0.5 rounded-full">{list.length}</span>
+                <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${dm(dark, "bg-white/10 text-white/60", "bg-gray-100 text-gray-500")}`}>{list.length}</span>
               </div>
               {list.length === 0
-                ? <p className="text-xs text-gray-400">{empty}</p>
-                : list.map(t => <TaskSummaryCard key={t.id} task={t} />)
+                ? <p className={`text-xs ${dm(dark, "text-white/40", "text-gray-400")}`}>{empty}</p>
+                : list.map(t => <TaskSummaryCard key={t.id} task={t} dark={dark} />)
               }
             </div>
           ))}
@@ -825,16 +828,16 @@ function ActivityModal({ open, onClose, tasks }) {
   );
 }
 
-function HistoryModal({ open, onClose, tasks }) {
+function HistoryModal({ open, onClose, tasks, dark }) {
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalTag>My Tasks</ModalTag>
-      <h2 className="text-xl font-bold text-gray-900 mb-1">Task History</h2>
-      <p className="text-xs text-gray-400 mb-4">Your most recent 10 tasks</p>
+    <Modal open={open} onClose={onClose} dark={dark}>
+      <ModalTag dark={dark}>My Tasks</ModalTag>
+      <h2 className={`text-xl font-bold mb-1 ${dm(dark, "text-white", "text-gray-900")}`}>Task History</h2>
+      <p className={`text-xs mb-4 ${dm(dark, "text-white/40", "text-gray-400")}`}>Your most recent 10 tasks</p>
       <div className="max-h-[420px] overflow-y-auto">
         {tasks.length === 0
-          ? <p className="text-xs text-gray-400">No task history yet — post your first task to get started.</p>
-          : tasks.slice(0, 10).map(t => <TaskSummaryCard key={t.id} task={t} />)
+          ? <p className={`text-xs ${dm(dark, "text-white/40", "text-gray-400")}`}>No task history yet — post your first task to get started.</p>
+          : tasks.slice(0, 10).map(t => <TaskSummaryCard key={t.id} task={t} dark={dark} />)
         }
       </div>
     </Modal>
@@ -845,7 +848,7 @@ function HistoryModal({ open, onClose, tasks }) {
 function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage }) {
   if (currentUser?.phone) return null;
   return (
-    <div className="mx-auto max-w-[1200px] my-16 bg-gradient-to-br from-red-500 to-red-400 rounded-2xl p-10 text-white">
+    <div className="mx-auto max-w-[1200px] my-16 bg-gradient-to-br from-red-600 to-red-400 rounded-2xl p-10 text-white">
       <div className="flex items-center justify-between gap-10 flex-wrap">
         <div>
           <h2 className="text-3xl font-bold mb-2">Become a Verified Member</h2>
@@ -866,10 +869,10 @@ function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage 
   );
 }
 
-function HowItWorks() {
+function HowItWorks({ dark }) {
   return (
-    <div className="py-16 px-5 text-center bg-white border-t-2 border-gray-100">
-      <h2 className="text-2xl font-bold text-gray-900 mb-10">How Padosi works</h2>
+    <div className={`py-16 px-5 text-center border-t-2 ${dm(dark, "bg-black border-white/10", "bg-white border-gray-100")}`}>
+      <h2 className={`text-2xl font-bold mb-10 ${dm(dark, "text-white", "text-gray-900")}`}>How Padosi works</h2>
       <div className="flex justify-center gap-10 flex-wrap">
         {[
           { img: "https://cdn-icons-png.flaticon.com/512/1828/1828919.png", label: "Post your task" },
@@ -877,8 +880,8 @@ function HowItWorks() {
           { img: "https://cdn-icons-png.flaticon.com/512/190/190411.png",   label: "Get it done" },
         ].map(({ img, label }) => (
           <div key={label} className="max-w-[200px] flex flex-col items-center gap-4">
-            <img src={img} className="w-20" alt={label} />
-            <h3 className="font-bold text-gray-900">{label}</h3>
+            <img src={img} className={`w-20 ${dm(dark, "invert opacity-80", "")}`} alt={label} />
+            <h3 className={`font-bold ${dm(dark, "text-white", "text-gray-900")}`}>{label}</h3>
           </div>
         ))}
       </div>
@@ -899,14 +902,12 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toastMsg, showToast] = useToast();
 
-  // Apply dark mode class
   useEffect(() => {
-    document.body.classList.toggle("bg-black", darkMode);
-    document.body.classList.toggle("text-white", darkMode);
+    // Only set body background — all component colors are handled via dark prop
+    document.body.style.background = darkMode ? "#000000" : "";
     localStorage.setItem("padosi-theme", darkMode ? "dark" : "default");
   }, [darkMode]);
 
-  // Session check
   useEffect(() => {
     (async () => {
       try {
@@ -942,10 +943,6 @@ export default function App() {
     showToast("👋 Signed out successfully");
   };
 
-  const handleUserUpdate = (user) => {
-    setCurrentUser(user);
-  };
-
   return (
     <div className={darkMode ? "bg-black text-white min-h-screen" : "bg-[#f6f7fb] text-gray-900 min-h-screen"}>
       <Navbar
@@ -968,6 +965,7 @@ export default function App() {
         nearbyTasks={nearbyTasks}
         showToast={showToast}
         onRequireLogin={() => setLoginOpen(true)}
+        dark={darkMode}
       />
 
       <VerifiedSection
@@ -976,9 +974,8 @@ export default function App() {
         onRequireLogin={() => setLoginOpen(true)}
         onOpenManage={() => setManageOpen(true)}
       />
-      <HowItWorks />
+      <HowItWorks dark={darkMode} />
 
-      {/* Modals */}
       <AuthModals
         loginOpen={loginOpen}
         signupOpen={signupOpen}
@@ -986,16 +983,18 @@ export default function App() {
         onLogin={handleLogin}
         onSignup={handleLogin}
         showToast={showToast}
+        dark={darkMode}
       />
       <ManageAccountModal
         open={manageOpen}
         onClose={() => setManageOpen(false)}
         currentUser={currentUser}
-        onUpdate={handleUserUpdate}
+        onUpdate={setCurrentUser}
         showToast={showToast}
+        dark={darkMode}
       />
-      <ActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} tasks={tasks} />
-      <HistoryModal  open={historyOpen}  onClose={() => setHistoryOpen(false)}  tasks={tasks} />
+      <ActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} tasks={tasks} dark={darkMode} />
+      <HistoryModal  open={historyOpen}  onClose={() => setHistoryOpen(false)}  tasks={tasks} dark={darkMode} />
 
       <Toast message={toastMsg} />
     </div>
