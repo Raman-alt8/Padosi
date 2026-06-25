@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // ─── Padosi Listings Tab ─────────
 
@@ -23,16 +23,14 @@ const SERVICE_CATEGORIES = [
   { icon: "🧓", label: "Elderly Care",             prompt: "Need elderly care assistance with " },
 ];
 
+// Base URL for API calls — Vite exposes VITE_API_URL from .env
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 function initials(name = "") {
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// ─── Theme helpers 
-function t(dark, darkCls, lightCls) {
-  return dark ? darkCls : lightCls;
-}
-
-// ─── Listings Grid (the visible tab) 
+// ─── Listings Grid ──────────────────────────────────────────────────────────
 function ListingsGrid({ showToast, dark }) {
   const tiles = [
     { icon: "🚗", label: "Rent a Vehicle",   action: () => showToast("🚗 Rent a Vehicle — coming soon!") },
@@ -86,7 +84,7 @@ function ListingsGrid({ showToast, dark }) {
   );
 }
 
-// ─── Service Listings Page ─────────────────────────────────────────────────
+// ─── Service Listings Page ───────────────────────────────────────────────────
 function ServiceListingsPage({ onSelectCategory, dark }) {
   const [open, setOpen] = useState(false);
 
@@ -171,30 +169,62 @@ function ServiceListingsPage({ onSelectCategory, dark }) {
   );
 }
 
-// ─── Ride Share Page ────────────
+// ─── Ride Share Page ─────────────────────────────────────────────────────────
 function RideSharePage({ currentUser, showToast, dark }) {
-  const [open, setOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [routes, setRoutes] = useState([]);
-  const [search, setSearch] = useState("");
+  const [open, setOpen]           = useState(false);
+  const [formOpen, setFormOpen]   = useState(false);
+  const [routes, setRoutes]       = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [search, setSearch]       = useState("");
   const [editingRoute, setEditingRoute] = useState(null);
-  const [seats, setSeats] = useState(1);
-  const [freq, setFreq] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [deptTime, setDeptTime] = useState("");
-  const [priceVal, setPriceVal] = useState("");
-  const [desc, setDesc] = useState("");
+
+  // Form fields
+  const [seats, setSeats]         = useState(1);
+  const [freq, setFreq]           = useState("");
+  const [from, setFrom]           = useState("");
+  const [to, setTo]               = useState("");
+  const [deptTime, setDeptTime]   = useState("");
+  const [priceVal, setPriceVal]   = useState("");
+  const [desc, setDesc]           = useState("");
   const [formError, setFormError] = useState("");
-  const [mapSrc, setMapSrc] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Map
+  const [mapSrc, setMapSrc]       = useState("");
   const [mapHidden, setMapHidden] = useState(true);
 
+  // ── Open / close ────────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener("padosi:openRide", handler);
     return () => window.removeEventListener("padosi:openRide", handler);
   }, []);
 
+  // ── Fetch all routes from the API ────────────────────────────────────────────
+  const fetchRoutes = useCallback(async () => {
+    if (!currentUser) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/ride-routes`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load routes");
+      const data = await res.json();
+      setRoutes(data.routes || []);
+    } catch (err) {
+      console.error(err);
+      showToast("⚠️ Could not load routes. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, showToast]);
+
+  // Fetch whenever the page opens
+  useEffect(() => {
+    if (open) fetchRoutes();
+  }, [open, fetchRoutes]);
+
+  // ── Form helpers ─────────────────────────────────────────────────────────────
   const resetForm = () => {
     setFrom(""); setTo(""); setFreq(""); setDeptTime(""); setPriceVal("");
     setDesc(""); setSeats(1); setFormError(""); setMapSrc(""); setMapHidden(true);
@@ -204,10 +234,14 @@ function RideSharePage({ currentUser, showToast, dark }) {
   const openForm = (route = null) => {
     if (route) {
       setEditingRoute(route);
-      setFrom(route.from); setTo(route.to); setFreq(route.freq);
-      setDeptTime(route.time); setPriceVal(String(route.price || ""));
-      setDesc(route.desc); setSeats(route.seats);
-      const q = encodeURIComponent(route.from + " to " + route.to + " Jaipur India");
+      setFrom(route.from_place);
+      setTo(route.to_place);
+      setFreq(route.freq);
+      setDeptTime(route.depart_time);
+      setPriceVal(String(route.price ?? ""));
+      setDesc(route.description);
+      setSeats(route.seats);
+      const q = encodeURIComponent(`${route.from_place} to ${route.to_place} India`);
       setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
       setMapHidden(false);
     } else {
@@ -216,42 +250,94 @@ function RideSharePage({ currentUser, showToast, dark }) {
     setFormOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (!from)     { setFormError("⚠️ Please enter a starting point."); return; }
-    if (!to)       { setFormError("⚠️ Please enter a destination."); return; }
-    if (!freq)     { setFormError("⚠️ Please select how many times a week."); return; }
+  // ── Submit (create or edit) ──────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!from)     { setFormError("⚠️ Please enter a starting point.");        return; }
+    if (!to)       { setFormError("⚠️ Please enter a destination.");           return; }
+    if (!freq)     { setFormError("⚠️ Please select how many times a week.");  return; }
     if (!deptTime) { setFormError("⚠️ Please enter your usual departure time."); return; }
-    if (!desc)     { setFormError("⚠️ Please add a short description."); return; }
+    if (!desc)     { setFormError("⚠️ Please add a short description.");       return; }
 
-    const name = currentUser?.full_name || "User";
-    const inits = initials(name);
+    setSubmitting(true);
+    setFormError("");
 
-    if (editingRoute) {
-      setRoutes(prev => prev.map(r =>
-        r.id === editingRoute.id
-          ? { ...r, from, to, freq, time: deptTime, seats, price: Number(priceVal) || 0, desc }
-          : r
-      ));
-      showToast("✏️ Route updated");
-    } else {
-      setRoutes(prev => [{
-        id: Date.now(), from, to, freq, time: deptTime,
-        seats, price: Number(priceVal) || 0, desc,
-        posterName: name, posterInitials: inits,
-        posterId: currentUser?.id, createdAt: new Date().toISOString()
-      }, ...prev]);
-      showToast("🚗 Route posted!");
+    const payload = {
+      from_place:  from,
+      to_place:    to,
+      freq,
+      depart_time: deptTime,
+      seats,
+      price:       Number(priceVal) || 0,
+      description: desc,
+    };
+
+    try {
+      const url    = editingRoute
+        ? `${API_BASE}/api/ride-routes/${editingRoute.id}`
+        : `${API_BASE}/api/ride-routes`;
+      const method = editingRoute ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setFormError(data.error || "Something went wrong.");
+        return;
+      }
+
+      if (editingRoute) {
+        setRoutes(prev => prev.map(r => r.id === editingRoute.id ? data.route : r));
+        showToast("✏️ Route updated");
+      } else {
+        setRoutes(prev => [data.route, ...prev]);
+        showToast("🚗 Route posted!");
+      }
+
+      setFormOpen(false);
+      resetForm();
+    } catch (err) {
+      console.error(err);
+      setFormError("⚠️ Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setFormOpen(false);
-    resetForm();
   };
 
+  // ── Delete ───────────────────────────────────────────────────────────────────
+  const handleDelete = async (routeId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        showToast(`⚠️ ${data.error || "Could not remove route."}`);
+        return;
+      }
+      setRoutes(prev => prev.filter(r => r.id !== routeId));
+      showToast("🗑️ Route removed");
+    } catch (err) {
+      console.error(err);
+      showToast("⚠️ Network error. Please try again.");
+    }
+  };
+
+  // ── Filtering ────────────────────────────────────────────────────────────────
   const filtered = routes.filter(r => {
     const q = search.toLowerCase();
-    return !q || r.from.toLowerCase().includes(q) || r.to.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q);
+    return !q
+      || r.from_place.toLowerCase().includes(q)
+      || r.to_place.toLowerCase().includes(q)
+      || r.description.toLowerCase().includes(q);
   });
 
-  // Shared input classes
+  // ── Shared input class ───────────────────────────────────────────────────────
   const inputCls = `w-full px-3.5 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
       ? "bg-black border-white text-white placeholder-white/30 focus:ring-1 focus:ring-white"
@@ -317,140 +403,157 @@ function RideSharePage({ currentUser, showToast, dark }) {
 
       {/* ── Route Cards ── */}
       <div className="flex-1 overflow-y-auto px-6 pb-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-[1200px] mx-auto">
-          {filtered.length === 0 ? (
-            <div className="col-span-3 text-center py-16 flex flex-col items-center gap-3">
-              <span className="text-5xl">🛣️</span>
-              <strong className={`text-base ${dark ? "text-white/40" : "text-[#bbb]"}`}>
-                {search ? "No routes match your search." : "No routes posted yet."}
-              </strong>
-              <span className={`text-sm ${dark ? "text-white/30" : "text-[#ccc]"}`}>
-                {search ? "Try a different keyword." : "Be the first — post your route!"}
-              </span>
-            </div>
-          ) : filtered.map(r => {
-            const isOwner = r.posterId === currentUser?.id;
-            const freqLabel = r.freq === "7" ? "Daily" : `${r.freq}× a week`;
-            return (
-              <div
-                key={r.id}
-                className={`rounded-2xl border p-5 flex flex-col gap-3.5 hover:-translate-y-1 transition-all ${
-                  dark
-                    ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
-                    : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
-                }`}
-              >
-                {/* Route from → to */}
-                <div className="flex items-center gap-2.5">
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <span className={`w-2.5 h-2.5 rounded-full ${dark ? "bg-white" : "bg-[#ff2d55]"}`} />
-                    <span className={`w-0.5 h-5 ${dark ? "bg-white/30" : "bg-[#eee]"}`} />
-                    <span className={`w-2.5 h-2.5 rounded-full border-2 ${dark ? "border-white" : "border-[#ff2d55]"}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{r.from}</p>
-                    <p className={`text-xs mt-2 truncate ${dark ? "text-white/50" : "text-[#999]"}`}>{r.to}</p>
-                  </div>
-                  {isOwner && (
-                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 border ${
-                      dark
-                        ? "border-white text-white"
-                        : "border-[#ff2d55] text-[#ff2d55] bg-[#fff0f3]"
-                    }`}>
-                      Your route
-                    </span>
-                  )}
-                </div>
 
-                {/* Tags */}
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { icon: "📅", text: freqLabel },
-                    { icon: "🕐", text: r.time || "—" },
-                    { icon: "👥", text: `${r.seats} seat${r.seats > 1 ? "s" : ""}` },
-                  ].map(({ icon, text }) => (
-                    <span
-                      key={text}
-                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold border ${
-                        dark
-                          ? "border-white/40 text-white/70"
-                          : "border-[#eee] text-[#888] bg-[#f6f7fb]"
-                      }`}
-                    >
-                      {icon} {text}
-                    </span>
-                  ))}
-                </div>
+        {/* Loading state */}
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <span className={`text-sm animate-pulse ${dark ? "text-white/40" : "text-[#bbb]"}`}>
+              Loading routes…
+            </span>
+          </div>
+        )}
 
-                {r.desc && (
-                  <p className={`text-xs line-clamp-2 leading-relaxed ${dark ? "text-white/50" : "text-[#999]"}`}>{r.desc}</p>
-                )}
-
-                {/* Footer */}
-                <div className={`flex items-center justify-between pt-3 border-t gap-2 ${dark ? "border-white/20" : "border-[#eee]"}`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center ${
-                      dark
-                        ? "border-white text-white"
-                        : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
-                    }`}>
-                      {r.posterInitials}
-                    </span>
-                    <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>{r.posterName}</span>
-                  </div>
-
-                  {isOwner ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openForm(r)}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
-                          dark
-                            ? "border-white text-white bg-black hover:bg-white hover:text-black"
-                            : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                        }`}
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => { setRoutes(p => p.filter(x => x.id !== r.id)); showToast("🗑️ Route removed"); }}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
-                          dark
-                            ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
-                            : "border-[#eee] text-[#bbb] bg-white hover:border-[#ddd] hover:text-[#999]"
-                        }`}
-                      >
-                        🗑️ Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
-                        {r.price > 0 ? `₹${r.price}` : "Free"}
-                        <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
-                      </span>
-                      <button
-                        onClick={() => {
-                          if (!currentUser) { showToast("👋 Please log in first."); return; }
-                          showToast("💬 Chat coming soon! Route by " + r.posterName);
-                        }}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
-                          dark
-                            ? "border-white bg-black text-white hover:bg-white hover:text-black"
-                            : "border-[#ff2d55] bg-[#ff2d55] text-white hover:bg-[#e0002b] hover:border-[#e0002b]"
-                        }`}
-                      >
-                        Contact
-                      </button>
-                    </div>
-                  )}
-                </div>
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-[1200px] mx-auto">
+            {filtered.length === 0 ? (
+              <div className="col-span-3 text-center py-16 flex flex-col items-center gap-3">
+                <span className="text-5xl">🛣️</span>
+                <strong className={`text-base ${dark ? "text-white/40" : "text-[#bbb]"}`}>
+                  {search ? "No routes match your search." : "No routes posted yet."}
+                </strong>
+                <span className={`text-sm ${dark ? "text-white/30" : "text-[#ccc]"}`}>
+                  {search ? "Try a different keyword." : "Be the first — post your route!"}
+                </span>
               </div>
-            );
-          })}
-        </div>
+            ) : filtered.map(r => {
+              const isOwner   = r.poster_id === currentUser?.id;
+              const freqLabel = r.freq === "7" ? "Daily" : `${r.freq}× a week`;
+
+              return (
+                <div
+                  key={r.id}
+                  className={`rounded-2xl border p-5 flex flex-col gap-3.5 hover:-translate-y-1 transition-all ${
+                    dark
+                      ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
+                      : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
+                  }`}
+                >
+                  {/* Route from → to */}
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <span className={`w-2.5 h-2.5 rounded-full ${dark ? "bg-white" : "bg-[#ff2d55]"}`} />
+                      <span className={`w-0.5 h-5 ${dark ? "bg-white/30" : "bg-[#eee]"}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full border-2 ${dark ? "border-white" : "border-[#ff2d55]"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{r.from_place}</p>
+                      <p className={`text-xs mt-2 truncate ${dark ? "text-white/50" : "text-[#999]"}`}>{r.to_place}</p>
+                    </div>
+                    {isOwner && (
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 border ${
+                        dark
+                          ? "border-white text-white"
+                          : "border-[#ff2d55] text-[#ff2d55] bg-[#fff0f3]"
+                      }`}>
+                        Your route
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { icon: "📅", text: freqLabel },
+                      { icon: "🕐", text: r.depart_time || "—" },
+                      { icon: "👥", text: `${r.seats} seat${r.seats > 1 ? "s" : ""}` },
+                    ].map(({ icon, text }) => (
+                      <span
+                        key={text}
+                        className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold border ${
+                          dark
+                            ? "border-white/40 text-white/70"
+                            : "border-[#eee] text-[#888] bg-[#f6f7fb]"
+                        }`}
+                      >
+                        {icon} {text}
+                      </span>
+                    ))}
+                  </div>
+
+                  {r.description && (
+                    <p className={`text-xs line-clamp-2 leading-relaxed ${dark ? "text-white/50" : "text-[#999]"}`}>
+                      {r.description}
+                    </p>
+                  )}
+
+                  {/* Footer */}
+                  <div className={`flex items-center justify-between pt-3 border-t gap-2 ${dark ? "border-white/20" : "border-[#eee]"}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center ${
+                        dark
+                          ? "border-white text-white"
+                          : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
+                      }`}>
+                        {initials(r.poster_name || "")}
+                      </span>
+                      <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
+                        {r.poster_name}
+                      </span>
+                    </div>
+
+                    {isOwner ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openForm(r)}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
+                            dark
+                              ? "border-white text-white bg-black hover:bg-white hover:text-black"
+                              : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                          }`}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(r.id)}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
+                            dark
+                              ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
+                              : "border-[#eee] text-[#bbb] bg-white hover:border-[#ddd] hover:text-[#999]"
+                          }`}
+                        >
+                          🗑️ Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
+                          {r.price > 0 ? `₹${r.price}` : "Free"}
+                          <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (!currentUser) { showToast("👋 Please log in first."); return; }
+                            showToast("💬 Chat coming soon! Route by " + r.poster_name);
+                          }}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
+                            dark
+                              ? "border-white bg-black text-white hover:bg-white hover:text-black"
+                              : "border-[#ff2d55] bg-[#ff2d55] text-white hover:bg-[#e0002b] hover:border-[#e0002b]"
+                          }`}
+                        >
+                          Contact
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* ── Post / Edit ── */}
+      {/* ── Post / Edit form ── */}
       {formOpen && (
         <div className={`absolute inset-0 z-10 flex flex-col ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
@@ -469,7 +572,7 @@ function RideSharePage({ currentUser, showToast, dark }) {
               ← Back
             </button>
             <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
-              Post a{" "}
+              {editingRoute ? "Edit " : "Post a "}
               <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
                 Route
               </span>
@@ -525,7 +628,7 @@ function RideSharePage({ currentUser, showToast, dark }) {
               <button
                 onClick={() => {
                   if (!from || !to) { showToast("⚠️ Enter both a starting point and destination first."); return; }
-                  const q = encodeURIComponent(from + " to " + to + " Jaipur India");
+                  const q = encodeURIComponent(`${from} to ${to} India`);
                   setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
                   setMapHidden(false);
                 }}
@@ -607,7 +710,7 @@ function RideSharePage({ currentUser, showToast, dark }) {
                   type="number"
                   value={priceVal}
                   onChange={e => setPriceVal(e.target.value)}
-                  placeholder="e.g. 50"
+                  placeholder="e.g. 50  (leave blank for free)"
                   min="0"
                   className={inputCls}
                 />
@@ -636,13 +739,16 @@ function RideSharePage({ currentUser, showToast, dark }) {
 
               <button
                 onClick={handleSubmit}
-                className={`w-full py-4 rounded-2xl text-sm font-bold cursor-pointer border transition-all hover:-translate-y-0.5 ${
+                disabled={submitting}
+                className={`w-full py-4 rounded-2xl text-sm font-bold cursor-pointer border transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 ${
                   dark
                     ? "bg-white text-black border-white hover:shadow-[0_8px_24px_rgba(255,255,255,0.2)]"
                     : "bg-[#ff2d55] text-white border-[#ff2d55] hover:shadow-[0_8px_24px_rgba(255,45,85,0.25)] hover:bg-[#e0002b]"
                 }`}
               >
-                {editingRoute ? "💾 Save Changes" : "🚗 Post Route"}
+                {submitting
+                  ? "Saving…"
+                  : editingRoute ? "💾 Save Changes" : "🚗 Post Route"}
               </button>
             </div>
           </div>
@@ -652,7 +758,7 @@ function RideSharePage({ currentUser, showToast, dark }) {
   );
 }
 
-// ─── Main export ───
+// ─── Main export ─────────────────────────────────────────────────────────────
 export default function PadosiListings({ showToast, currentUser, onSelectCategory, dark = false }) {
   return (
     <>
