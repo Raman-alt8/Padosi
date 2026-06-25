@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
-export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onManageAccount, onMyTasks, onActivity, showToast, darkMode, onToggleDark }) {
+export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onManageAccount, onMyTasks, onActivity, showToast, darkMode, onToggleDark, onAbout, onHelp }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const dropRef = useRef(null);
@@ -34,8 +34,8 @@ export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onMa
 
         {/* Nav links */}
         <div className="flex gap-5 text-sm items-center">
-          <button onClick={() => {}} className="text-gray-800 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer">About</button>
-          <button onClick={() => {}} className="text-gray-800 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer">Help</button>
+          <button onClick={onAbout} className="text-gray-800 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer">About</button>
+          <button onClick={onHelp} className="text-gray-800 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer">Help</button>
 
           {!currentUser && (
             <>
@@ -71,7 +71,7 @@ export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onMa
                   {/* Quick grid */}
                   <div className="grid grid-cols-3 gap-2.5 mb-4">
                     {[
-                      { icon: "❓", label: "Help" },
+                      { icon: "❓", label: "Help", action: () => { setDropOpen(false); onHelp?.(); } },
                       { icon: "💳", label: "Wallet", action: () => { setDropOpen(false); showToast("💳 Wallet — coming soon!"); } },
                       { icon: "✅", label: "Activity", action: () => { setDropOpen(false); onActivity(); } },
                     ].map(({ icon, label, action }) => (
