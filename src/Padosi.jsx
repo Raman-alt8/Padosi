@@ -451,7 +451,7 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                         onKeyPress={e => e.key === "Enter" && handleSubmit()}
                         placeholder="What do you need help with"
                         maxLength={MAX_CHARS}
-                        className="flex-1 min-w-[200px] px-4 py-3.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400 bg-white"
+                        className="flex-1 min-w-[200px] px-4 py-3.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white"
                       />
                       <input
                         type="text"
@@ -459,7 +459,7 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
                         onChange={e => setPrice(e.target.value)}
                         onKeyPress={e => e.key === "Enter" && handleSubmit()}
                         placeholder="Your budget (₹)"
-                        className="w-40 px-4 py-3.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400 bg-white"
+                        className="w-40 px-4 py-3.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white"
                       />
                     </div>
 
@@ -469,8 +469,8 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
 
                     {mode === "later" && (
                       <div className="flex gap-3 flex-wrap mt-3">
-                        <input type="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400 bg-white" />
-                        <input type="time" value={time} onChange={e => setTime(e.target.value)} className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400 bg-white" />
+                        <input type="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white" />
+                        <input type="time" value={time} onChange={e => setTime(e.target.value)} className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400 bg-white" />
                       </div>
                     )}
 
@@ -561,52 +561,116 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
     finally { setSignupLoading(false); }
   };
 
+  // ── Shared Google button ────────────────────────────────────────────
+  const GoogleButton = () => (
+    <a
+      href="/auth/google"
+      className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:border-gray-300 hover:shadow-md transition-all no-underline"
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
+    >
+      <img
+        src="https://www.svgrepo.com/show/475656/google-color.svg"
+        className="w-5 h-5 flex-shrink-0"
+        alt="Google"
+      />
+      <span>Continue with Google</span>
+    </a>
+  );
+
+  // ── Divider ─────────────────────────────────────────────────────────
+  const Divider = () => (
+    <div className="flex items-center gap-2.5 text-xs text-gray-300">
+      <span className="flex-1 h-px bg-gray-100" /> or <span className="flex-1 h-px bg-gray-100" />
+    </div>
+  );
+
   return (
     <>
+      {/* ── Login modal ── */}
       <Modal open={loginOpen} onClose={() => onClose("login")}>
         <ModalTag>Welcome back</ModalTag>
         <h2 className="text-xl font-bold text-gray-900 mb-4">Log in to Padosi</h2>
         <div className="flex flex-col gap-3">
-          <a href="/auth/google" className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors no-underline">
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-4.5" alt="Google" />
-            Continue with Google
-          </a>
-          <div className="flex items-center gap-2.5 text-xs text-gray-300">
-            <span className="flex-1 h-px bg-gray-100" /> or <span className="flex-1 h-px bg-gray-100" />
-          </div>
-          <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyPress={e => e.key === "Enter" && handleLogin()} placeholder="Email address" className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400" />
-          <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyPress={e => e.key === "Enter" && handleLogin()} placeholder="Password" className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400" />
+          <GoogleButton />
+          <Divider />
+          <input
+            type="email"
+            value={loginEmail}
+            onChange={e => setLoginEmail(e.target.value)}
+            onKeyPress={e => e.key === "Enter" && handleLogin()}
+            placeholder="Email address"
+            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
+          />
+          <input
+            type="password"
+            value={loginPassword}
+            onChange={e => setLoginPassword(e.target.value)}
+            onKeyPress={e => e.key === "Enter" && handleLogin()}
+            placeholder="Password"
+            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
+          />
           {loginError && <p className="text-red-500 text-xs font-medium">{loginError}</p>}
-          <button onClick={handleLogin} disabled={loginLoading} className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1">
+          <button
+            onClick={handleLogin}
+            disabled={loginLoading}
+            className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1"
+          >
             {loginLoading ? "Logging in…" : "Log in"}
           </button>
         </div>
         <p className="text-xs text-gray-500 text-center mt-3">
-          Don't have an account? <button onClick={() => { onClose("login"); }} className="text-red-500 font-semibold bg-transparent border-none cursor-pointer">Sign up</button>
+          Don't have an account?{" "}
+          <button onClick={() => onClose("login")} className="text-red-500 font-semibold bg-transparent border-none cursor-pointer">
+            Sign up
+          </button>
         </p>
       </Modal>
 
+      {/* ── Signup modal ── */}
       <Modal open={signupOpen} onClose={() => onClose("signup")}>
         <ModalTag>Join Padosi</ModalTag>
         <h2 className="text-xl font-bold text-gray-900 mb-4">Create your account</h2>
         <div className="flex flex-col gap-3">
-          <a href="/auth/google" className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors no-underline">
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-4.5" alt="Google" />
-            Continue with Google
-          </a>
-          <div className="flex items-center gap-2.5 text-xs text-gray-300">
-            <span className="flex-1 h-px bg-gray-100" /> or <span className="flex-1 h-px bg-gray-100" />
-          </div>
-          <input type="text" value={signupName} onChange={e => setSignupName(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Full name" className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400" />
-          <input type="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Email address" className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400" />
-          <input type="password" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSignup()} placeholder="Password (min 6 characters)" className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400" />
+          <GoogleButton />
+          <Divider />
+          <input
+            type="text"
+            value={signupName}
+            onChange={e => setSignupName(e.target.value)}
+            onKeyPress={e => e.key === "Enter" && handleSignup()}
+            placeholder="Full name"
+            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
+          />
+          <input
+            type="email"
+            value={signupEmail}
+            onChange={e => setSignupEmail(e.target.value)}
+            onKeyPress={e => e.key === "Enter" && handleSignup()}
+            placeholder="Email address"
+            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
+          />
+          <input
+            type="password"
+            value={signupPassword}
+            onChange={e => setSignupPassword(e.target.value)}
+            onKeyPress={e => e.key === "Enter" && handleSignup()}
+            placeholder="Password (min 6 characters)"
+            className="px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
+          />
           {signupError && <p className="text-red-500 text-xs font-medium">{signupError}</p>}
-          <button onClick={handleSignup} disabled={signupLoading} className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1">
+          <button
+            onClick={handleSignup}
+            disabled={signupLoading}
+            className="py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60 mt-1"
+          >
             {signupLoading ? "Creating account…" : "Sign up"}
           </button>
         </div>
         <p className="text-xs text-gray-500 text-center mt-3">
-          Already have an account? <button onClick={() => { onClose("signup"); }} className="text-red-500 font-semibold bg-transparent border-none cursor-pointer">Log in</button>
+          Already have an account?{" "}
+          <button onClick={() => onClose("signup")} className="text-red-500 font-semibold bg-transparent border-none cursor-pointer">
+            Log in
+          </button>
         </p>
       </Modal>
     </>
@@ -662,12 +726,21 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast })
 
       <div className="mb-4">
         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Full name</label>
-        <input value={name} onChange={e => setName(e.target.value)} onKeyPress={e => e.key === "Enter" && handleSave()} className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400" />
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyPress={e => e.key === "Enter" && handleSave()}
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
+        />
       </div>
 
       <div className="mb-4">
         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Email address</label>
-        <input value={currentUser?.email || ""} disabled className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 text-gray-400 cursor-not-allowed" />
+        <input
+          value={currentUser?.email || ""}
+          disabled
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
+        />
         <span className="text-xs text-gray-300 mt-1 block">Your email can't be changed yet.</span>
       </div>
 
@@ -681,7 +754,7 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast })
             onChange={e => { const v = e.target.value.replace(/\D/g, ""); setPhone(v); setPhoneError(v && v.length < 10 ? "Phone must be exactly 10 digits." : ""); }}
             maxLength={10}
             placeholder="10-digit mobile number"
-            className="w-full pl-16 pr-10 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400"
+            className="w-full pl-16 pr-10 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-red-400"
           />
           {phone.length === 10 && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600">✓</span>}
         </div>
@@ -689,7 +762,11 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast })
       </div>
 
       {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
-      <button onClick={handleSave} disabled={loading} className="w-full py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60">
+      <button
+        onClick={handleSave}
+        disabled={loading}
+        className="w-full py-3 rounded-xl bg-red-500 text-white font-semibold text-sm cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-60"
+      >
         {loading ? "Saving…" : "Save changes"}
       </button>
     </Modal>
@@ -727,13 +804,19 @@ function ActivityModal({ open, onClose, tasks }) {
         <p className="text-xs text-gray-400">You haven't posted any tasks yet.</p>
       ) : (
         <>
-          {[{ label: "🕒 Pending", list: pending, empty: "No pending tasks right now." }, { label: "✅ Accepted", list: accepted, empty: "No accepted tasks yet." }].map(({ label, list, empty }) => (
+          {[
+            { label: "🕒 Pending", list: pending, empty: "No pending tasks right now." },
+            { label: "✅ Accepted", list: accepted, empty: "No accepted tasks yet." }
+          ].map(({ label, list, empty }) => (
             <div key={label} className="mb-5">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
                 {label}
                 <span className="ml-auto bg-gray-100 text-gray-500 text-xs font-bold px-2 py-0.5 rounded-full">{list.length}</span>
               </div>
-              {list.length === 0 ? <p className="text-xs text-gray-400">{empty}</p> : list.map(t => <TaskSummaryCard key={t.id} task={t} />)}
+              {list.length === 0
+                ? <p className="text-xs text-gray-400">{empty}</p>
+                : list.map(t => <TaskSummaryCard key={t.id} task={t} />)
+              }
             </div>
           ))}
         </>
