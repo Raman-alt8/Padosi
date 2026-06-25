@@ -19,22 +19,7 @@ db.run('PRAGMA foreign_keys=ON');
 // ── Schema ───────────────────────────────────────────
 db.serialize(() => {
 
-  // Ride routes table
-db.run(`
-  CREATE TABLE IF NOT EXISTS ride_routes (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    poster_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    from_place   TEXT    NOT NULL,
-    to_place     TEXT    NOT NULL,
-    freq         TEXT    NOT NULL,
-    depart_time  TEXT    NOT NULL,
-    seats        INTEGER NOT NULL DEFAULT 1 CHECK(seats BETWEEN 1 AND 8),
-    price        REAL    NOT NULL DEFAULT 0,
-    description  TEXT    NOT NULL DEFAULT '',
-    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
+  // Users table (supports both local and Google OAuth)
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,15 +35,15 @@ db.run(`
   // Tasks table
   db.run(`
     CREATE TABLE IF NOT EXISTS tasks (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      text        TEXT    NOT NULL,
-      price       REAL    NOT NULL,
-      mode        TEXT    NOT NULL CHECK(mode IN ('now','later')),
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      text         TEXT    NOT NULL,
+      price        REAL    NOT NULL,
+      mode         TEXT    NOT NULL CHECK(mode IN ('now','later')),
       scheduled_at DATETIME,                     -- NULL when mode = 'now'
-      accepted    INTEGER DEFAULT 0,             -- 0 / 1
-      helper_id   INTEGER REFERENCES helpers(id),
-      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+      accepted     INTEGER DEFAULT 0,            -- 0 / 1
+      helper_id    INTEGER REFERENCES helpers(id),
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -82,6 +67,36 @@ db.run(`
       (2, 'Anjali Sharma', '+91 91234 56789', 'AS', 4.6,  87),
       (3, 'Rohit Mehra',   '+91 99887 66554', 'RM', 4.9, 210),
       (4, 'Pooja Verma',   '+91 90011 22334', 'PV', 4.7,  64)
+  `);
+
+  // ── Ride route responses (accept / decline) ──────────────────────────────
+  // One row per user per route. Re-accepting after a decline just updates the row.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ride_route_responses (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      route_id   INTEGER NOT NULL REFERENCES ride_routes(id) ON DELETE CASCADE,
+      response   TEXT    NOT NULL CHECK(response IN ('accepted','declined')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, route_id)
+    )
+  `);
+
+  // ── Ride routes table ─────────────────────────────────────────────────────
+  // Each row is one shared-commute route posted by a user.
+  // poster_id → users.id (cascade delete cleans up routes when user is removed)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ride_routes (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      poster_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      from_place   TEXT    NOT NULL,
+      to_place     TEXT    NOT NULL,
+      freq         TEXT    NOT NULL,             -- "1"–"7", "7" means daily
+      depart_time  TEXT    NOT NULL,             -- "HH:MM" (24-hr)
+      seats        INTEGER NOT NULL DEFAULT 1 CHECK(seats BETWEEN 1 AND 8),
+      price        REAL    NOT NULL DEFAULT 0,   -- ₹ per seat; 0 = free
+      description  TEXT    NOT NULL DEFAULT '',
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 });
 

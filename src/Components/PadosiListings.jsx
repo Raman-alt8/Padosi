@@ -224,6 +224,28 @@ function RideSharePage({ currentUser, showToast, dark }) {
     if (open) fetchRoutes();
   }, [open, fetchRoutes]);
 
+  // If any routes come back with my_response='accepted' but no contact info yet,
+  // re-fetch the contact for each one so the panel shows correctly on reload.
+  useEffect(() => {
+    routes.forEach(r => {
+      if (r.my_response === "accepted" && !r.poster_contact) {
+        fetch(`${API_BASE}/api/ride-routes/${r.id}/accept`, {
+          method: "POST",
+          credentials: "include",
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.poster) {
+              setRoutes(prev => prev.map(x =>
+                x.id === r.id ? { ...x, poster_contact: data.poster } : x
+              ));
+            }
+          })
+          .catch(() => {});
+      }
+    });
+  }, [routes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Form helpers ─────────────────────────────────────────────────────────────
   const resetForm = () => {
     setFrom(""); setTo(""); setFreq(""); setDeptTime(""); setPriceVal("");
@@ -305,6 +327,43 @@ function RideSharePage({ currentUser, showToast, dark }) {
       setFormError("⚠️ Network error. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ── Accept ───────────────────────────────────────────────────────────────────
+  const handleAccept = async (routeId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/accept`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(`⚠️ ${data.error}`); return; }
+      // Attach poster contact info to the route in local state
+      setRoutes(prev => prev.map(r =>
+        r.id === routeId
+          ? { ...r, my_response: "accepted", poster_contact: data.poster }
+          : r
+      ));
+    } catch (err) {
+      console.error(err);
+      showToast("⚠️ Network error. Please try again.");
+    }
+  };
+
+  // ── Decline ──────────────────────────────────────────────────────────────────
+  const handleDecline = async (routeId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/decline`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) { const d = await res.json(); showToast(`⚠️ ${d.error}`); return; }
+      // Remove from view immediately
+      setRoutes(prev => prev.filter(r => r.id !== routeId));
+    } catch (err) {
+      console.error(err);
+      showToast("⚠️ Network error. Please try again.");
     }
   };
 
@@ -487,25 +546,33 @@ function RideSharePage({ currentUser, showToast, dark }) {
                   )}
 
                   {/* Footer */}
-                  <div className={`flex items-center justify-between pt-3 border-t gap-2 ${dark ? "border-white/20" : "border-[#eee]"}`}>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center ${
-                        dark
-                          ? "border-white text-white"
-                          : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
-                      }`}>
-                        {initials(r.poster_name || "")}
-                      </span>
-                      <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
-                        {r.poster_name}
+                  <div className={`pt-3 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>
+
+                    {/* Poster row */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center ${
+                          dark ? "border-white text-white" : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
+                        }`}>
+                          {initials(r.poster_name || "")}
+                        </span>
+                        <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
+                          {r.poster_name}
+                        </span>
+                      </div>
+                      <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
+                        {r.price > 0 ? `₹${r.price}` : "Free"}
+                        <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
                       </span>
                     </div>
 
+                    {/* Actions */}
                     {isOwner ? (
+                      /* Owner: edit / remove */
                       <div className="flex gap-2">
                         <button
                           onClick={() => openForm(r)}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
+                          className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
                             dark
                               ? "border-white text-white bg-black hover:bg-white hover:text-black"
                               : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
@@ -515,7 +582,7 @@ function RideSharePage({ currentUser, showToast, dark }) {
                         </button>
                         <button
                           onClick={() => handleDelete(r.id)}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
+                          className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
                             dark
                               ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
                               : "border-[#eee] text-[#bbb] bg-white hover:border-[#ddd] hover:text-[#999]"
@@ -524,24 +591,63 @@ function RideSharePage({ currentUser, showToast, dark }) {
                           🗑️ Remove
                         </button>
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
-                          {r.price > 0 ? `₹${r.price}` : "Free"}
-                          <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
-                        </span>
-                        <button
-                          onClick={() => {
-                            if (!currentUser) { showToast("👋 Please log in first."); return; }
-                            showToast("💬 Chat coming soon! Route by " + r.poster_name);
-                          }}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-bold cursor-pointer border transition-colors ${
+
+                    ) : r.my_response === "accepted" ? (
+                      /* Already accepted — show contact panel */
+                      <div className={`rounded-xl p-3 border flex flex-col gap-2 ${
+                        dark ? "bg-white/5 border-white/20" : "bg-[#f0fff4] border-[#b2f5c8]"
+                      }`}>
+                        <p className={`text-xs font-bold ${dark ? "text-white/60" : "text-[#27ae60]"}`}>
+                          ✅ Accepted — contact the poster
+                        </p>
+                        {/* Gmail button — always shown */}
+                        <a
+                          href={`mailto:${r.poster_contact?.email || ""}?subject=Ride Share — ${r.from_place} to ${r.to_place}`}
+                          className={`inline-flex items-center justify-center gap-2 text-xs font-bold py-2 px-3 rounded-lg border transition-colors ${
                             dark
-                              ? "border-white bg-black text-white hover:bg-white hover:text-black"
-                              : "border-[#ff2d55] bg-[#ff2d55] text-white hover:bg-[#e0002b] hover:border-[#e0002b]"
+                              ? "border-white text-white hover:bg-white hover:text-black"
+                              : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
                           }`}
                         >
-                          Contact
+                          ✉️ Email {r.poster_contact?.name?.split(" ")[0] || "poster"}
+                        </a>
+                        {/* Phone — only if poster added one */}
+                        {r.poster_contact?.phone && (
+                          <a
+                            href={`tel:${r.poster_contact.phone}`}
+                            className={`inline-flex items-center justify-center gap-2 text-xs font-bold py-2 px-3 rounded-lg border transition-colors ${
+                              dark
+                                ? "border-white/40 text-white/70 hover:border-white hover:text-white"
+                                : "border-[#ddd] text-[#555] bg-white hover:border-[#27ae60] hover:text-[#27ae60]"
+                            }`}
+                          >
+                            📞 {r.poster_contact.phone}
+                          </a>
+                        )}
+                      </div>
+
+                    ) : (
+                      /* Not yet responded — show Accept / Decline */
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDecline(r.id)}
+                          className={`flex-1 text-xs py-2.5 rounded-xl font-bold cursor-pointer border transition-colors ${
+                            dark
+                              ? "border-white/40 text-white/60 bg-black hover:border-white hover:text-white"
+                              : "border-[#eee] text-[#aaa] bg-white hover:border-[#ddd] hover:text-[#999]"
+                          }`}
+                        >
+                          ✕ Decline
+                        </button>
+                        <button
+                          onClick={() => handleAccept(r.id)}
+                          className={`flex-1 text-xs py-2.5 rounded-xl font-bold cursor-pointer border transition-all hover:-translate-y-0.5 ${
+                            dark
+                              ? "border-white bg-white text-black hover:shadow-[0_6px_20px_rgba(255,255,255,0.2)]"
+                              : "border-[#ff2d55] bg-[#ff2d55] text-white hover:bg-[#e0002b] hover:shadow-[0_6px_20px_rgba(255,45,85,0.25)]"
+                          }`}
+                        >
+                          ✓ Accept
                         </button>
                       </div>
                     )}

@@ -583,9 +583,6 @@ app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-
-
-
 // ── Validation rules (reused by POST and PUT) ────────────────────────────────
 const rideRouteValidation = [
   body('from_place')
@@ -618,7 +615,9 @@ const rideRouteValidation = [
 
 
 // ── GET /api/ride-routes — all routes, newest first ─────────────────────────
-// Public: any logged-in user can browse all routes.
+// Excludes routes the current user has declined.
+// Includes their response ('accepted' / 'declined' / null) so the frontend
+// can show the contact panel immediately on reload if they already accepted.
 app.get('/api/ride-routes', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -633,10 +632,15 @@ app.get('/api/ride-routes', requireAuth, async (req, res) => {
          r.description,
          r.created_at,
          r.poster_id,
-         u.full_name  AS poster_name
+         u.full_name       AS poster_name,
+         rr.response       AS my_response
        FROM ride_routes r
        JOIN users u ON u.id = r.poster_id
-       ORDER BY r.created_at DESC`
+       LEFT JOIN ride_route_responses rr
+         ON rr.route_id = r.id AND rr.user_id = ?
+       WHERE (rr.response IS NULL OR rr.response != 'declined')
+       ORDER BY r.created_at DESC`,
+      [req.user.id]
     );
     res.json({ routes: rows });
   } catch (err) {
@@ -743,6 +747,82 @@ app.delete('/api/ride-routes/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Delete ride-route error:', err);
     res.status(500).json({ error: 'Could not delete route.' });
+  }
+});
+
+
+// ── POST /api/ride-routes/:id/accept ────────────────────────────────────────
+// Records the acceptance and returns the poster's contact details.
+app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
+  const routeId = req.params.id;
+
+  try {
+    // Can't accept your own route
+    const route = await db.getAsync(
+      'SELECT * FROM ride_routes WHERE id = ?', [routeId]
+    );
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found.' });
+    }
+    if (route.poster_id === req.user.id) {
+      return res.status(400).json({ error: 'You cannot accept your own route.' });
+    }
+
+    // Upsert response (if they previously declined, now they accept)
+    await db.runAsync(
+      `INSERT INTO ride_route_responses (user_id, route_id, response)
+       VALUES (?, ?, 'accepted')
+       ON CONFLICT(user_id, route_id) DO UPDATE SET response = 'accepted'`,
+      [req.user.id, routeId]
+    );
+
+    // Return poster contact info
+    const poster = await db.getAsync(
+      'SELECT full_name, email, phone FROM users WHERE id = ?',
+      [route.poster_id]
+    );
+
+    res.json({
+      poster: {
+        name:  poster.full_name,
+        email: poster.email,
+        phone: poster.phone || null,   // null if they haven't added one
+      },
+    });
+  } catch (err) {
+    console.error('Accept ride-route error:', err);
+    res.status(500).json({ error: 'Could not accept route.' });
+  }
+});
+
+
+// ── POST /api/ride-routes/:id/decline ───────────────────────────────────────
+// Records the decline — frontend will hide the card from this user's view.
+app.post('/api/ride-routes/:id/decline', requireAuth, async (req, res) => {
+  const routeId = req.params.id;
+
+  try {
+    const route = await db.getAsync(
+      'SELECT id, poster_id FROM ride_routes WHERE id = ?', [routeId]
+    );
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found.' });
+    }
+    if (route.poster_id === req.user.id) {
+      return res.status(400).json({ error: 'You cannot decline your own route.' });
+    }
+
+    await db.runAsync(
+      `INSERT INTO ride_route_responses (user_id, route_id, response)
+       VALUES (?, ?, 'declined')
+       ON CONFLICT(user_id, route_id) DO UPDATE SET response = 'declined'`,
+      [req.user.id, routeId]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Decline ride-route error:', err);
+    res.status(500).json({ error: 'Could not decline route.' });
   }
 });
 
