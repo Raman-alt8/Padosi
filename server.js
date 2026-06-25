@@ -23,7 +23,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
   origin: isDev
-    ? 'http://localhost:3000'
+    ? 'http://localhost:5173'
     : (process.env.FRONTEND_URL || 'https://padosi-1.onrender.com'),
   credentials: true,
 }));
@@ -47,6 +47,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// ─── Serve static files from public (for LOGO.png etc.) ──────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Create dismissals table if it doesn't exist ──────────────────────────────
@@ -62,7 +63,6 @@ db.run(`
 
 // ─── Add phone column to users if it doesn't exist yet ───────────────────────
 db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
-  // Ignore "duplicate column" errors — means it already exists
   if (err && !err.message.includes('duplicate column')) {
     console.error('Could not add phone column:', err);
   }
@@ -108,7 +108,6 @@ app.post(
         'UPDATE users SET phone = ? WHERE id = ?',
         [phone, req.user.id]
       );
-      // Update the in-session user object so /api/me reflects the change immediately
       req.user.phone = phone;
       res.json({ success: true, phone });
     } catch (err) {
@@ -118,8 +117,7 @@ app.post(
   }
 );
 
-// PUT /api/me — update profile fields (full name and/or phone) from the
-// Manage Account modal. Either field can be sent on its own.
+// PUT /api/me — update profile fields (full name and/or phone)
 app.put(
   '/api/me',
   requireAuth,
@@ -225,7 +223,7 @@ app.post('/api/login', (req, res, next) => {
   })(req, res, next);
 });
 
-// GET /api/logout — destroy session
+// GET /api/logout
 app.get('/api/logout', (req, res) => {
   req.logout(err => {
     if (err) return res.status(500).json({ error: 'Logout failed.' });
@@ -245,12 +243,10 @@ app.post('/api/logout', (req, res) => {
 // GOOGLE OAUTH ROUTES
 // ═════════════════════════════════════════════════════════════════════════════
 
-// Step 1: redirect user to Google consent screen
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-// Step 2: Google redirects back here after login
 app.get(
   '/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/?auth=failed' }),
@@ -263,7 +259,7 @@ app.get(
 // TASK ROUTES
 // ═════════════════════════════════════════════════════════════════════════════
 
-// GET /api/tasks — get all tasks for the logged-in user (joins helper info)
+// GET /api/tasks — get all tasks for the logged-in user
 app.get('/api/tasks', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -287,7 +283,6 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
       [req.user.id]
     );
 
-    // Shape each row to match what index.html expects
     const tasks = rows.map(r => {
       const task = {
         id:         r.id,
@@ -336,7 +331,6 @@ app.post(
 
     const { text, price, mode, date, time } = req.body;
 
-    // Build scheduled_at from date + time when mode is 'later'
     const scheduled_at = (mode === 'later' && date && time)
       ? `${date}T${time}`
       : null;
@@ -438,7 +432,7 @@ app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/tasks/:id/accept — assign a real helper from the helpers table
+// POST /api/tasks/:id/accept — assign a helper
 app.post('/api/tasks/:id/accept', requireAuth, async (req, res) => {
   const taskId = req.params.id;
 
@@ -454,7 +448,6 @@ app.post('/api/tasks/:id/accept', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Task already accepted.' });
     }
 
-    // Pick a random helper from the helpers table
     const helpers = await db.allAsync('SELECT * FROM helpers');
     const helper  = helpers[Math.floor(Math.random() * helpers.length)];
 
@@ -478,8 +471,7 @@ app.post('/api/tasks/:id/accept', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/tasks/:id/offer — a helper offers to take someone else's nearby task.
-// Returns the poster's contact details so the frontend can show Call / Chat options.
+// POST /api/tasks/:id/offer — helper offers to take a nearby task
 app.post('/api/tasks/:id/offer', requireAuth, async (req, res) => {
   const taskId = req.params.id;
 
@@ -525,12 +517,10 @@ app.post('/api/tasks/:id/offer', requireAuth, async (req, res) => {
 });
 
 // POST /api/tasks/:id/dismiss — hide a nearby task from the current user's feed
-// The task remains active and visible to all other users.
 app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
   const taskId = req.params.id;
 
   try {
-    // Prevent users from dismissing their own tasks
     const ownTask = await db.getAsync(
       'SELECT id FROM tasks WHERE id = ? AND user_id = ?',
       [taskId, req.user.id]
@@ -539,7 +529,6 @@ app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Cannot dismiss your own task.' });
     }
 
-    // INSERT OR IGNORE so duplicate dismissals don't cause errors
     await db.runAsync(
       'INSERT OR IGNORE INTO dismissals (user_id, task_id) VALUES (?, ?)',
       [req.user.id, taskId]
@@ -552,7 +541,7 @@ app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/tasks/nearby — tasks posted by OTHER users, excluding dismissed ones
+// GET /api/tasks/nearby — tasks posted by other users, excluding dismissed ones
 app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -591,10 +580,15 @@ app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
 });
 
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
-// Returns JSON instead of letting Express fall through to its default HTML
-// 404 page, which is what caused the "DOCTYPE" parsing error in the frontend.
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found.' });
+});
+
+// ─── Serve React frontend (must be AFTER all API routes) ─────────────────────
+app.use(express.static(path.join(__dirname, 'dist')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // ─── Start server ─────────────────────────────────────────────────────────────
