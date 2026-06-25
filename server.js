@@ -585,8 +585,6 @@ app.use('/api', (req, res) => {
 //   app.use('/api', (req, res) => { res.status(404).json(...) });
 // ─────────────────────────────────────────────────────────────────────────────
 
-const { body, validationResult } = require('express-validator');
-// ^ already imported in your server.js — don't import again, shown for clarity
 
 
 // ── Validation rules (reused by POST and PUT) ────────────────────────────────
