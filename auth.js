@@ -5,7 +5,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const bcrypt         = require('bcryptjs');
 const db             = require('./db');
 
-// ── Serialise / Deserialise ─────────────────────────────────────────
+// ── Serialise / Deserialise ──────────
 passport.serializeUser((user, done) => done(null, user.id));
 
 passport.deserializeUser(async (id, done) => {
@@ -45,7 +45,7 @@ passport.use(new LocalStrategy(
   }
 ));
 
-// ── Google OAuth2 strategy ───────────────────────────────────────────
+// ── Google OAuth2 strategy 
 passport.use(new GoogleStrategy(
   {
     clientID:     process.env.GOOGLE_CLIENT_ID,

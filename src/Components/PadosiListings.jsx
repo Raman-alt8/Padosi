@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 
-// ─── Padosi Listings Tab ───────────────────────────────────────────────────
-// Now fully theme-aware: passes `dark` prop through all sub-components so
-// light mode follows Padosi's standard palette (white bg, #111 text, #ff2d55
-// accent) and dark mode keeps the all-black / white-border treatment.
+// ─── Padosi Listings Tab ─────────
 
 const SERVICE_CATEGORIES = [
   { icon: "🔧", label: "Plumber",                  prompt: "Need a plumber to fix " },
@@ -30,13 +27,12 @@ function initials(name = "") {
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// ─── Theme helpers ─────────────────────────────────────────────────────────
-// Centralised so every sub-component derives from the same source of truth.
+// ─── Theme helpers 
 function t(dark, darkCls, lightCls) {
   return dark ? darkCls : lightCls;
 }
 
-// ─── Listings Grid (the visible tab) ───────────────────────────────────────
+// ─── Listings Grid (the visible tab) 
 function ListingsGrid({ showToast, dark }) {
   const tiles = [
     { icon: "🚗", label: "Rent a Vehicle",   action: () => showToast("🚗 Rent a Vehicle — coming soon!") },
@@ -175,7 +171,7 @@ function ServiceListingsPage({ onSelectCategory, dark }) {
   );
 }
 
-// ─── Ride Share Page ───────────────────────────────────────────────────────
+// ─── Ride Share Page ────────────
 function RideSharePage({ currentUser, showToast, dark }) {
   const [open, setOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -454,7 +450,7 @@ function RideSharePage({ currentUser, showToast, dark }) {
         </div>
       </div>
 
-      {/* ── Post / Edit route form overlay ── */}
+      {/* ── Post / Edit ── */}
       {formOpen && (
         <div className={`absolute inset-0 z-10 flex flex-col ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
@@ -656,9 +652,7 @@ function RideSharePage({ currentUser, showToast, dark }) {
   );
 }
 
-// ─── Main export ───────────────────────────────────────────────────────────
-// Now accepts `dark` prop — pass it from App.jsx alongside the existing props:
-//   <PadosiListings showToast={showToast} currentUser={currentUser} onSelectCategory={…} dark={darkMode} />
+// ─── Main export ───
 export default function PadosiListings({ showToast, currentUser, onSelectCategory, dark = false }) {
   return (
     <>

@@ -3,7 +3,7 @@ import PadosiListings from "./PadosiListings";
 import { Modal, ModalTag } from "./Modal";
 import { api, formatDateTime, MAX_CHARS, renderStars } from "../utils";
 
-// ─── Nearby Task Card ─────────────────────────────────────────────────────────
+// ─── Nearby Task Card ──────────────────────
 function NearbyTaskCard({ task, showToast, dark }) {
   const [state, setState] = useState("idle");
   const [poster, setPoster] = useState(null);
@@ -127,7 +127,7 @@ function NearbyPanel({ tasks, showToast, dark }) {
   );
 }
 
-// ─── My Task Card ─────────────────────────────────────────────────────────────
+// ─── My Task Card ────
 function MyTaskCard({ task, onEdit, onDelete, dark }) {
   return (
     <div className={`rounded-xl p-3 mb-2.5 text-sm border ${
@@ -183,7 +183,7 @@ function MyTaskCard({ task, onEdit, onDelete, dark }) {
   );
 }
 
-// ─── Tasks Sidebar ────────────────────────────────────────────────────────────
+// ─── Tasks Sidebar ─────────────────
 function TasksSidebar({ tasks, visible, onEdit, onDelete, dark }) {
   return (
     <div className={`transition-all duration-500 ease-in-out overflow-hidden flex-shrink-0 ${visible ? "w-[300px] min-w-[300px] opacity-100" : "w-0 min-w-0 opacity-0"}`}>

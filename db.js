@@ -16,7 +16,7 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 db.run('PRAGMA journal_mode=WAL');
 db.run('PRAGMA foreign_keys=ON');
 
-// ── Schema ──────────────────────────────────────────────────────────
+// ── Schema ───────────────────────────────────────────
 db.serialize(() => {
 
   // Users table (supports both local and Google OAuth)
@@ -70,7 +70,7 @@ db.serialize(() => {
   `);
 });
 
-// ── Helper wrappers (promise-based) ─────────────────────────────────
+// ── Helper wrappers (promise-based) ─────────
 db.getAsync = (sql, params = []) =>
   new Promise((res, rej) =>
     db.get(sql, params, (err, row) => (err ? rej(err) : res(row)))

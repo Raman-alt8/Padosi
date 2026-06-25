@@ -1,4 +1,4 @@
-// ─── Verified Member CTA Section ──────────────────────────────────────────────
+// ─── Verified Member CTA Section ─
 export default function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage, dark }) {
   if (currentUser?.phone) return null;
   return (

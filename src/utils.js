@@ -1,7 +1,7 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 export const MAX_CHARS = 1000;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ──
 export async function api(method, path, body) {
   const opts = { method, credentials: "include", headers: {} };
   if (body) {
@@ -44,7 +44,7 @@ export function renderStars(rating) {
   return Array.from({ length: 5 }, (_, i) => (i < full ? "★" : "☆")).join("");
 }
 
-// ─── Dark mode token helper ───────────────────────────────────────────────────
+// ─── Dark mode token helper ────
 export function dm(dark, darkCls, lightCls) {
   return dark ? darkCls : lightCls;
 }

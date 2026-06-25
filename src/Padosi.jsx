@@ -6,7 +6,7 @@ import VerifiedSection from "./Components/VerifiedSection";
 import { Modal, ModalTag } from "./Components/Modal";
 import { api, formatDateTime, formatPostedDate } from "./utils";
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ─── Toast ───────────────────────────────────────────────────
 function Toast({ message, dark }) {
   return (
     <div
@@ -152,7 +152,7 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
   );
 }
 
-// ─── Manage Account Modal ─────────────────────────────────────────────────────
+// ─── Manage Account Modal ──
 function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, dark }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -261,7 +261,7 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   );
 }
 
-// ─── Activity / History Modal ─────────────────────────────────────────────────
+// ─── Activity / History Modal ──────────
 function TaskSummaryCard({ task, dark }) {
   const accepted = task.accepted;
   return (
@@ -335,7 +335,7 @@ function HistoryModal({ open, onClose, tasks, dark }) {
   );
 }
 
-// ─── Root App ─────────────────────────────────────────────────────────────────
+// ─── Root App ───
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [tasks, setTasks] = useState([]);

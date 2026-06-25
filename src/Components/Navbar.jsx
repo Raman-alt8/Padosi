@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-// ─── Navbar ───────────────────────────────────────────────────────────────────
+// ─── Navbar ──────────────────
 export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onManageAccount, onMyTasks, onActivity, showToast, darkMode, onToggleDark, onAbout, onHelp }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);

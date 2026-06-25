@@ -15,10 +15,9 @@ const passport = require('./auth');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ─── Trust proxy (required on Render for secure cookies after Google login) ───
 app.set('trust proxy', 1);
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+// ─── Middleware 
 const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
@@ -47,10 +46,10 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ─── Serve static files from public (for LOGO.png etc.) ──────────────────────
+// ─── Serve static files from public (for LOGO.png etc.) 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── Create dismissals table if it doesn't exist ──────────────────────────────
+
 db.run(`
   CREATE TABLE IF NOT EXISTS dismissals (
     user_id  INTEGER NOT NULL,
@@ -61,22 +60,21 @@ db.run(`
   if (err) console.error('Could not create dismissals table:', err);
 });
 
-// ─── Add phone column to users if it doesn't exist yet ───────────────────────
+
 db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
   if (err && !err.message.includes('duplicate column')) {
     console.error('Could not add phone column:', err);
   }
 });
 
-// ─── Auth helper ──────────────────────────────────────────────────────────────
+// ─── Auth helper ─────────────────────
 function requireAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
   res.status(401).json({ error: 'Not authenticated' });
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+
 // AUTH ROUTES
-// ═════════════════════════════════════════════════════════════════════════════
 
 // GET /api/me — return current session user
 app.get('/api/me', (req, res) => {
@@ -238,10 +236,7 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
   });
 });
-
-// ═════════════════════════════════════════════════════════════════════════════
 // GOOGLE OAUTH ROUTES
-// ═════════════════════════════════════════════════════════════════════════════
 
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -255,11 +250,9 @@ app.get(
   }
 );
 
-// ═════════════════════════════════════════════════════════════════════════════
-// TASK ROUTES
-// ═════════════════════════════════════════════════════════════════════════════
 
-// GET /api/tasks — get all tasks for the logged-in user
+// TASK ROUTES
+
 app.get('/api/tasks', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -516,7 +509,7 @@ app.post('/api/tasks/:id/offer', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/tasks/:id/dismiss — hide a nearby task from the current user's feed
+// POST /api/tasks/:id/dismiss — hide a task from me
 app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
   const taskId = req.params.id;
 
@@ -541,7 +534,7 @@ app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/tasks/nearby — tasks posted by other users, excluding dismissed ones
+// GET /api/tasks/nearby — tasks posted by me, excluding dismissed ones
 app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -591,7 +584,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// ─── Start server ─────────────────────────────────────────────────────────────
+// ─── Start server ──────────
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
