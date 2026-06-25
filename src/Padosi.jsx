@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Navbar from "./Components/Navbar";
 import PadosiListings from "./Components/PadosiListings";
+import HowItWorks from "./Components/HowItWorks";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_CHARS = 1000;
@@ -439,7 +440,6 @@ function HeroSection({ currentUser, tasks, setTasks, nearbyTasks, showToast, onR
     showToast("🛠️ " + cat.label + " — tell us what you need");
   };
 
-  // Input class — matches file 2's input styling
   const inputCls = `px-4 py-3.5 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
       ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
@@ -643,14 +643,12 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
     finally { setSignupLoading(false); }
   };
 
-  // Input styling matching file 2
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
       ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
       : "bg-white border-[#ddd] text-[#111] placeholder:text-[#aaa] focus:border-[#ff2d55]"
   }`;
 
-  // Google button matching file 2's .google-btn
   const GoogleButton = () => (
     <a
       href="/auth/google"
@@ -665,7 +663,6 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
     </a>
   );
 
-  // Divider matching file 2's .or-divider
   const Divider = () => (
     <div className={`flex items-center gap-2.5 text-xs ${dark ? "text-[#888]" : "text-[#bbb]"}`}>
       <span className={`flex-1 h-px ${dark ? "bg-white" : "bg-[#eee]"}`} />
@@ -674,7 +671,6 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
     </div>
   );
 
-  // Submit button matching file 2's .auth-submit-btn
   const submitBtnCls = `py-3 rounded-xl font-semibold text-sm cursor-pointer border-none transition-opacity disabled:opacity-60 mt-1 ${
     dark ? "bg-white text-black hover:opacity-80" : "bg-[#ff2d55] text-white hover:opacity-90"
   }`;
@@ -761,7 +757,6 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
   const verified = !!(currentUser?.phone);
 
-  // Input class — matches file 2 .manage-field input
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
       ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
@@ -948,35 +943,6 @@ function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage,
   );
 }
 
-function HowItWorks({ dark }) {
-  const steps = [
-    { img: "https://cdn-icons-png.flaticon.com/512/1828/1828919.png", label: "Post your task" },
-    { img: "https://cdn-icons-png.flaticon.com/512/942/942748.png",   label: "Get responses" },
-    { img: "https://cdn-icons-png.flaticon.com/512/190/190411.png",   label: "Get it done" },
-  ];
-
-  return (
-    <div className={`py-16 px-5 text-center border-t-2 ${dark ? "bg-black border-white" : "bg-white border-[#f0f0f0]"}`}>
-      <h2 className={`text-2xl font-bold mb-10 ${dark ? "text-white" : "text-[#111]"}`}>How Padosi works</h2>
-      <div className="flex justify-center gap-10 flex-wrap">
-        {steps.map(({ img, label }) => (
-          <div key={label} className="max-w-[200px] flex flex-col items-center gap-4">
-            {dark ? (
-              /* In dark mode, file 2 wraps icons in a white circle */
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center p-3.5 box-border">
-                <img src={img} className="w-full h-full object-contain" alt={label} />
-              </div>
-            ) : (
-              <img src={img} className="w-20" alt={label} />
-            )}
-            <h3 className={`font-bold ${dark ? "text-white" : "text-[#111]"}`}>{label}</h3>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -991,7 +957,6 @@ export default function App() {
   const [toastMsg, showToast] = useToast();
 
   useEffect(() => {
-    // Match file 2: pure #000 body in dark, clear in light
     document.body.style.background = darkMode ? "#000000" : "";
     localStorage.setItem("padosi-theme", darkMode ? "dark" : "default");
   }, [darkMode]);
@@ -1044,6 +1009,8 @@ export default function App() {
         showToast={showToast}
         darkMode={darkMode}
         onToggleDark={setDarkMode}
+        onAbout={() => showToast("ℹ️ About — coming soon!")}
+        onHelp={() => showToast("❓ Help — coming soon!")}
       />
 
       <HeroSection
