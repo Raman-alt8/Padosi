@@ -19,7 +19,6 @@ const EVENT_CATEGORIES = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Returns today's date as "YYYY-MM-DD" in local time. */
 function todayISO() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -85,28 +84,213 @@ function BadgePill({ text, dark }) {
   );
 }
 
+// ─── Inline Edit Form (rendered inside the card when editing) ────────────────
+
+function InlineEditForm({ listing, dark, onSave, onCancel }) {
+  const [form, setForm] = useState({
+    title:       listing.title,
+    category:    listing.category,
+    date:        listing.date,
+    venue:       listing.venue,
+    price:       String(listing.price),
+    qty:         String(listing.qty),
+    description: listing.description ?? "",
+    contact:     listing.contact ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (key) => (e) =>
+    setForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  const inputBase = `w-full rounded-xl px-3 py-2 text-sm border outline-none transition-colors ${
+    dark
+      ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
+      : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
+  }`;
+
+  const labelBase = `text-[10px] font-bold mb-0.5 block uppercase tracking-wide ${
+    dark ? "text-white/50" : "text-[#aaa]"
+  }`;
+
+  const handleSave = async () => {
+    const required = ["title", "category", "date", "venue", "price", "contact"];
+    if (required.some((k) => !form[k])) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+    if (form.date < todayISO()) {
+      alert("Event date cannot be in the past.");
+      return;
+    }
+    setSaving(true);
+    await onSave(listing.id, {
+      ...form,
+      price: Number(form.price),
+      qty:   Number(form.qty) || 1,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-3 pt-1">
+      {/* Title */}
+      <div>
+        <label className={labelBase}>Event name *</label>
+        <input className={inputBase} value={form.title} onChange={set("title")} />
+      </div>
+
+      {/* Category */}
+      <div>
+        <label className={labelBase}>Category *</label>
+        <select className={inputBase} value={form.category} onChange={set("category")}>
+          <option value="">Select a category</option>
+          {EVENT_CATEGORIES.map((c) => (
+            <option key={c.label} value={c.label}>
+              {c.icon} {c.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Date + Venue */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelBase}>Date *</label>
+          <input
+            type="date"
+            className={inputBase}
+            value={form.date}
+            min={todayISO()}
+            onChange={set("date")}
+          />
+        </div>
+        <div>
+          <label className={labelBase}>Venue *</label>
+          <input
+            className={inputBase}
+            placeholder="Venue name"
+            value={form.venue}
+            onChange={set("venue")}
+          />
+        </div>
+      </div>
+
+      {/* Price + Qty */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelBase}>Price (₹) *</label>
+          <input
+            type="number"
+            min="0"
+            className={inputBase}
+            value={form.price}
+            onChange={set("price")}
+          />
+        </div>
+        <div>
+          <label className={labelBase}>Qty</label>
+          <input
+            type="number"
+            min="1"
+            max="20"
+            className={inputBase}
+            value={form.qty}
+            onChange={set("qty")}
+          />
+        </div>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className={labelBase}>Details</label>
+        <textarea
+          rows={2}
+          className={`${inputBase} resize-none`}
+          placeholder="Seat details, reason for selling…"
+          value={form.description}
+          onChange={set("description")}
+        />
+      </div>
+
+      {/* Contact */}
+      <div>
+        <label className={labelBase}>Contact *</label>
+        <input
+          className={inputBase}
+          placeholder="+91 98765 43210"
+          value={form.contact}
+          onChange={set("contact")}
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 mt-1">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`flex-1 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+            saving
+              ? dark
+                ? "bg-white/20 text-white/40 border-white/10"
+                : "bg-[#ffa0b0] text-white border-[#ffa0b0]"
+              : dark
+              ? "bg-white text-black border-white hover:bg-white/80"
+              : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+          }`}
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={saving}
+          className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+            dark
+              ? "bg-transparent text-white/60 border-white/20 hover:border-white hover:text-white"
+              : "bg-white text-[#888] border-[#ddd] hover:border-[#999] hover:text-[#333]"
+          }`}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── TicketCard ───────────────────────────────────────────────────────────────
+
 /**
  * TicketCard
  *
  * Props:
  *   listing       – card data (includes listing.userId)
  *   dark          – theme flag
- *   currentUserId – logged-in user's id; used to decide whether to show Remove
+ *   currentUserId – logged-in user's id; used to decide whether to show owner controls
  *   onBuy         – called when a non-owner clicks Buy
  *   onRemove      – called when the owner clicks Remove
+ *   onEdit        – called when the owner saves edits: (id, updatedFields) => Promise<void>
  */
-function TicketCard({ listing, dark, currentUserId, onBuy, onRemove }) {
-  const isOwner = !!currentUserId && listing.userId === currentUserId;
+function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
+  const isOwner  = !!currentUserId && listing.userId === currentUserId;
+  const [editing, setEditing] = useState(false);
+
+  const handleSaveEdit = async (id, fields) => {
+    await onEdit(id, fields);
+    setEditing(false);
+  };
 
   return (
     <div
-      className={`rounded-2xl border p-4 flex flex-col gap-3 transition-all hover:-translate-y-0.5 ${
-        dark
+      className={`rounded-2xl border p-4 flex flex-col gap-3 transition-all ${
+        editing
+          ? dark
+            ? "border-white/60"
+            : "border-[#ff2d55] shadow-[0_8px_24px_rgba(255,45,85,0.12)]"
+          : dark
           ? "bg-black border-white/20 hover:border-white/60"
-          : "bg-white border-[#eee] hover:border-[#ff2d55] hover:shadow-[0_8px_24px_rgba(255,45,85,0.10)]"
-      }`}
+          : "bg-white border-[#eee] hover:-translate-y-0.5 hover:border-[#ff2d55] hover:shadow-[0_8px_24px_rgba(255,45,85,0.10)]"
+      } ${dark ? "bg-black" : "bg-white"}`}
     >
-      {/* Top row */}
+      {/* ── Top row (always visible) ── */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span
@@ -139,81 +323,102 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove }) {
         </div>
       </div>
 
-      {/* Details */}
-      <div className={`text-xs flex flex-col gap-1 ${dark ? "text-white/60" : "text-[#777]"}`}>
-        <span>📅 {listing.date}</span>
-        <span>📍 {listing.venue}</span>
-        <span>
-          🎟️ {listing.qty} ticket{listing.qty > 1 ? "s" : ""} available · by {listing.seller}
-        </span>
-      </div>
+      {/* ── Inline edit form OR card details ── */}
+      {editing ? (
+        <InlineEditForm
+          listing={listing}
+          dark={dark}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <>
+          {/* Details */}
+          <div className={`text-xs flex flex-col gap-1 ${dark ? "text-white/60" : "text-[#777]"}`}>
+            <span>📅 {listing.date}</span>
+            <span>📍 {listing.venue}</span>
+            <span>
+              🎟️ {listing.qty} ticket{listing.qty > 1 ? "s" : ""} available · by {listing.seller}
+            </span>
+          </div>
 
-      {/* Price + CTA */}
-      <div className="flex items-center justify-between mt-1">
-        <div>
-          <p className={`text-xs ${dark ? "text-white/40" : "text-[#bbb]"}`}>per ticket</p>
-          <p className={`text-lg font-black ${dark ? "text-white" : "text-[#111]"}`}>
-            ₹{listing.price.toLocaleString("en-IN")}
-          </p>
-        </div>
+          {/* Price + CTA */}
+          <div className="flex items-center justify-between mt-1">
+            <div>
+              <p className={`text-xs ${dark ? "text-white/40" : "text-[#bbb]"}`}>per ticket</p>
+              <p className={`text-lg font-black ${dark ? "text-white" : "text-[#111]"}`}>
+                ₹{listing.price.toLocaleString("en-IN")}
+              </p>
+            </div>
 
-        {isOwner ? (
-          /* ── Remove button (owner only) ── */
-          <button
-            onClick={() => onRemove(listing.id)}
-            className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
-              dark
-                ? "bg-transparent text-white/70 border-white/30 hover:border-white hover:text-white"
-                : "bg-white text-[#ff2d55] border-[#ff2d55] hover:bg-[#fff0f3]"
-            }`}
-          >
-            Remove
-          </button>
-        ) : (
-          /* ── Buy button (everyone else) ── */
-          <button
-            onClick={() => onBuy(listing)}
-            className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
-              dark
-                ? "bg-white text-black border-white hover:bg-white/80"
-                : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
-            }`}
-          >
-            Buy
-          </button>
-        )}
-      </div>
+            {isOwner ? (
+              /* ── Owner controls: Edit + Remove ── */
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditing(true)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+                    dark
+                      ? "bg-transparent text-white border-white/40 hover:border-white hover:bg-white/10"
+                      : "bg-white text-[#ff2d55] border-[#ff2d55] hover:bg-[#fff0f3]"
+                  }`}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => onRemove(listing.id)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+                    dark
+                      ? "bg-transparent text-white/50 border-white/20 hover:border-white/60 hover:text-white/80"
+                      : "bg-white text-[#aaa] border-[#ddd] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                  }`}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              /* ── Buy button (non-owners only) ── */
+              <button
+                onClick={() => onBuy(listing)}
+                className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+                  dark
+                    ? "bg-white text-black border-white hover:bg-white/80"
+                    : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+                }`}
+              >
+                Buy
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-/**
- * BuyPanel
- *
- * Accepts `user` so it can tell TicketCard which listing belongs to the
- * current user and wires up the Remove flow.
- */
-function BuyPanel({ dark, showToast, user }) {
-  const [search, setSearch]           = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [listings, setListings]       = useState([]);
-  const [loading, setLoading]         = useState(true);
+// ─── BuyPanel ─────────────────────────────────────────────────────────────────
 
-  // Map backend rows → the shape TicketCard expects
+function BuyPanel({ dark, showToast, user }) {
+  const [search, setSearch]               = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [listings, setListings]           = useState([]);
+  const [loading, setLoading]             = useState(true);
+
   const toCard = (t) => {
     const catObj = EVENT_CATEGORIES.find((c) => c.label === t.category);
     return {
-      id:       t.id,
-      userId:   t.user_id,          // needed to detect ownership
-      title:    t.title,
-      category: t.category,
-      icon:     catObj?.icon ?? "🎟️",
-      date:     t.date,
-      venue:    t.venue,
-      price:    t.price,
-      qty:      t.qty,
-      seller:   t.seller_name ?? "Anonymous",
-      badge:    t.qty === 1 ? "Last one" : null,
+      id:          t.id,
+      userId:      t.user_id,
+      title:       t.title,
+      category:    t.category,
+      icon:        catObj?.icon ?? "🎟️",
+      date:        t.date,
+      venue:       t.venue,
+      price:       t.price,
+      qty:         t.qty,
+      seller:      t.seller_name ?? "Anonymous",
+      badge:       t.qty === 1 ? "Last one" : null,
+      description: t.description ?? "",
+      contact:     t.contact ?? "",
     };
   };
 
@@ -225,23 +430,53 @@ function BuyPanel({ dark, showToast, user }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Remove handler ──────────────────────────────────────────────────────────
+  // ── Remove ────────────────────────────────────────────────────────────────
   const handleRemove = async (id) => {
     try {
       const res = await fetch(`/api/tickets/${id}`, {
         method:      "DELETE",
         credentials: "include",
       });
-
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         showToast(`⚠️ ${data.error || "Could not remove ticket."}`);
         return;
       }
-
-      // Optimistically remove the card from local state
       setListings((prev) => prev.filter((l) => l.id !== id));
       showToast("✅ Ticket listing removed.");
+    } catch {
+      showToast("⚠️ Network error. Please try again.");
+    }
+  };
+
+  // ── Edit ──────────────────────────────────────────────────────────────────
+  const handleEdit = async (id, fields) => {
+    try {
+      const res = await fetch(`/api/tickets/${id}`, {
+        method:      "PATCH",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body:        JSON.stringify(fields),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(`⚠️ ${data.error || "Could not update ticket."}`);
+        return;
+      }
+      // Merge updated fields into local state so the card reflects changes immediately
+      setListings((prev) =>
+        prev.map((l) => {
+          if (l.id !== id) return l;
+          const catObj = EVENT_CATEGORIES.find((c) => c.label === fields.category);
+          return {
+            ...l,
+            ...fields,
+            icon:  catObj?.icon ?? l.icon,
+            badge: fields.qty === 1 ? "Last one" : null,
+          };
+        })
+      );
+      showToast("✅ Ticket listing updated.");
     } catch {
       showToast("⚠️ Network error. Please try again.");
     }
@@ -313,8 +548,9 @@ function BuyPanel({ dark, showToast, user }) {
               listing={listing}
               dark={dark}
               currentUserId={user?.id ?? null}
-              onBuy={(l)  => showToast(`🎟️ Request sent for "${l.title}"!`)}
+              onBuy={(l)       => showToast(`🎟️ Request sent for "${l.title}"!`)}
               onRemove={handleRemove}
+              onEdit={handleEdit}
             />
           ))}
         </div>
@@ -322,6 +558,8 @@ function BuyPanel({ dark, showToast, user }) {
     </div>
   );
 }
+
+// ─── PostPanel ────────────────────────────────────────────────────────────────
 
 function PostPanel({ dark, showToast }) {
   const [form, setForm] = useState({
@@ -353,14 +591,10 @@ function PostPanel({ dark, showToast }) {
       showToast("⚠️ Please fill in all required fields.");
       return;
     }
-
-    // ── Past-date guard ─────────────────────────────────────────────────────
-    // String comparison works correctly for YYYY-MM-DD format.
     if (form.date < todayISO()) {
       showToast("⚠️ Event date cannot be in the past.");
       return;
     }
-
     try {
       const res = await fetch("/api/tickets", {
         method:      "POST",
@@ -372,13 +606,11 @@ function PostPanel({ dark, showToast }) {
           qty:   Number(form.qty) || 1,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) {
         showToast(`⚠️ ${data.error || "Could not post ticket."}`);
         return;
       }
-
       setSubmitted(true);
       showToast("✅ Ticket posted to Padosi Listings!");
     } catch {
@@ -418,7 +650,6 @@ function PostPanel({ dark, showToast }) {
 
   return (
     <div className="flex flex-col gap-5 pb-10">
-      {/* Title */}
       <div>
         <label className={labelBase}>Event name *</label>
         <input
@@ -429,7 +660,6 @@ function PostPanel({ dark, showToast }) {
         />
       </div>
 
-      {/* Category */}
       <div>
         <label className={labelBase}>Category *</label>
         <select className={inputBase} value={form.category} onChange={set("category")}>
@@ -442,11 +672,9 @@ function PostPanel({ dark, showToast }) {
         </select>
       </div>
 
-      {/* Date + Venue */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelBase}>Event date *</label>
-          {/* min prevents past dates in the native date picker */}
           <input
             type="date"
             className={inputBase}
@@ -466,7 +694,6 @@ function PostPanel({ dark, showToast }) {
         </div>
       </div>
 
-      {/* Price + Qty */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelBase}>Price per ticket (₹) *</label>
@@ -492,7 +719,6 @@ function PostPanel({ dark, showToast }) {
         </div>
       </div>
 
-      {/* Description */}
       <div>
         <label className={labelBase}>Additional details</label>
         <textarea
@@ -504,7 +730,6 @@ function PostPanel({ dark, showToast }) {
         />
       </div>
 
-      {/* Contact */}
       <div>
         <label className={labelBase}>Your contact (phone / WhatsApp) *</label>
         <input
@@ -515,7 +740,6 @@ function PostPanel({ dark, showToast }) {
         />
       </div>
 
-      {/* Submit */}
       <button
         onClick={handleSubmit}
         className={`mt-2 w-full py-3 rounded-xl text-sm font-black cursor-pointer transition-all border ${
@@ -532,14 +756,6 @@ function PostPanel({ dark, showToast }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-/**
- * BuyTicketPage
- *
- * Props:
- *   showToast – (msg: string) => void
- *   dark      – boolean (default false)
- *   user      – current session user object ({ id, full_name, … }) or null
- */
 export default function BuyTicketPage({ showToast, dark = false, user = null }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab]   = useState("buy");
