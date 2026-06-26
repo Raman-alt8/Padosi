@@ -17,82 +17,8 @@ const EVENT_CATEGORIES = [
   { icon: "🎰", label: "Other" },
 ];
 
-const MOCK_LISTINGS = [
-  {
-    id: 1,
-    title: "Arijit Singh Live",
-    category: "Concert",
-    icon: "🎵",
-    date: "12 Jul 2025",
-    venue: "Jawaharlal Nehru Stadium, Delhi",
-    price: 1200,
-    qty: 3,
-    seller: "Rohit M.",
-    badge: "Hot",
-  },
-  {
-    id: 2,
-    title: "IPL Final — RCB vs MI",
-    category: "Cricket",
-    icon: "🏏",
-    date: "20 Jul 2025",
-    venue: "M. Chinnaswamy Stadium, Bengaluru",
-    price: 2500,
-    qty: 2,
-    seller: "Priya S.",
-    badge: "2 left",
-  },
-  {
-    id: 3,
-    title: "Zakir Khan Stand-Up",
-    category: "Comedy",
-    icon: "🎤",
-    date: "5 Aug 2025",
-    venue: "Siri Fort Auditorium, Delhi",
-    price: 799,
-    qty: 5,
-    seller: "Aman K.",
-    badge: null,
-  },
-  {
-    id: 4,
-    title: "Sunburn Festival 2025",
-    category: "Festival",
-    icon: "🎪",
-    date: "28 Dec 2025",
-    venue: "Vagator Beach, Goa",
-    price: 4500,
-    qty: 1,
-    seller: "Neha R.",
-    badge: "Last one",
-  },
-  {
-    id: 5,
-    title: "ISL — ATK Mohun Bagan vs FC Goa",
-    category: "Football",
-    icon: "⚽",
-    date: "18 Jul 2025",
-    venue: "Salt Lake Stadium, Kolkata",
-    price: 600,
-    qty: 4,
-    seller: "Subhash D.",
-    badge: null,
-  },
-  {
-    id: 6,
-    title: "Kalki 2898-AD — Premier Night",
-    category: "Movie",
-    icon: "🎬",
-    date: "10 Jul 2025",
-    venue: "PVR IMAX, Mumbai",
-    price: 950,
-    qty: 2,
-    seller: "Divya T.",
-    badge: "New",
-  },
-];
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Sub-components ──
 
 function TabBar({ tab, setTab, dark }) {
   const tabs = [
@@ -231,21 +157,110 @@ function TicketCard({ listing, dark, onBuy }) {
   );
 }
 
-function BuyPanel({ dark, listings, showToast }) {
+function BuyPanel({ dark, showToast }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Map backend rows → the shape TicketCard expects
+  const toCard = (t) => {
+    const catObj = EVENT_CATEGORIES.find((c) => c.label === t.category);
+    return {
+      id:       t.id,
+      title:    t.title,
+      category: t.category,
+      icon:     catObj?.icon ?? "🎟️",
+      date:     t.date,
+      venue:    t.venue,
+      price:    t.price,
+      qty:      t.qty,
+      seller:   t.seller_name ?? "Anonymous",
+      badge:    t.qty === 1 ? "Last one" : null,
+    };
+  };
+
+  useEffect(() => {
+    fetch("/api/tickets", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => setListings((data.tickets ?? []).map(toCard)))
+      .catch(() => showToast("⚠️ Could not load tickets."))
+      .finally(() => setLoading(false));
+  }, []);
 
   const categories = ["All", ...EVENT_CATEGORIES.map((c) => c.label)];
 
   const filtered = listings.filter((l) => {
-    const matchCat =
-      activeCategory === "All" || l.category === activeCategory;
+    const matchCat = activeCategory === "All" || l.category === activeCategory;
     const matchSearch =
       search === "" ||
       l.title.toLowerCase().includes(search.toLowerCase()) ||
       l.venue.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
+
+  return (
+    <div className="flex flex-col gap-5">
+      <input
+        type="text"
+        placeholder="Search events, venues…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className={`w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
+          dark
+            ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/60"
+            : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
+        }`}
+      />
+
+      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {categories.map((cat) => {
+          const active = activeCategory === cat;
+          const catObj = EVENT_CATEGORIES.find((c) => c.label === cat);
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition-all ${
+                active
+                  ? dark
+                    ? "bg-white text-black border-white"
+                    : "bg-[#ff2d55] text-white border-[#ff2d55]"
+                  : dark
+                  ? "bg-transparent text-white/60 border-white/20 hover:border-white/50"
+                  : "bg-transparent text-[#777] border-[#ddd] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+              }`}
+            >
+              {catObj && <span>{catObj.icon}</span>}
+              {cat}
+            </button>
+          );
+        })}
+      </div>
+
+      {loading ? (
+        <div className={`text-center py-16 text-sm ${dark ? "text-white/40" : "text-[#bbb]"}`}>
+          Loading tickets…
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className={`text-center py-16 text-sm ${dark ? "text-white/40" : "text-[#bbb]"}`}>
+          No tickets found. Try a different search or category.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {filtered.map((listing) => (
+            <TicketCard
+              key={listing.id}
+              listing={listing}
+              dark={dark}
+              onBuy={(l) => showToast(`🎟️ Request sent for "${l.title}"!`)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
   return (
     <div className="flex flex-col gap-5">
@@ -313,7 +328,7 @@ function BuyPanel({ dark, listings, showToast }) {
       )}
     </div>
   );
-}
+
 
 function PostPanel({ dark, showToast }) {
   const [form, setForm] = useState({
@@ -341,14 +356,37 @@ function PostPanel({ dark, showToast }) {
     dark ? "text-white/60" : "text-[#888]"
   }`;
 
-  const handleSubmit = () => {
-    const required = ["title", "category", "date", "venue", "price", "contact"];
-    if (required.some((k) => !form[k])) {
-      showToast("⚠️ Please fill in all required fields.");
+  const handleSubmit = async () => {
+  const required = ["title", "category", "date", "venue", "price", "contact"];
+  if (required.some((k) => !form[k])) {
+    showToast("⚠️ Please fill in all required fields.");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/tickets", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...form,
+        price: Number(form.price),
+        qty: Number(form.qty) || 1,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(`⚠️ ${data.error || "Could not post ticket."}`);
       return;
     }
+
     setSubmitted(true);
     showToast("✅ Ticket posted to Padosi Listings!");
+  } catch {
+    showToast("⚠️ Network error. Please try again.");
+  }
+};
   };
 
   if (submitted) {
@@ -509,7 +547,7 @@ function PostPanel({ dark, showToast }) {
       </button>
     </div>
   );
-}
+
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
@@ -595,7 +633,6 @@ export default function BuyTicketPage({ showToast, dark = false }) {
             {tab === "buy" ? (
               <BuyPanel
                 dark={dark}
-                listings={MOCK_LISTINGS}
                 showToast={showToast}
               />
             ) : (

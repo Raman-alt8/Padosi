@@ -69,6 +69,22 @@ db.serialize(() => {
       (4, 'Pooja Verma',   '+91 90011 22334', 'PV', 4.7,  64)
   `);
 
+  db.run(`
+  CREATE TABLE IF NOT EXISTS tickets (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title       TEXT    NOT NULL,
+    category    TEXT    NOT NULL,
+    date        TEXT    NOT NULL,
+    venue       TEXT    NOT NULL,
+    price       REAL    NOT NULL,
+    qty         INTEGER NOT NULL DEFAULT 1,
+    description TEXT    DEFAULT '',
+    contact     TEXT    NOT NULL,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
   // ── Ride route responses (accept / decline) ──────────────────────────────
   // One row per user per route. Re-accepting after a decline just updates the row.
   db.run(`

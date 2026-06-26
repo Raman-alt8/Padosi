@@ -825,7 +825,75 @@ app.post('/api/ride-routes/:id/decline', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Could not decline route.' });
   }
 });
+// ── GET /api/tickets — all listings (visible to everyone logged in) ──────────
+app.get('/api/tickets', requireAuth, async (req, res) => {
+  try {
+    const rows = await db.allAsync(
+      `SELECT t.*, u.full_name AS seller_name
+       FROM tickets t
+       JOIN users u ON u.id = t.user_id
+       ORDER BY t.created_at DESC`,
+      []
+    );
+    res.json({ tickets: rows });
+  } catch (err) {
+    console.error('Get tickets error:', err);
+    res.status(500).json({ error: 'Could not load tickets.' });
+  }
+});
 
+// ── POST /api/tickets — post a new ticket ────────────────────────────────────
+app.post(
+  '/api/tickets',
+  requireAuth,
+  [
+    body('title').trim().notEmpty().withMessage('Event name is required.'),
+    body('category').trim().notEmpty().withMessage('Category is required.'),
+    body('date').trim().notEmpty().withMessage('Date is required.'),
+    body('venue').trim().notEmpty().withMessage('Venue is required.'),
+    body('price').isFloat({ gt: 0 }).withMessage('Price must be greater than 0.'),
+    body('qty').isInt({ min: 1, max: 20 }).withMessage('Qty must be 1–20.'),
+    body('contact').trim().notEmpty().withMessage('Contact is required.'),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: errors.array()[0].msg });
+    }
+
+    const { title, category, date, venue, price, qty, description, contact } = req.body;
+
+    try {
+      const result = await db.runAsync(
+        `INSERT INTO tickets (user_id, title, category, date, venue, price, qty, description, contact)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [req.user.id, title, category, date, venue, Number(price), Number(qty), description || '', contact]
+      );
+      const ticket = await db.getAsync('SELECT * FROM tickets WHERE id = ?', [result.lastID]);
+      res.status(201).json({ ticket });
+    } catch (err) {
+      console.error('Create ticket error:', err);
+      res.status(500).json({ error: 'Could not post ticket.' });
+    }
+  }
+);
+
+// ── DELETE /api/tickets/:id — remove your own listing ────────────────────────
+app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
+  try {
+    const existing = await db.getAsync(
+      'SELECT id FROM tickets WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    if (!existing) return res.status(404).json({ error: 'Ticket not found or not yours.' });
+
+    await db.runAsync('DELETE FROM tickets WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete ticket error:', err);
+    res.status(500).json({ error: 'Could not delete ticket.' });
+  }
+});
 
 // ─── Serve React frontend (must be AFTER all API routes) ─────// ─── 404 fallback for unmatched /api/* routes ──
 app.use('/api', (req, res) => {
