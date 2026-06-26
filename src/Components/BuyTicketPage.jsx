@@ -270,7 +270,7 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
  *   onEdit        – called when the owner saves edits: (id, updatedFields) => Promise<void>
  */
 function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
-  const isOwner  = !!currentUserId && listing.userId === currentUserId;
+  const isOwner = !!currentUserId && String(listing.userId) === String(currentUserId);
   const [editing, setEditing] = useState(false);
 
   const handleSaveEdit = async (id, fields) => {

@@ -903,6 +903,52 @@ app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
 });
 
 
+// ── PATCH /api/tickets/:id — edit your own listing ───────────────────────────
+app.patch(
+  '/api/tickets/:id',
+  requireAuth,
+  [
+    body('title').trim().notEmpty().withMessage('Event name is required.'),
+    body('category').trim().notEmpty().withMessage('Category is required.'),
+    body('date').trim().notEmpty().withMessage('Date is required.'),
+    body('venue').trim().notEmpty().withMessage('Venue is required.'),
+    body('price').isFloat({ gt: 0 }).withMessage('Price must be greater than 0.'),
+    body('qty').isInt({ min: 1, max: 20 }).withMessage('Qty must be 1–20.'),
+    body('contact').trim().notEmpty().withMessage('Contact is required.'),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: errors.array()[0].msg });
+    }
+
+    const { title, category, date, venue, price, qty, description, contact } = req.body;
+
+    try {
+      const existing = await db.getAsync(
+        'SELECT id FROM tickets WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      if (!existing) return res.status(404).json({ error: 'Ticket not found or not yours.' });
+
+      await db.runAsync(
+        `UPDATE tickets
+         SET title = ?, category = ?, date = ?, venue = ?,
+             price = ?, qty = ?, description = ?, contact = ?
+         WHERE id = ? AND user_id = ?`,
+        [title, category, date, venue, Number(price), Number(qty),
+         description || '', contact, req.params.id, req.user.id]
+      );
+
+      const ticket = await db.getAsync('SELECT * FROM tickets WHERE id = ?', [req.params.id]);
+      res.json({ ticket });
+    } catch (err) {
+      console.error('Update ticket error:', err);
+      res.status(500).json({ error: 'Could not update ticket.' });
+    }
+  }
+);
+
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found.' });
