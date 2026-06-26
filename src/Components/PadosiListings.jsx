@@ -367,6 +367,13 @@ function RideSharePage({ currentUser, showToast, dark }) {
     }
   };
 
+  // ── Remove an accepted route from this user's own view ───────────────────────
+  // This is local-only (doesn't change the user's accepted status on the
+  // backend) — it just clears the card off their screen for this session.
+  const handleHideAccepted = (routeId) => {
+    setRoutes(prev => prev.filter(r => r.id !== routeId));
+  };
+
   // ── Delete ───────────────────────────────────────────────────────────────────
   const handleDelete = async (routeId) => {
     try {
@@ -491,12 +498,29 @@ function RideSharePage({ currentUser, showToast, dark }) {
               return (
                 <div
                   key={r.id}
-                  className={`rounded-2xl border p-5 flex flex-col gap-3.5 hover:-translate-y-1 transition-all ${
+                  className={`relative rounded-2xl border p-5 flex flex-col gap-3.5 hover:-translate-y-1 transition-all ${
                     dark
                       ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
                       : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
                   }`}
                 >
+                  {/* Close button — only on accepted routes, lets the rider
+                      clear the card from their own screen */}
+                  {!isOwner && r.my_response === "accepted" && (
+                    <button
+                      onClick={() => handleHideAccepted(r.id)}
+                      aria-label="Remove this route from your view"
+                      title="Remove from view"
+                      className={`absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-colors z-10 ${
+                        dark
+                          ? "text-white/50 hover:text-white hover:bg-white/10"
+                          : "text-[#bbb] hover:text-[#777] hover:bg-[#f0f0f0]"
+                      }`}
+                    >
+                      ✕
+                    </button>
+                  )}
+
                   {/* Route from → to */}
                   <div className="flex items-center gap-2.5">
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
