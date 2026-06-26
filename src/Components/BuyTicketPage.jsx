@@ -17,12 +17,22 @@ const EVENT_CATEGORIES = [
   { icon: "🎰", label: "Other" },
 ];
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// ─── Sub-components ──
+/** Returns today's date as "YYYY-MM-DD" in local time. */
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, "0");
+  const dd   = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
 function TabBar({ tab, setTab, dark }) {
   const tabs = [
-    { key: "buy", label: "Buy Tickets" },
+    { key: "buy",  label: "Buy Tickets"   },
     { key: "post", label: "Post a Ticket" },
   ];
   return (
@@ -57,8 +67,7 @@ function TabBar({ tab, setTab, dark }) {
 
 function BadgePill({ text, dark }) {
   if (!text) return null;
-  const isUrgent =
-    text === "Hot" || text === "Last one" || text === "2 left";
+  const isUrgent = text === "Hot" || text === "Last one" || text === "2 left";
   return (
     <span
       className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -76,7 +85,19 @@ function BadgePill({ text, dark }) {
   );
 }
 
-function TicketCard({ listing, dark, onBuy }) {
+/**
+ * TicketCard
+ *
+ * Props:
+ *   listing       – card data (includes listing.userId)
+ *   dark          – theme flag
+ *   currentUserId – logged-in user's id; used to decide whether to show Remove
+ *   onBuy         – called when a non-owner clicks Buy
+ *   onRemove      – called when the owner clicks Remove
+ */
+function TicketCard({ listing, dark, currentUserId, onBuy, onRemove }) {
+  const isOwner = !!currentUserId && listing.userId === currentUserId;
+
   return (
     <div
       className={`rounded-2xl border p-4 flex flex-col gap-3 transition-all hover:-translate-y-0.5 ${
@@ -96,78 +117,94 @@ function TicketCard({ listing, dark, onBuy }) {
             {listing.icon}
           </span>
           <div>
-            <p
-              className={`text-sm font-black leading-tight ${
-                dark ? "text-white" : "text-[#111]"
-              }`}
-            >
+            <p className={`text-sm font-black leading-tight ${dark ? "text-white" : "text-[#111]"}`}>
               {listing.title}
             </p>
-            <p
-              className={`text-xs mt-0.5 ${
-                dark ? "text-white/50" : "text-[#999]"
-              }`}
-            >
+            <p className={`text-xs mt-0.5 ${dark ? "text-white/50" : "text-[#999]"}`}>
               {listing.category}
             </p>
           </div>
         </div>
-        <BadgePill text={listing.badge} dark={dark} />
+        <div className="flex items-center gap-2">
+          {isOwner && (
+            <span
+              className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                dark ? "bg-white/10 text-white/60" : "bg-[#f0f0f5] text-[#999]"
+              }`}
+            >
+              Your listing
+            </span>
+          )}
+          <BadgePill text={listing.badge} dark={dark} />
+        </div>
       </div>
 
       {/* Details */}
-      <div
-        className={`text-xs flex flex-col gap-1 ${
-          dark ? "text-white/60" : "text-[#777]"
-        }`}
-      >
+      <div className={`text-xs flex flex-col gap-1 ${dark ? "text-white/60" : "text-[#777]"}`}>
         <span>📅 {listing.date}</span>
         <span>📍 {listing.venue}</span>
-        <span>🎟️ {listing.qty} ticket{listing.qty > 1 ? "s" : ""} available · by {listing.seller}</span>
+        <span>
+          🎟️ {listing.qty} ticket{listing.qty > 1 ? "s" : ""} available · by {listing.seller}
+        </span>
       </div>
 
       {/* Price + CTA */}
       <div className="flex items-center justify-between mt-1">
         <div>
-          <p
-            className={`text-xs ${dark ? "text-white/40" : "text-[#bbb]"}`}
-          >
-            per ticket
-          </p>
-          <p
-            className={`text-lg font-black ${
-              dark ? "text-white" : "text-[#111]"
-            }`}
-          >
+          <p className={`text-xs ${dark ? "text-white/40" : "text-[#bbb]"}`}>per ticket</p>
+          <p className={`text-lg font-black ${dark ? "text-white" : "text-[#111]"}`}>
             ₹{listing.price.toLocaleString("en-IN")}
           </p>
         </div>
-        <button
-          onClick={() => onBuy(listing)}
-          className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
-            dark
-              ? "bg-white text-black border-white hover:bg-white/80"
-              : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
-          }`}
-        >
-          Buy
-        </button>
+
+        {isOwner ? (
+          /* ── Remove button (owner only) ── */
+          <button
+            onClick={() => onRemove(listing.id)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+              dark
+                ? "bg-transparent text-white/70 border-white/30 hover:border-white hover:text-white"
+                : "bg-white text-[#ff2d55] border-[#ff2d55] hover:bg-[#fff0f3]"
+            }`}
+          >
+            Remove
+          </button>
+        ) : (
+          /* ── Buy button (everyone else) ── */
+          <button
+            onClick={() => onBuy(listing)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+              dark
+                ? "bg-white text-black border-white hover:bg-white/80"
+                : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+            }`}
+          >
+            Buy
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function BuyPanel({ dark, showToast }) {
-  const [search, setSearch] = useState("");
+/**
+ * BuyPanel
+ *
+ * Accepts `user` so it can tell TicketCard which listing belongs to the
+ * current user and wires up the Remove flow.
+ */
+function BuyPanel({ dark, showToast, user }) {
+  const [search, setSearch]           = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [listings, setListings]       = useState([]);
+  const [loading, setLoading]         = useState(true);
 
   // Map backend rows → the shape TicketCard expects
   const toCard = (t) => {
     const catObj = EVENT_CATEGORIES.find((c) => c.label === t.category);
     return {
       id:       t.id,
+      userId:   t.user_id,          // needed to detect ownership
       title:    t.title,
       category: t.category,
       icon:     catObj?.icon ?? "🎟️",
@@ -188,10 +225,32 @@ function BuyPanel({ dark, showToast }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // ── Remove handler ──────────────────────────────────────────────────────────
+  const handleRemove = async (id) => {
+    try {
+      const res = await fetch(`/api/tickets/${id}`, {
+        method:      "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(`⚠️ ${data.error || "Could not remove ticket."}`);
+        return;
+      }
+
+      // Optimistically remove the card from local state
+      setListings((prev) => prev.filter((l) => l.id !== id));
+      showToast("✅ Ticket listing removed.");
+    } catch {
+      showToast("⚠️ Network error. Please try again.");
+    }
+  };
+
   const categories = ["All", ...EVENT_CATEGORIES.map((c) => c.label)];
 
   const filtered = listings.filter((l) => {
-    const matchCat = activeCategory === "All" || l.category === activeCategory;
+    const matchCat    = activeCategory === "All" || l.category === activeCategory;
     const matchSearch =
       search === "" ||
       l.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -253,7 +312,9 @@ function BuyPanel({ dark, showToast }) {
               key={listing.id}
               listing={listing}
               dark={dark}
-              onBuy={(l) => showToast(`🎟️ Request sent for "${l.title}"!`)}
+              currentUserId={user?.id ?? null}
+              onBuy={(l)  => showToast(`🎟️ Request sent for "${l.title}"!`)}
+              onRemove={handleRemove}
             />
           ))}
         </div>
@@ -264,14 +325,14 @@ function BuyPanel({ dark, showToast }) {
 
 function PostPanel({ dark, showToast }) {
   const [form, setForm] = useState({
-    title: "",
-    category: "",
-    date: "",
-    venue: "",
-    price: "",
-    qty: "1",
+    title:       "",
+    category:    "",
+    date:        "",
+    venue:       "",
+    price:       "",
+    qty:         "1",
     description: "",
-    contact: "",
+    contact:     "",
   });
   const [submitted, setSubmitted] = useState(false);
 
@@ -284,9 +345,7 @@ function PostPanel({ dark, showToast }) {
       : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
   }`;
 
-  const labelBase = `text-xs font-bold mb-1 block ${
-    dark ? "text-white/60" : "text-[#888]"
-  }`;
+  const labelBase = `text-xs font-bold mb-1 block ${dark ? "text-white/60" : "text-[#888]"}`;
 
   const handleSubmit = async () => {
     const required = ["title", "category", "date", "venue", "price", "contact"];
@@ -295,15 +354,22 @@ function PostPanel({ dark, showToast }) {
       return;
     }
 
+    // ── Past-date guard ─────────────────────────────────────────────────────
+    // String comparison works correctly for YYYY-MM-DD format.
+    if (form.date < todayISO()) {
+      showToast("⚠️ Event date cannot be in the past.");
+      return;
+    }
+
     try {
       const res = await fetch("/api/tickets", {
-        method: "POST",
+        method:      "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers:     { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
           price: Number(form.price),
-          qty: Number(form.qty) || 1,
+          qty:   Number(form.qty) || 1,
         }),
       });
 
@@ -324,31 +390,17 @@ function PostPanel({ dark, showToast }) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
         <span className="text-6xl">🎟️</span>
-        <p
-          className={`text-2xl font-black ${
-            dark ? "text-white" : "text-[#111]"
-          }`}
-        >
+        <p className={`text-2xl font-black ${dark ? "text-white" : "text-[#111]"}`}>
           Ticket posted!
         </p>
-        <p
-          className={`text-sm max-w-xs ${
-            dark ? "text-white/50" : "text-[#999]"
-          }`}
-        >
+        <p className={`text-sm max-w-xs ${dark ? "text-white/50" : "text-[#999]"}`}>
           Your listing is now live. Neighbours nearby can see and contact you.
         </p>
         <button
           onClick={() => {
             setForm({
-              title: "",
-              category: "",
-              date: "",
-              venue: "",
-              price: "",
-              qty: "1",
-              description: "",
-              contact: "",
+              title: "", category: "", date: "", venue: "",
+              price: "", qty: "1", description: "", contact: "",
             });
             setSubmitted(false);
           }}
@@ -380,11 +432,7 @@ function PostPanel({ dark, showToast }) {
       {/* Category */}
       <div>
         <label className={labelBase}>Category *</label>
-        <select
-          className={inputBase}
-          value={form.category}
-          onChange={set("category")}
-        >
+        <select className={inputBase} value={form.category} onChange={set("category")}>
           <option value="">Select a category</option>
           {EVENT_CATEGORIES.map((c) => (
             <option key={c.label} value={c.label}>
@@ -398,10 +446,12 @@ function PostPanel({ dark, showToast }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelBase}>Event date *</label>
+          {/* min prevents past dates in the native date picker */}
           <input
             type="date"
             className={inputBase}
             value={form.date}
+            min={todayISO()}
             onChange={set("date")}
           />
         </div>
@@ -482,9 +532,17 @@ function PostPanel({ dark, showToast }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export default function BuyTicketPage({ showToast, dark = false }) {
+/**
+ * BuyTicketPage
+ *
+ * Props:
+ *   showToast – (msg: string) => void
+ *   dark      – boolean (default false)
+ *   user      – current session user object ({ id, full_name, … }) or null
+ */
+export default function BuyTicketPage({ showToast, dark = false, user = null }) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState("buy");
+  const [tab, setTab]   = useState("buy");
 
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -537,11 +595,7 @@ export default function BuyTicketPage({ showToast, dark = false }) {
       >
         <h1 className="text-5xl font-black">🎟️</h1>
         <h2 className="text-3xl font-black mt-2">Tickets</h2>
-        <p
-          className={`mt-2 text-sm max-w-sm mx-auto ${
-            dark ? "opacity-60" : "opacity-90"
-          }`}
-        >
+        <p className={`mt-2 text-sm max-w-sm mx-auto ${dark ? "opacity-60" : "opacity-90"}`}>
           Buy tickets from neighbours or post your extras — no middlemen, no markup.
         </p>
       </div>
@@ -549,12 +603,9 @@ export default function BuyTicketPage({ showToast, dark = false }) {
       {/* ── Body ── */}
       <div className="flex justify-center px-4 pb-16">
         <div className="w-full max-w-3xl -mt-6">
-          {/* Card wrapper */}
           <div
             className={`rounded-2xl border p-5 shadow-[0_10px_40px_rgba(0,0,0,0.08)] ${
-              dark
-                ? "bg-black border-white/20"
-                : "bg-white border-[#eee]"
+              dark ? "bg-black border-white/20" : "bg-white border-[#eee]"
             }`}
           >
             <div className="mb-5">
@@ -562,10 +613,7 @@ export default function BuyTicketPage({ showToast, dark = false }) {
             </div>
 
             {tab === "buy" ? (
-              <BuyPanel
-                dark={dark}
-                showToast={showToast}
-              />
+              <BuyPanel dark={dark} showToast={showToast} user={user} />
             ) : (
               <PostPanel dark={dark} showToast={showToast} />
             )}
