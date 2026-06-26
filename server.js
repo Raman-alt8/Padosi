@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
-// ─── Middleware 
+// ─── Middleware ───────────────────────────────────────────────────────────────
 const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
@@ -46,7 +46,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ─── Serve static files from public (for LOGO.png etc.) 
+// ─── Serve static files from public (for LOGO.png etc.) ──────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -67,14 +67,14 @@ db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
   }
 });
 
-// ─── Auth helper ─────────────────────
+// ─── Auth helper ──────────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
   res.status(401).json({ error: 'Not authenticated' });
 }
 
 
-// AUTH ROUTES
+// ─── AUTH ROUTES ──────────────────────────────────────────────────────────────
 
 // GET /api/me — return current session user
 app.get('/api/me', (req, res) => {
@@ -236,7 +236,8 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
   });
 });
-// GOOGLE OAUTH ROUTES
+
+// ─── GOOGLE OAUTH ROUTES ──────────────────────────────────────────────────────
 
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -251,8 +252,9 @@ app.get(
 );
 
 
-// TASK ROUTES
+// ─── TASK ROUTES ──────────────────────────────────────────────────────────────
 
+// GET /api/tasks — list all tasks belonging to the current user
 app.get('/api/tasks', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -303,6 +305,45 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Get tasks error:', err);
     res.status(500).json({ error: 'Could not load tasks.' });
+  }
+});
+
+// GET /api/tasks/nearby — tasks posted by others, excluding dismissed ones
+// FIX: declared before /:id routes to prevent future route-shadowing conflicts
+app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
+  try {
+    const rows = await db.allAsync(
+      `SELECT
+         t.id,
+         t.text,
+         t.price,
+         t.mode,
+         t.scheduled_at,
+         t.accepted
+       FROM tasks t
+       WHERE t.user_id != ?
+         AND t.accepted = 0
+         AND t.id NOT IN (
+           SELECT task_id FROM dismissals WHERE user_id = ?
+         )
+       ORDER BY t.created_at DESC
+       LIMIT 20`,
+      [req.user.id, req.user.id]
+    );
+
+    const tasks = rows.map(r => ({
+      id:    r.id,
+      text:  r.text,
+      price: r.price,
+      mode:  r.mode,
+      date:  r.scheduled_at ? r.scheduled_at.split('T')[0] : null,
+      time:  r.scheduled_at ? r.scheduled_at.split('T')[1]?.slice(0, 5) : null,
+    }));
+
+    res.json({ tasks });
+  } catch (err) {
+    console.error('Nearby tasks error:', err);
+    res.status(500).json({ error: 'Could not load nearby tasks.' });
   }
 });
 
@@ -442,7 +483,13 @@ app.post('/api/tasks/:id/accept', requireAuth, async (req, res) => {
     }
 
     const helpers = await db.allAsync('SELECT * FROM helpers');
-    const helper  = helpers[Math.floor(Math.random() * helpers.length)];
+
+    // FIX: guard against an empty helpers table to prevent a crash
+    if (!helpers || helpers.length === 0) {
+      return res.status(503).json({ error: 'No helpers are available right now.' });
+    }
+
+    const helper = helpers[Math.floor(Math.random() * helpers.length)];
 
     await db.runAsync(
       'UPDATE tasks SET accepted = 1, helper_id = ? WHERE id = ?',
@@ -464,7 +511,7 @@ app.post('/api/tasks/:id/accept', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/tasks/:id/offer — helper offers to take a nearby task
+// POST /api/tasks/:id/offer — offer to take a nearby task
 app.post('/api/tasks/:id/offer', requireAuth, async (req, res) => {
   const taskId = req.params.id;
 
@@ -509,7 +556,7 @@ app.post('/api/tasks/:id/offer', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/tasks/:id/dismiss — hide a task from me
+// POST /api/tasks/:id/dismiss — hide a task from the current user's nearby list
 app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
   const taskId = req.params.id;
 
@@ -534,56 +581,10 @@ app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/tasks/nearby — tasks posted by me, excluding dismissed ones
-app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
-  try {
-    const rows = await db.allAsync(
-      `SELECT
-         t.id,
-         t.text,
-         t.price,
-         t.mode,
-         t.scheduled_at,
-         t.accepted
-       FROM tasks t
-       WHERE t.user_id != ?
-         AND t.accepted = 0
-         AND t.id NOT IN (
-           SELECT task_id FROM dismissals WHERE user_id = ?
-         )
-       ORDER BY t.created_at DESC
-       LIMIT 20`,
-      [req.user.id, req.user.id]
-    );
 
-    const tasks = rows.map(r => ({
-      id:    r.id,
-      text:  r.text,
-      price: r.price,
-      mode:  r.mode,
-      date:  r.scheduled_at ? r.scheduled_at.split('T')[0] : null,
-      time:  r.scheduled_at ? r.scheduled_at.split('T')[1]?.slice(0, 5) : null,
-    }));
+// ─── RIDE SHARE ROUTES ────────────────────────────────────────────────────────
 
-    res.json({ tasks });
-  } catch (err) {
-    console.error('Nearby tasks error:', err);
-    res.status(500).json({ error: 'Could not load nearby tasks.' });
-  }
-});
-
-
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RIDE SHARE ROUTES
-// Add these to server.js, just before the existing 404 /api fallback block:
-//
-//   app.use('/api', (req, res) => { res.status(404).json(...) });
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// ── Validation rules (reused by POST and PUT) ────────────────────────────────
+// ── Validation rules (reused by POST and PUT) ─────────────────────────────────
 const rideRouteValidation = [
   body('from_place')
     .trim()
@@ -595,8 +596,10 @@ const rideRouteValidation = [
     .notEmpty().withMessage('Destination is required.')
     .isLength({ max: 200 }).withMessage('Destination is too long.'),
 
+  // FIX: was isIn(['1',...,'7']) which fails when the JSON body sends a number.
+  // isInt handles both numeric and string-encoded integer values consistently.
   body('freq')
-    .isIn(['1','2','3','4','5','6','7']).withMessage('Frequency must be 1–7.'),
+    .isInt({ min: 1, max: 7 }).withMessage('Frequency must be 1–7.'),
 
   body('depart_time')
     .matches(/^\d{2}:\d{2}$/).withMessage('Departure time must be HH:MM.'),
@@ -614,7 +617,7 @@ const rideRouteValidation = [
 ];
 
 
-// ── GET /api/ride-routes — all routes, newest first ─────────────────────────
+// ── GET /api/ride-routes — all routes, newest first ──────────────────────────
 // Excludes routes the current user has declined.
 // Includes their response ('accepted' / 'declined' / null) so the frontend
 // can show the contact panel immediately on reload if they already accepted.
@@ -650,7 +653,7 @@ app.get('/api/ride-routes', requireAuth, async (req, res) => {
 });
 
 
-// ── POST /api/ride-routes — create a new route ───────────────────────────────
+// ── POST /api/ride-routes — create a new route ────────────────────────────────
 app.post('/api/ride-routes', requireAuth, rideRouteValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -682,7 +685,7 @@ app.post('/api/ride-routes', requireAuth, rideRouteValidation, async (req, res) 
 });
 
 
-// ── PUT /api/ride-routes/:id — edit your own route ──────────────────────────
+// ── PUT /api/ride-routes/:id — edit your own route ───────────────────────────
 app.put('/api/ride-routes/:id', requireAuth, rideRouteValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -725,7 +728,7 @@ app.put('/api/ride-routes/:id', requireAuth, rideRouteValidation, async (req, re
 });
 
 
-// ── DELETE /api/ride-routes/:id — remove your own route ─────────────────────
+// ── DELETE /api/ride-routes/:id — remove your own route ──────────────────────
 app.delete('/api/ride-routes/:id', requireAuth, async (req, res) => {
   const routeId = req.params.id;
 
@@ -751,7 +754,7 @@ app.delete('/api/ride-routes/:id', requireAuth, async (req, res) => {
 });
 
 
-// ── POST /api/ride-routes/:id/accept ────────────────────────────────────────
+// ── POST /api/ride-routes/:id/accept ─────────────────────────────────────────
 // Records the acceptance and returns the poster's contact details.
 app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
   const routeId = req.params.id;
@@ -786,7 +789,7 @@ app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
       poster: {
         name:  poster.full_name,
         email: poster.email,
-        phone: poster.phone || null,   // null if they haven't added one
+        phone: poster.phone || null,
       },
     });
   } catch (err) {
@@ -796,7 +799,7 @@ app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
 });
 
 
-// ── POST /api/ride-routes/:id/decline ───────────────────────────────────────
+// ── POST /api/ride-routes/:id/decline ────────────────────────────────────────
 // Records the decline — frontend will hide the card from this user's view.
 app.post('/api/ride-routes/:id/decline', requireAuth, async (req, res) => {
   const routeId = req.params.id;
@@ -825,7 +828,11 @@ app.post('/api/ride-routes/:id/decline', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Could not decline route.' });
   }
 });
-// ── GET /api/tickets — all listings (visible to everyone logged in) ──────────
+
+
+// ─── TICKET ROUTES ────────────────────────────────────────────────────────────
+
+// ── GET /api/tickets — all listings (visible to everyone logged in) ───────────
 app.get('/api/tickets', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -842,7 +849,7 @@ app.get('/api/tickets', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/tickets — post a new ticket ────────────────────────────────────
+// ── POST /api/tickets — post a new ticket ─────────────────────────────────────
 app.post(
   '/api/tickets',
   requireAuth,
@@ -895,18 +902,20 @@ app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ─── Serve React frontend (must be AFTER all API routes) ─────// ─── 404 fallback for unmatched /api/* routes ──
+
+// ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found.' });
 });
 
+// ─── Serve React frontend (must be AFTER all API routes) ─────────────────────
 app.use(express.static(path.join(__dirname, 'dist')));
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// ─── Start server ──────────
+// ─── Start server ─────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

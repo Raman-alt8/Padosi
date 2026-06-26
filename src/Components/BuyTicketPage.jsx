@@ -262,74 +262,6 @@ function BuyPanel({ dark, showToast }) {
   );
 }
 
-  return (
-    <div className="flex flex-col gap-5">
-      {/* Search */}
-      <input
-        type="text"
-        placeholder="Search events, venues…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className={`w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
-          dark
-            ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/60"
-            : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
-        }`}
-      />
-
-      {/* Category filter — horizontal scroll */}
-      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {categories.map((cat) => {
-          const active = activeCategory === cat;
-          const catObj = EVENT_CATEGORIES.find((c) => c.label === cat);
-          return (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition-all ${
-                active
-                  ? dark
-                    ? "bg-white text-black border-white"
-                    : "bg-[#ff2d55] text-white border-[#ff2d55]"
-                  : dark
-                  ? "bg-transparent text-white/60 border-white/20 hover:border-white/50"
-                  : "bg-transparent text-[#777] border-[#ddd] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-              }`}
-            >
-              {catObj && <span>{catObj.icon}</span>}
-              {cat}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Listings */}
-      {filtered.length === 0 ? (
-        <div
-          className={`text-center py-16 text-sm ${
-            dark ? "text-white/40" : "text-[#bbb]"
-          }`}
-        >
-          No tickets found. Try a different search or category.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filtered.map((listing) => (
-            <TicketCard
-              key={listing.id}
-              listing={listing}
-              dark={dark}
-              onBuy={(l) =>
-                showToast(`🎟️ Request sent for "${l.title}"!`)
-              }
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-
 function PostPanel({ dark, showToast }) {
   const [form, setForm] = useState({
     title: "",
@@ -357,36 +289,35 @@ function PostPanel({ dark, showToast }) {
   }`;
 
   const handleSubmit = async () => {
-  const required = ["title", "category", "date", "venue", "price", "contact"];
-  if (required.some((k) => !form[k])) {
-    showToast("⚠️ Please fill in all required fields.");
-    return;
-  }
-
-  try {
-    const res = await fetch("/api/tickets", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        price: Number(form.price),
-        qty: Number(form.qty) || 1,
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      showToast(`⚠️ ${data.error || "Could not post ticket."}`);
+    const required = ["title", "category", "date", "venue", "price", "contact"];
+    if (required.some((k) => !form[k])) {
+      showToast("⚠️ Please fill in all required fields.");
       return;
     }
 
-    setSubmitted(true);
-    showToast("✅ Ticket posted to Padosi Listings!");
-  } catch {
-    showToast("⚠️ Network error. Please try again.");
-  }
-};
+    try {
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          price: Number(form.price),
+          qty: Number(form.qty) || 1,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(`⚠️ ${data.error || "Could not post ticket."}`);
+        return;
+      }
+
+      setSubmitted(true);
+      showToast("✅ Ticket posted to Padosi Listings!");
+    } catch {
+      showToast("⚠️ Network error. Please try again.");
+    }
   };
 
   if (submitted) {
@@ -547,7 +478,7 @@ function PostPanel({ dark, showToast }) {
       </button>
     </div>
   );
-
+}
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
