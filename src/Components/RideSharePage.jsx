@@ -7,7 +7,7 @@ function initials(name = "") {
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// ─── Ride Share Page ─────────────────────────────────────────────────────────
+// ─── Ride Share Page ──────
 // Opens when the window event "padosi:openRide" is dispatched.
 // Props:
 //   currentUser  — { id, ... } object from your auth state (or null)

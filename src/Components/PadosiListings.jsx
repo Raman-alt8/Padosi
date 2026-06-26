@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import RideSharePage from "./RideSharePage"; // ← pulled into its own file
+import RideSharePage from "./RideSharePage";
+import BuyTicketPage from "./BuyTicketPage"; // ← new
 
 // ─── Padosi Listings Tab ─────────
 
@@ -24,11 +25,11 @@ const SERVICE_CATEGORIES = [
   { icon: "🧓", label: "Elderly Care",             prompt: "Need elderly care assistance with " },
 ];
 
-// ─── Listings Grid ──────────────────────────────────────────────────────────
+// ─── Listings Grid ──
 function ListingsGrid({ showToast, dark }) {
   const tiles = [
     { icon: "🚗", label: "Rent a Vehicle",   action: () => showToast("🚗 Rent a Vehicle — coming soon!") },
-    { icon: "🎟️", label: "Buy Ticket",       action: () => showToast("🎟️ Buy Ticket — coming soon!") },
+    { icon: "🎟️", label: "Buy Ticket",       action: () => window.dispatchEvent(new Event("padosi:openTickets")) }, // ← wired
     { icon: "🔧", label: "Service Listings", action: () => window.dispatchEvent(new Event("padosi:openServices")) },
     { icon: "🛣️", label: "Ride Share",       action: () => window.dispatchEvent(new Event("padosi:openRide")) },
   ];
@@ -170,9 +171,10 @@ export default function PadosiListings({ showToast, currentUser, onSelectCategor
       <ListingsGrid showToast={showToast} dark={dark} />
       <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
 
-      {/* RideSharePage lives in its own file now.
-          It self-opens via the "padosi:openRide" window event
-          dispatched by the Ride Share tile in ListingsGrid above. */}
+      {/* BuyTicketPage — self-opens via "padosi:openTickets" window event */}
+      <BuyTicketPage showToast={showToast} dark={dark} />
+
+      {/* RideSharePage — self-opens via "padosi:openRide" window event */}
       <RideSharePage currentUser={currentUser} showToast={showToast} dark={dark} />
     </>
   );
