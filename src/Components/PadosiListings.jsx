@@ -171,10 +171,10 @@ export default function PadosiListings({ showToast, currentUser, onSelectCategor
       <ListingsGrid showToast={showToast} dark={dark} />
       <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
 
-      {/* BuyTicketPage — self-opens via "padosi:openTickets" window event */}
-      <BuyTicketPage showToast={showToast} dark={dark} />
+      {}
+      <BuyTicketPage showToast={showToast} dark={dark} user={currentUser} />
 
-      {/* RideSharePage — self-opens via "padosi:openRide" window event */}
+      {}
       <RideSharePage currentUser={currentUser} showToast={showToast} dark={dark} />
     </>
   );
