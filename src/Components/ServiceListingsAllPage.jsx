@@ -16,14 +16,144 @@ const CATEGORY_ICONS = {
   "Packers & Movers": "🚚",
   "Driver on Demand": "🪪",
   "Cook & Catering": "🍽️",
-  "Gardening": "🌱",
   "Computer & Mobile Repair": "💻",
   "Laundry & Ironing": "👕",
   "Elderly Care": "🧓",
+  "Other": "🛠️",
 };
 
-export default function ServiceListingsAllPage({ listings = [], dark }) {
+const POST_CATEGORIES = Object.keys(CATEGORY_ICONS);
+
+// ── Edit Modal ────────────────────────────────────────────────────────────────
+function EditModal({ listing, index, dark, onSave, onClose }) {
+  const [form, setForm] = useState({ ...listing });
+
+  const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const inputBase = `w-full rounded-xl px-4 py-3 text-sm border outline-none transition-colors ${
+    dark
+      ? "bg-black border-white/30 text-white placeholder-white/40 focus:border-white"
+      : "bg-white border-[#ddd] text-[#222] placeholder-[#999] focus:border-[#ff2d55]"
+  }`;
+  const labelBase = `block text-xs font-bold mb-1.5 uppercase tracking-wide ${
+    dark ? "text-white/70" : "text-[#777]"
+  }`;
+
+  return (
+    /* Backdrop */
+    <div
+      className="fixed inset-0 z-[8000] flex items-start justify-center px-4 py-10 overflow-y-auto"
+      style={{ background: "rgba(0,0,0,0.55)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className={`w-full max-w-[560px] rounded-2xl border shadow-xl flex flex-col gap-5 p-6 ${
+        dark ? "bg-black border-white/30" : "bg-white border-[#eee]"
+      }`}>
+        {/* Modal header */}
+        <div className="flex items-center justify-between">
+          <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
+            Edit <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>Listing</span>
+          </p>
+          <button
+            onClick={onClose}
+            className={`text-xl leading-none cursor-pointer transition-opacity hover:opacity-60 ${dark ? "text-white" : "text-[#333]"}`}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Category */}
+        <div>
+          <label className={labelBase}>Service category</label>
+          <select value={form.category} onChange={update("category")} className={`${inputBase} cursor-pointer`}>
+            {POST_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{CATEGORY_ICONS[cat]} {cat}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Title */}
+        <div>
+          <label className={labelBase}>Listing title</label>
+          <input type="text" value={form.title} onChange={update("title")} className={inputBase} />
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className={labelBase}>Description</label>
+          <textarea value={form.description} onChange={update("description")} rows={3} className={`${inputBase} resize-none`} />
+        </div>
+
+        {/* Price */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelBase}>Pricing</label>
+            <select value={form.priceType} onChange={update("priceType")} className={`${inputBase} cursor-pointer`}>
+              <option value="Monthly">Monthly</option>
+              <option value="One Time Service">One Time Service</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelBase}>Amount (₹)</label>
+            <input type="number" min="0" value={form.price} onChange={update("price")} placeholder="e.g. 500" className={inputBase} />
+          </div>
+        </div>
+
+        {/* Area + Phone */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelBase}>Area you serve</label>
+            <input type="text" value={form.area} onChange={update("area")} className={inputBase} />
+          </div>
+          <div>
+            <label className={labelBase}>Phone</label>
+            <input type="tel" value={form.phone} onChange={update("phone")} className={inputBase} />
+          </div>
+        </div>
+
+        {/* Experience + Availability */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelBase}>Experience (years)</label>
+            <input type="number" min="0" value={form.experience} onChange={update("experience")} className={inputBase} />
+          </div>
+          <div>
+            <label className={labelBase}>Availability</label>
+            <input type="text" value={form.availability} onChange={update("availability")} className={inputBase} />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={() => onSave(index, form)}
+            className={`flex-1 py-3 rounded-full text-sm font-bold cursor-pointer transition-colors ${
+              dark ? "bg-white text-black hover:bg-white/90" : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
+            }`}
+          >
+            Save changes
+          </button>
+          <button
+            onClick={onClose}
+            className={`px-6 py-3 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
+              dark
+                ? "border-white/30 text-white/70 hover:border-white hover:text-white"
+                : "border-[#ddd] text-[#666] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+            }`}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+export default function ServiceListingsAllPage({ listings = [], onUpdate, onDelete, dark }) {
   const [open, setOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null); // { listing, index }
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // index
 
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -33,156 +163,198 @@ export default function ServiceListingsAllPage({ listings = [], dark }) {
 
   const close = () => setOpen(false);
 
-  const bg       = dark ? "bg-black"        : "bg-[#f6f7fb]";
-  const headerBg = dark ? "bg-black border-white" : "bg-white border-[#eee]";
+  const handleSave = (index, updated) => {
+    onUpdate?.(index, updated);
+    setEditTarget(null);
+  };
+
+  const handleDelete = (index) => {
+    onDelete?.(index);
+    setDeleteConfirm(null);
+  };
+
+  const bg       = dark ? "bg-black"               : "bg-[#f6f7fb]";
+  const headerBg = dark ? "bg-black border-white"  : "bg-white border-[#eee]";
   const cardBg   = dark ? "bg-black border-white/20" : "bg-white border-[#eee]";
-  const titleCol = dark ? "text-white"       : "text-[#111]";
-  const bodyCol  = dark ? "text-white/70"    : "text-[#555]";
-  const metaCol  = dark ? "text-white/40"    : "text-[#aaa]";
+  const titleCol = dark ? "text-white"              : "text-[#111]";
+  const bodyCol  = dark ? "text-white/70"           : "text-[#555]";
+  const metaCol  = dark ? "text-white/40"           : "text-[#aaa]";
   const pillBg   = dark ? "bg-white/10 text-white/60" : "bg-[#f0f0f0] text-[#666]";
   const badgeBg  = dark ? "bg-white/10 text-white/80" : "bg-[#ff2d55]/10 text-[#ff2d55]";
-  const divider  = dark ? "border-white/10"  : "border-[#f2f2f2]";
+  const divider  = dark ? "border-white/10"         : "border-[#f2f2f2]";
 
   return (
-    <div
-      className={`fixed inset-0 z-[7000] flex flex-col overflow-y-auto transition-opacity duration-300 ${bg} ${
-        open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-      }`}
-    >
-      {/* Header */}
-      <div className={`h-[70px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${headerBg}`}>
-        <button
-          onClick={close}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
-            dark
-              ? "bg-black border-white text-white hover:bg-white hover:text-black"
-              : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-          }`}
-        >
-          ← Back
-        </button>
-        <p className={`text-base font-black ${titleCol}`}>
-          Listed{" "}
-          <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
-            Services
-          </span>
-        </p>
-        <div className="w-20" />
-      </div>
-
-      {/* Body */}
-      <div className="flex justify-center px-6 py-10">
-        <div className="w-full max-w-[720px] flex flex-col gap-4">
-
-          {/* Count line */}
-          <p className={`text-xs font-bold uppercase tracking-wide ${metaCol}`}>
-            {listings.length === 0
-              ? "No services posted yet"
-              : `${listings.length} service${listings.length !== 1 ? "s" : ""} available`}
+    <>
+      <div
+        className={`fixed inset-0 z-[7000] flex flex-col overflow-y-auto transition-opacity duration-300 ${bg} ${
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        {/* Header */}
+        <div className={`h-[70px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${headerBg}`}>
+          <button
+            onClick={close}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
+              dark
+                ? "bg-black border-white text-white hover:bg-white hover:text-black"
+                : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+            }`}
+          >
+            ← Back
+          </button>
+          <p className={`text-base font-black ${titleCol}`}>
+            Listed{" "}
+            <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
+              Services
+            </span>
           </p>
+          <div className="w-20" />
+        </div>
 
-          {listings.length === 0 ? (
-            /* Empty state */
-            <div className={`rounded-2xl border p-14 flex flex-col items-center gap-3 text-center ${cardBg}`}>
-              <span className="text-5xl">🛠️</span>
-              <p className={`text-base font-black ${titleCol}`}>Nothing here yet</p>
-              <p className={`text-sm ${bodyCol}`}>
-                Post the first service — neighbours are waiting.
-              </p>
-            </div>
-          ) : (
-            listings.map((listing, i) => (
-              <div key={i} className={`rounded-2xl border overflow-hidden ${cardBg}`}>
-                <div className="flex gap-4 p-5">
+        {/* Body */}
+        <div className="flex justify-center px-6 py-10">
+          <div className="w-full max-w-[720px] flex flex-col gap-4">
 
-                  {/* Photo or emoji fallback */}
-                  {listing.photo ? (
-                    <img
-                      src={listing.photo}
-                      alt={listing.title}
-                      className={`w-[72px] h-[72px] rounded-xl object-cover flex-shrink-0 border ${
-                        dark ? "border-white/20" : "border-[#eee]"
-                      }`}
-                    />
-                  ) : (
-                    <div className={`w-[72px] h-[72px] rounded-xl flex-shrink-0 flex items-center justify-center text-3xl border ${
-                      dark ? "bg-white/5 border-white/10" : "bg-[#f6f7fb] border-[#eee]"
-                    }`}>
-                      {CATEGORY_ICONS[listing.category] ?? "🛠️"}
+            <p className={`text-xs font-bold uppercase tracking-wide ${metaCol}`}>
+              {listings.length === 0
+                ? "No services posted yet"
+                : `${listings.length} service${listings.length !== 1 ? "s" : ""} available`}
+            </p>
+
+            {listings.length === 0 ? (
+              <div className={`rounded-2xl border p-14 flex flex-col items-center gap-3 text-center ${cardBg}`}>
+                <span className="text-5xl">🛠️</span>
+                <p className={`text-base font-black ${titleCol}`}>Nothing here yet</p>
+                <p className={`text-sm ${bodyCol}`}>Post the first service — neighbours are waiting.</p>
+              </div>
+            ) : (
+              listings.map((listing, i) => (
+                <div key={i} className={`rounded-2xl border overflow-hidden ${cardBg}`}>
+                  <div className="flex gap-4 p-5">
+
+                    {/* Photo or emoji fallback */}
+                    {listing.photo ? (
+                      <img
+                        src={listing.photo}
+                        alt={listing.title}
+                        className={`w-[72px] h-[72px] rounded-xl object-cover flex-shrink-0 border ${
+                          dark ? "border-white/20" : "border-[#eee]"
+                        }`}
+                      />
+                    ) : (
+                      <div className={`w-[72px] h-[72px] rounded-xl flex-shrink-0 flex items-center justify-center text-3xl border ${
+                        dark ? "bg-white/5 border-white/10" : "bg-[#f6f7fb] border-[#eee]"
+                      }`}>
+                        {CATEGORY_ICONS[listing.category] ?? "🛠️"}
+                      </div>
+                    )}
+
+                    {/* Content */}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                      <span className={`self-start text-[11px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${badgeBg}`}>
+                        {listing.category}
+                      </span>
+                      <h3 className={`text-sm font-black leading-snug ${titleCol}`}>{listing.title}</h3>
+                      <p className={`text-xs leading-relaxed line-clamp-2 ${bodyCol}`}>{listing.description}</p>
+
+                      {/* Meta pills */}
+                      <div className="flex flex-wrap gap-1.5 mt-0.5">
+                        {listing.price && (
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${pillBg}`}>
+                            ₹{listing.price}{listing.priceType === "Monthly" ? "/mo" : ""}
+                          </span>
+                        )}
+                        {listing.area && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>📍 {listing.area}</span>
+                        )}
+                        {listing.availability && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>🕐 {listing.availability}</span>
+                        )}
+                        {listing.experience && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>
+                            ⭐ {listing.experience} yr{listing.experience !== "1" ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Content */}
-                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                    {/* Category badge */}
-                    <span className={`self-start text-[11px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${badgeBg}`}>
-                      {listing.category}
-                    </span>
+                  {/* Footer — contact + edit/delete */}
+                  <div className={`px-5 py-3 border-t flex items-center justify-between gap-3 ${divider}`}>
+                    {/* Phone */}
+                    {listing.phone ? (
+                      <a
+                        href={`tel:${listing.phone}`}
+                        className={`text-sm font-bold transition-colors ${
+                          dark ? "text-white hover:text-white/70" : "text-[#ff2d55] hover:text-[#e0264a]"
+                        }`}
+                      >
+                        📞 {listing.phone}
+                      </a>
+                    ) : <span />}
 
-                    {/* Title */}
-                    <h3 className={`text-sm font-black leading-snug ${titleCol}`}>
-                      {listing.title}
-                    </h3>
-
-                    {/* Description */}
-                    <p className={`text-xs leading-relaxed line-clamp-2 ${bodyCol}`}>
-                      {listing.description}
-                    </p>
-
-                    {/* Meta pills */}
-                    <div className="flex flex-wrap gap-1.5 mt-0.5">
-                      {listing.price && (
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${pillBg}`}>
-                          ₹{listing.price}
-                          {listing.priceType === "Hourly"
-                            ? "/hr"
-                            : listing.priceType === "Negotiable"
-                            ? " (neg.)"
-                            : ""}
-                        </span>
-                      )}
-                      {listing.area && (
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>
-                          📍 {listing.area}
-                        </span>
-                      )}
-                      {listing.availability && (
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>
-                          🕐 {listing.availability}
-                        </span>
-                      )}
-                      {listing.experience && (
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>
-                          ⭐ {listing.experience} yr{listing.experience !== "1" ? "s" : ""}
-                        </span>
+                    {/* Edit + Delete */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setEditTarget({ listing, index: i })}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                          dark
+                            ? "border-white/20 text-white/60 hover:border-white hover:text-white"
+                            : "border-[#ddd] text-[#666] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                        }`}
+                      >
+                        ✏️ Edit
+                      </button>
+                      {deleteConfirm === i ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleDelete(i)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(null)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                              dark
+                                ? "border-white/20 text-white/60 hover:border-white hover:text-white"
+                                : "border-[#ddd] text-[#666] hover:border-[#333] hover:text-[#333]"
+                            }`}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirm(i)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                            dark
+                              ? "border-white/20 text-white/60 hover:border-red-400 hover:text-red-400"
+                              : "border-[#ddd] text-[#666] hover:border-red-400 hover:text-red-500"
+                          }`}
+                        >
+                          🗑️ Delete
+                        </button>
                       )}
                     </div>
                   </div>
                 </div>
-
-                {/* Footer — phone */}
-                {listing.phone && (
-                  <div className={`px-5 py-3 border-t flex items-center justify-between ${divider}`}>
-                    <span className={`text-[11px] uppercase tracking-wide font-bold ${metaCol}`}>
-                      Contact
-                    </span>
-                    <a
-                      href={`tel:${listing.phone}`}
-                      className={`text-sm font-bold transition-colors ${
-                        dark
-                          ? "text-white hover:text-white/70"
-                          : "text-[#ff2d55] hover:text-[#e0264a]"
-                      }`}
-                    >
-                      📞 {listing.phone}
-                    </a>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Edit modal */}
+      {editTarget && (
+        <EditModal
+          listing={editTarget.listing}
+          index={editTarget.index}
+          dark={dark}
+          onSave={handleSave}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
+    </>
   );
 }

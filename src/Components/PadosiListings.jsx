@@ -68,12 +68,25 @@ export default function PadosiListings({ showToast, currentUser, onSelectCategor
     setListings((prev) => [listing, ...prev]);
   };
 
+  const handleUpdateListing = (index, updated) => {
+    setListings((prev) => prev.map((l, i) => (i === index ? updated : l)));
+  };
+
+  const handleDeleteListing = (index) => {
+    setListings((prev) => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <>
       <ListingsGrid showToast={showToast} dark={dark} />
       <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
       <PostServicePage dark={dark} onSubmit={handleNewListing} />
-      <ServiceListingsAllPage dark={dark} listings={listings} />
+      <ServiceListingsAllPage
+        dark={dark}
+        listings={listings}
+        onUpdate={handleUpdateListing}
+        onDelete={handleDeleteListing}
+      />
       <BuyTicketPage showToast={showToast} dark={dark} user={currentUser} />
       <RideSharePage currentUser={currentUser} showToast={showToast} dark={dark} />
     </>
