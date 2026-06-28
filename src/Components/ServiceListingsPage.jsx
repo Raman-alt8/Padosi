@@ -39,6 +39,10 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
     }
   };
 
+  const handleAllListings = () => {
+    window.dispatchEvent(new Event("padosi:allListings"));
+  };
+
   return (
     <div className={`fixed inset-0 z-[5000] flex flex-col overflow-y-auto transition-opacity duration-300 ${
       dark ? "bg-black" : "bg-[#f6f7fb]"
@@ -84,6 +88,23 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
         <p className={`mt-2.5 text-sm max-w-md mx-auto ${dark ? "opacity-70" : "opacity-90"}`}>
           Pick what you need help with — we'll get your task ready to post to neighbours nearby.
         </p>
+
+        {/* All Listed Services button */}
+        <button
+          onClick={handleAllListings}
+          className={`
+            mt-5 inline-flex items-center gap-1.5
+            px-5 py-2 rounded-full text-sm font-bold cursor-pointer
+            border border-transparent
+            transition-all duration-150
+            ${dark
+              ? "text-black/60 hover:text-black hover:border-black"
+              : "text-white/70 hover:text-white hover:border-white"
+            }
+          `}
+        >
+          All Listed Services →
+        </button>
       </div>
 
       {/* Category grid */}
