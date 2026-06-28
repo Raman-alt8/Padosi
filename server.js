@@ -8,6 +8,9 @@ const cors        = require('cors');
 const bcrypt      = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const path        = require('path');
+const multer      = require('multer');
+const cloudinary  = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const db       = require('./db');
 const passport = require('./auth');
@@ -17,9 +20,7 @@ const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
-const multer              = require("multer");
-const cloudinary          = require("cloudinary").v2;
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
+// ─── Cloudinary ───────────────────────────────────────────────────────────────
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -30,18 +31,17 @@ cloudinary.config({
 const upload = multer({
   storage: new CloudinaryStorage({
     cloudinary,
-    params: { folder: "padosi-tickets", allowed_formats: ["jpg","jpeg","png","webp"], transformation: [{ width: 1200, crop: "limit" }] },
+    params: {
+      folder:           'padosi-tickets',
+      allowed_formats:  ['jpg', 'jpeg', 'png', 'webp'],
+      transformation:   [{ width: 1200, crop: 'limit' }],
+    },
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-// POST /api/upload
-app.post("/api/upload", requireAuth, upload.single("image"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded." });
-  res.json({ url: req.file.path });
-});
-
 // ─── Middleware ───────────────────────────────────────────────────────────────
+
 const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
@@ -70,9 +70,11 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ─── Serve static files from public (for LOGO.png etc.) ──────────────────────
+// ─── Static files ─────────────────────────────────────────────────────────────
+
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ─── DB migrations ────────────────────────────────────────────────────────────
 
 db.run(`
   CREATE TABLE IF NOT EXISTS dismissals (
@@ -84,19 +86,32 @@ db.run(`
   if (err) console.error('Could not create dismissals table:', err);
 });
 
-
 db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
   if (err && !err.message.includes('duplicate column')) {
     console.error('Could not add phone column:', err);
   }
 });
 
+db.run(`ALTER TABLE tickets ADD COLUMN image_url TEXT DEFAULT ''`, err => {
+  if (err && !err.message.includes('duplicate column')) {
+    console.error('Could not add image_url column:', err);
+  }
+});
+
 // ─── Auth helper ──────────────────────────────────────────────────────────────
+
 function requireAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
   res.status(401).json({ error: 'Not authenticated' });
 }
 
+// ─── UPLOAD ROUTE ─────────────────────────────────────────────────────────────
+
+// POST /api/upload — upload image to Cloudinary, return URL
+app.post('/api/upload', requireAuth, upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+  res.json({ url: req.file.path });
+});
 
 // ─── AUTH ROUTES ──────────────────────────────────────────────────────────────
 
@@ -275,7 +290,6 @@ app.get(
   }
 );
 
-
 // ─── TASK ROUTES ──────────────────────────────────────────────────────────────
 
 // GET /api/tasks — list all tasks belonging to the current user
@@ -333,7 +347,6 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
 });
 
 // GET /api/tasks/nearby — tasks posted by others, excluding dismissed ones
-// FIX: declared before /:id routes to prevent future route-shadowing conflicts
 app.get('/api/tasks/nearby', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -508,7 +521,6 @@ app.post('/api/tasks/:id/accept', requireAuth, async (req, res) => {
 
     const helpers = await db.allAsync('SELECT * FROM helpers');
 
-    // FIX: guard against an empty helpers table to prevent a crash
     if (!helpers || helpers.length === 0) {
       return res.status(503).json({ error: 'No helpers are available right now.' });
     }
@@ -605,10 +617,8 @@ app.post('/api/tasks/:id/dismiss', requireAuth, async (req, res) => {
   }
 });
 
-
 // ─── RIDE SHARE ROUTES ────────────────────────────────────────────────────────
 
-// ── Validation rules (reused by POST and PUT) ─────────────────────────────────
 const rideRouteValidation = [
   body('from_place')
     .trim()
@@ -620,8 +630,6 @@ const rideRouteValidation = [
     .notEmpty().withMessage('Destination is required.')
     .isLength({ max: 200 }).withMessage('Destination is too long.'),
 
-  // FIX: was isIn(['1',...,'7']) which fails when the JSON body sends a number.
-  // isInt handles both numeric and string-encoded integer values consistently.
   body('freq')
     .isInt({ min: 1, max: 7 }).withMessage('Frequency must be 1–7.'),
 
@@ -640,11 +648,7 @@ const rideRouteValidation = [
     .isLength({ max: 400 }).withMessage('Description must be 400 characters or fewer.'),
 ];
 
-
-// ── GET /api/ride-routes — all routes, newest first ──────────────────────────
-// Excludes routes the current user has declined.
-// Includes their response ('accepted' / 'declined' / null) so the frontend
-// can show the contact panel immediately on reload if they already accepted.
+// GET /api/ride-routes
 app.get('/api/ride-routes', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -676,8 +680,7 @@ app.get('/api/ride-routes', requireAuth, async (req, res) => {
   }
 });
 
-
-// ── POST /api/ride-routes — create a new route ────────────────────────────────
+// POST /api/ride-routes
 app.post('/api/ride-routes', requireAuth, rideRouteValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -708,8 +711,7 @@ app.post('/api/ride-routes', requireAuth, rideRouteValidation, async (req, res) 
   }
 });
 
-
-// ── PUT /api/ride-routes/:id — edit your own route ───────────────────────────
+// PUT /api/ride-routes/:id
 app.put('/api/ride-routes/:id', requireAuth, rideRouteValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -720,7 +722,6 @@ app.put('/api/ride-routes/:id', requireAuth, rideRouteValidation, async (req, re
   const routeId = req.params.id;
 
   try {
-    // Ownership check
     const existing = await db.getAsync(
       'SELECT id FROM ride_routes WHERE id = ? AND poster_id = ?',
       [routeId, req.user.id]
@@ -751,8 +752,7 @@ app.put('/api/ride-routes/:id', requireAuth, rideRouteValidation, async (req, re
   }
 });
 
-
-// ── DELETE /api/ride-routes/:id — remove your own route ──────────────────────
+// DELETE /api/ride-routes/:id
 app.delete('/api/ride-routes/:id', requireAuth, async (req, res) => {
   const routeId = req.params.id;
 
@@ -777,14 +777,11 @@ app.delete('/api/ride-routes/:id', requireAuth, async (req, res) => {
   }
 });
 
-
-// ── POST /api/ride-routes/:id/accept ─────────────────────────────────────────
-// Records the acceptance and returns the poster's contact details.
+// POST /api/ride-routes/:id/accept
 app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
   const routeId = req.params.id;
 
   try {
-    // Can't accept your own route
     const route = await db.getAsync(
       'SELECT * FROM ride_routes WHERE id = ?', [routeId]
     );
@@ -795,7 +792,6 @@ app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'You cannot accept your own route.' });
     }
 
-    // Upsert response (if they previously declined, now they accept)
     await db.runAsync(
       `INSERT INTO ride_route_responses (user_id, route_id, response)
        VALUES (?, ?, 'accepted')
@@ -803,7 +799,6 @@ app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
       [req.user.id, routeId]
     );
 
-    // Return poster contact info
     const poster = await db.getAsync(
       'SELECT full_name, email, phone FROM users WHERE id = ?',
       [route.poster_id]
@@ -822,9 +817,7 @@ app.post('/api/ride-routes/:id/accept', requireAuth, async (req, res) => {
   }
 });
 
-
-// ── POST /api/ride-routes/:id/decline ────────────────────────────────────────
-// Records the decline — frontend will hide the card from this user's view.
+// POST /api/ride-routes/:id/decline
 app.post('/api/ride-routes/:id/decline', requireAuth, async (req, res) => {
   const routeId = req.params.id;
 
@@ -853,10 +846,9 @@ app.post('/api/ride-routes/:id/decline', requireAuth, async (req, res) => {
   }
 });
 
-
 // ─── TICKET ROUTES ────────────────────────────────────────────────────────────
 
-// ── GET /api/tickets — all listings (visible to everyone logged in) ───────────
+// GET /api/tickets — all listings
 app.get('/api/tickets', requireAuth, async (req, res) => {
   try {
     const rows = await db.allAsync(
@@ -873,7 +865,7 @@ app.get('/api/tickets', requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/tickets — post a new ticket ─────────────────────────────────────
+// POST /api/tickets — post a new ticket
 app.post(
   '/api/tickets',
   requireAuth,
@@ -896,9 +888,9 @@ app.post(
 
     try {
       const result = await db.runAsync(
-        `INSERT INTO tickets (user_id, title, category, date, venue, price, qty, description, contact)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [req.user.id, title, category, date, venue, Number(price), Number(qty), description || '', contact]
+        `INSERT INTO tickets (user_id, title, category, date, venue, price, qty, description, contact, image_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [req.user.id, title, category, date, venue, Number(price), Number(qty), description || '', contact, image_url || '']
       );
       const ticket = await db.getAsync('SELECT * FROM tickets WHERE id = ?', [result.lastID]);
       res.status(201).json({ ticket });
@@ -909,7 +901,7 @@ app.post(
   }
 );
 
-// ── DELETE /api/tickets/:id — remove your own listing ────────────────────────
+// DELETE /api/tickets/:id — remove your own listing
 app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
   try {
     const existing = await db.getAsync(
@@ -918,7 +910,10 @@ app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
     );
     if (!existing) return res.status(404).json({ error: 'Ticket not found or not yours.' });
 
-    await db.runAsync('DELETE FROM tickets WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    await db.runAsync(
+      'DELETE FROM tickets WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
     res.json({ success: true });
   } catch (err) {
     console.error('Delete ticket error:', err);
@@ -926,8 +921,7 @@ app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
   }
 });
 
-
-// ── PATCH /api/tickets/:id — edit your own listing ───────────────────────────
+// PATCH /api/tickets/:id — edit your own listing
 app.patch(
   '/api/tickets/:id',
   requireAuth,
@@ -946,7 +940,7 @@ app.patch(
       return res.status(400).json({ error: errors.array()[0].msg });
     }
 
-    const { title, category, date, venue, price, qty, description, contact } = req.body;
+    const { title, category, date, venue, price, qty, description, contact, image_url } = req.body;
 
     try {
       const existing = await db.getAsync(
@@ -955,14 +949,14 @@ app.patch(
       );
       if (!existing) return res.status(404).json({ error: 'Ticket not found or not yours.' });
 
-      await db.runAsyncawait db.runAsync(
-  `UPDATE tickets
-   SET title = ?, category = ?, date = ?, venue = ?,
-       price = ?, qty = ?, description = ?, contact = ?, image_url = ?
-   WHERE id = ? AND user_id = ?`,
-  [title, category, date, venue, Number(price), Number(qty),
-   description || '', contact, image_url || '', req.params.id, req.user.id]
-);
+      await db.runAsync(
+        `UPDATE tickets
+         SET title = ?, category = ?, date = ?, venue = ?,
+             price = ?, qty = ?, description = ?, contact = ?, image_url = ?
+         WHERE id = ? AND user_id = ?`,
+        [title, category, date, venue, Number(price), Number(qty),
+         description || '', contact, image_url || '', req.params.id, req.user.id]
+      );
 
       const ticket = await db.getAsync('SELECT * FROM tickets WHERE id = ?', [req.params.id]);
       res.json({ ticket });
@@ -973,12 +967,29 @@ app.patch(
   }
 );
 
+// GET /api/tickets/:id/reveal — buyer calls this to get image + contact
+app.get('/api/tickets/:id/reveal', requireAuth, async (req, res) => {
+  try {
+    const ticket = await db.getAsync(
+      'SELECT image_url, contact FROM tickets WHERE id = ?',
+      [req.params.id]
+    );
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found.' });
+    res.json({ image_url: ticket.image_url || null, contact: ticket.contact });
+  } catch (err) {
+    console.error('Reveal ticket error:', err);
+    res.status(500).json({ error: 'Could not load ticket details.' });
+  }
+});
+
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
+
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found.' });
 });
 
 // ─── Serve React frontend (must be AFTER all API routes) ─────────────────────
+
 app.use(express.static(path.join(__dirname, 'dist')));
 
 app.get('*', (req, res) => {
@@ -986,6 +997,7 @@ app.get('*', (req, res) => {
 });
 
 // ─── Start server ─────────────────────────────────────────────────────────────
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
