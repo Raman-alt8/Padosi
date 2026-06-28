@@ -72,7 +72,10 @@ export default function PostServicePage({ onSubmit, dark }) {
     e.preventDefault();
     if (!isValid) return;
     onSubmit?.({ ...form, photo: photoPreview });
-    setSubmitted(true);
+    // Close this page and go straight to the listings page
+    setOpen(false);
+    setSubmitted(false);
+    window.dispatchEvent(new Event("padosi:allListings"));
   };
 
   // After posting, "View all listings" closes this page and opens the listings page
@@ -210,7 +213,7 @@ export default function PostServicePage({ onSubmit, dark }) {
               </div>
 
               {/* Price */}
-              <div className="grid grid-cols-[140px_1fr] gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelBase}>Pricing</label>
                   <select value={form.priceType} onChange={update("priceType")} className={`${inputBase} cursor-pointer`}>
