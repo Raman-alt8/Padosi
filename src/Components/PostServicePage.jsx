@@ -123,13 +123,6 @@ export default function PostServicePage({ onSubmit, dark }) {
     dark ? "text-white/70" : "text-[#777]"
   }`;
 
-  const counterColor = (len, limit) =>
-    len >= limit
-      ? "text-red-500 font-bold"
-      : dark
-      ? "text-white/40"
-      : "text-[#bbb]";
-
   /* ─── render ─── */
   return (
     <div
@@ -232,12 +225,7 @@ export default function PostServicePage({ onSubmit, dark }) {
 
               {/* Title — 50 char limit */}
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className={labelBase}>Listing title</label>
-                  <span className={`text-xs ${counterColor(form.title.length, TITLE_LIMIT)}`}>
-                    {form.title.length}/{TITLE_LIMIT}
-                  </span>
-                </div>
+                <label className={`block ${labelBase} mb-1.5`}>Listing title</label>
                 <input
                   type="text"
                   value={form.title}
@@ -249,16 +237,14 @@ export default function PostServicePage({ onSubmit, dark }) {
                   required
                   className={inputBase}
                 />
+                {form.title.length >= TITLE_LIMIT && (
+                  <div className="h-px bg-red-500 mt-1 rounded" />
+                )}
               </div>
 
               {/* Description — 100 char limit */}
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className={labelBase}>Description</label>
-                  <span className={`text-xs ${counterColor(form.description.length, DESC_LIMIT)}`}>
-                    {form.description.length}/{DESC_LIMIT}
-                  </span>
-                </div>
+                <label className={`block ${labelBase} mb-1.5`}>Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => {
@@ -270,6 +256,9 @@ export default function PostServicePage({ onSubmit, dark }) {
                   rows={4}
                   className={`${inputBase} resize-none`}
                 />
+                {form.description.length >= DESC_LIMIT && (
+                  <div className="h-px bg-red-500 mt-1 rounded" />
+                )}
               </div>
 
               {/* Price — max 7 digits */}
