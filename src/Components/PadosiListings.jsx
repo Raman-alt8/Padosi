@@ -1,8 +1,10 @@
 // PadosiListings.jsx
+import { useState } from "react";
 import RideSharePage from "./RideSharePage";
 import BuyTicketPage from "./BuyTicketPage";
 import ServiceListingsPage from "./ServiceListingsPage";
 import PostServicePage from "./PostServicePage";
+import ServiceListingsAllPage from "./ServiceListingsAllPage";
 
 // ─── Listings Grid ──
 function ListingsGrid({ showToast, dark }) {
@@ -60,11 +62,18 @@ function ListingsGrid({ showToast, dark }) {
 
 // ─── Main export ─────────────────────────────────────────────────────────────
 export default function PadosiListings({ showToast, currentUser, onSelectCategory, dark = false }) {
+  const [listings, setListings] = useState([]);
+
+  const handleNewListing = (listing) => {
+    setListings((prev) => [listing, ...prev]);
+  };
+
   return (
     <>
       <ListingsGrid showToast={showToast} dark={dark} />
       <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
-      <PostServicePage dark={dark} />
+      <PostServicePage dark={dark} onSubmit={handleNewListing} />
+      <ServiceListingsAllPage dark={dark} listings={listings} />
       <BuyTicketPage showToast={showToast} dark={dark} user={currentUser} />
       <RideSharePage currentUser={currentUser} showToast={showToast} dark={dark} />
     </>
