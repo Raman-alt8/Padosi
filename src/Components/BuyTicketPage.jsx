@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -25,6 +25,155 @@ function todayISO() {
   const mm   = String(d.getMonth() + 1).padStart(2, "0");
   const dd   = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+// ─── Reveal Modal ─────────────────────────────────────────────────────────────
+// Shown to buyer after clicking Buy — displays ticket image + seller contact
+
+function RevealModal({ data, dark, onClose }) {
+  if (!data) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[6000] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      {/* Panel */}
+      <div
+        className={`relative z-10 w-full max-w-sm rounded-2xl border p-5 flex flex-col gap-4 shadow-2xl ${
+          dark ? "bg-black border-white/20" : "bg-white border-[#eee]"
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
+            🎟️ Ticket Details
+          </p>
+          <button
+            onClick={onClose}
+            className={`text-xl leading-none cursor-pointer ${dark ? "text-white/50 hover:text-white" : "text-[#bbb] hover:text-[#333]"}`}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Ticket image */}
+        {data.image_url ? (
+          <img
+            src={data.image_url}
+            alt="Ticket"
+            className="w-full rounded-xl object-contain max-h-64 border"
+            style={{ borderColor: dark ? "rgba(255,255,255,0.1)" : "#eee" }}
+          />
+        ) : (
+          <div
+            className={`w-full h-36 rounded-xl flex items-center justify-center text-sm ${
+              dark ? "bg-white/5 text-white/30" : "bg-[#f6f7fb] text-[#bbb]"
+            }`}
+          >
+            No image uploaded
+          </div>
+        )}
+
+        {/* Seller contact */}
+        <div
+          className={`rounded-xl p-4 flex flex-col gap-2 ${
+            dark ? "bg-white/5" : "bg-[#f6f7fb]"
+          }`}
+        >
+          <p className={`text-xs font-bold uppercase tracking-wide ${dark ? "text-white/40" : "text-[#bbb]"}`}>
+            Seller Contact
+          </p>
+          <p className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
+            {data.contact}
+          </p>
+          {/* WhatsApp deep-link if it looks like a phone number */}
+          {/\d{10}/.test(data.contact) && (
+            <a
+              href={`https://wa.me/91${data.contact.replace(/\D/g, "").slice(-10)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+                dark
+                  ? "bg-white text-black border-white hover:bg-white/80"
+                  : "bg-[#25d366] text-white border-[#25d366] hover:bg-[#1ebe5d]"
+              }`}
+            >
+              💬 Message on WhatsApp
+            </a>
+          )}
+        </div>
+
+        <p className={`text-xs text-center ${dark ? "text-white/30" : "text-[#ccc]"}`}>
+          Contact the seller directly to arrange payment &amp; handover.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Image Upload Field ───────────────────────────────────────────────────────
+
+function ImageUploadField({ dark, onUpload, uploading, preview }) {
+  const inputRef = useRef(null);
+
+  return (
+    <div>
+      <label className={`text-xs font-bold mb-1 block ${dark ? "text-white/60" : "text-[#888]"}`}>
+        Ticket photo <span className={`font-normal ${dark ? "text-white/30" : "text-[#bbb]"}`}>(shown to buyer after purchase)</span>
+      </label>
+
+      {preview ? (
+        <div className="relative">
+          <img
+            src={preview}
+            alt="Ticket preview"
+            className="w-full max-h-48 object-contain rounded-xl border"
+            style={{ borderColor: dark ? "rgba(255,255,255,0.15)" : "#e0e0ea" }}
+          />
+          <button
+            onClick={() => onUpload(null)}
+            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className={`w-full rounded-xl border-2 border-dashed py-8 flex flex-col items-center gap-2 cursor-pointer transition-colors ${
+            uploading
+              ? dark ? "border-white/10 text-white/20" : "border-[#ddd] text-[#ccc]"
+              : dark
+              ? "border-white/20 text-white/40 hover:border-white/50 hover:text-white/60"
+              : "border-[#ddd] text-[#bbb] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+          }`}
+        >
+          <span className="text-2xl">{uploading ? "⏳" : "📷"}</span>
+          <span className="text-sm font-bold">
+            {uploading ? "Uploading…" : "Upload ticket image"}
+          </span>
+          <span className="text-xs">JPG, PNG, WEBP · max 5 MB</span>
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onUpload(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -84,7 +233,7 @@ function BadgePill({ text, dark }) {
   );
 }
 
-// ─── Inline Edit Form (rendered inside the card when editing) ────────────────
+// ─── Inline Edit Form ─────────────────────────────────────────────────────────
 
 function InlineEditForm({ listing, dark, onSave, onCancel }) {
   const [form, setForm] = useState({
@@ -97,7 +246,10 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
     description: listing.description ?? "",
     contact:     listing.contact ?? "",
   });
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageUrl, setImageUrl]   = useState(listing.image_url ?? null);
+  const [preview, setPreview]     = useState(listing.image_url ?? null);
 
   const set = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -112,130 +264,91 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
     dark ? "text-white/50" : "text-[#aaa]"
   }`;
 
+  const handleImageUpload = async (file) => {
+    if (!file) { setImageUrl(null); setPreview(null); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res  = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || "Upload failed."); return; }
+      setImageUrl(data.url);
+      setPreview(data.url);
+    } catch { alert("Upload failed. Please try again."); }
+    finally  { setUploading(false); }
+  };
+
   const handleSave = async () => {
     const required = ["title", "category", "date", "venue", "price", "contact"];
-    if (required.some((k) => !form[k])) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-    if (form.date < todayISO()) {
-      alert("Event date cannot be in the past.");
-      return;
-    }
+    if (required.some((k) => !form[k])) { alert("Please fill in all required fields."); return; }
+    if (form.date < todayISO())          { alert("Event date cannot be in the past.");   return; }
     setSaving(true);
     await onSave(listing.id, {
       ...form,
-      price: Number(form.price),
-      qty:   Number(form.qty) || 1,
+      price:     Number(form.price),
+      qty:       Number(form.qty) || 1,
+      image_url: imageUrl ?? "",
     });
     setSaving(false);
   };
 
   return (
     <div className="flex flex-col gap-3 pt-1">
-      {/* Title */}
       <div>
         <label className={labelBase}>Event name *</label>
         <input className={inputBase} value={form.title} onChange={set("title")} />
       </div>
-
-      {/* Category */}
       <div>
         <label className={labelBase}>Category *</label>
         <select className={inputBase} value={form.category} onChange={set("category")}>
           <option value="">Select a category</option>
           {EVENT_CATEGORIES.map((c) => (
-            <option key={c.label} value={c.label}>
-              {c.icon} {c.label}
-            </option>
+            <option key={c.label} value={c.label}>{c.icon} {c.label}</option>
           ))}
         </select>
       </div>
-
-      {/* Date + Venue */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelBase}>Date *</label>
-          <input
-            type="date"
-            className={inputBase}
-            value={form.date}
-            min={todayISO()}
-            onChange={set("date")}
-          />
+          <input type="date" className={inputBase} value={form.date} min={todayISO()} onChange={set("date")} />
         </div>
         <div>
           <label className={labelBase}>Venue *</label>
-          <input
-            className={inputBase}
-            placeholder="Venue name"
-            value={form.venue}
-            onChange={set("venue")}
-          />
+          <input className={inputBase} placeholder="Venue name" value={form.venue} onChange={set("venue")} />
         </div>
       </div>
-
-      {/* Price + Qty */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelBase}>Price (₹) *</label>
-          <input
-            type="number"
-            min="0"
-            className={inputBase}
-            value={form.price}
-            onChange={set("price")}
-          />
+          <input type="number" min="0" className={inputBase} value={form.price} onChange={set("price")} />
         </div>
         <div>
           <label className={labelBase}>Qty</label>
-          <input
-            type="number"
-            min="1"
-            max="20"
-            className={inputBase}
-            value={form.qty}
-            onChange={set("qty")}
-          />
+          <input type="number" min="1" max="20" className={inputBase} value={form.qty} onChange={set("qty")} />
         </div>
       </div>
-
-      {/* Description */}
       <div>
         <label className={labelBase}>Details</label>
-        <textarea
-          rows={2}
-          className={`${inputBase} resize-none`}
-          placeholder="Seat details, reason for selling…"
-          value={form.description}
-          onChange={set("description")}
-        />
+        <textarea rows={2} className={`${inputBase} resize-none`} placeholder="Seat details, reason for selling…" value={form.description} onChange={set("description")} />
       </div>
-
-      {/* Contact */}
       <div>
         <label className={labelBase}>Contact *</label>
-        <input
-          className={inputBase}
-          placeholder="+91 98765 43210"
-          value={form.contact}
-          onChange={set("contact")}
-        />
+        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} />
       </div>
 
-      {/* Actions */}
+      {/* Image upload in edit mode */}
+      <ImageUploadField dark={dark} onUpload={handleImageUpload} uploading={uploading} preview={preview} />
+
       <div className="flex gap-2 mt-1">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || uploading}
           className={`flex-1 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
-            saving
-              ? dark
-                ? "bg-white/20 text-white/40 border-white/10"
-                : "bg-[#ffa0b0] text-white border-[#ffa0b0]"
-              : dark
-              ? "bg-white text-black border-white hover:bg-white/80"
-              : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+            saving || uploading
+              ? dark ? "bg-white/20 text-white/40 border-white/10" : "bg-[#ffa0b0] text-white border-[#ffa0b0]"
+              : dark ? "bg-white text-black border-white hover:bg-white/80"
+                     : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
           }`}
         >
           {saving ? "Saving…" : "Save changes"}
@@ -258,19 +371,8 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
 
 // ─── TicketCard ───────────────────────────────────────────────────────────────
 
-/**
- * TicketCard
- *
- * Props:
- *   listing       – card data (includes listing.userId)
- *   dark          – theme flag
- *   currentUserId – logged-in user's id; used to decide whether to show owner controls
- *   onBuy         – called when a non-owner clicks Buy
- *   onRemove      – called when the owner clicks Remove
- *   onEdit        – called when the owner saves edits: (id, updatedFields) => Promise<void>
- */
 function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
-  const isOwner  = !!currentUserId && listing.userId === currentUserId;
+  const isOwner  = !!currentUserId && String(listing.userId) === String(currentUserId);
   const [editing, setEditing] = useState(false);
 
   const handleSaveEdit = async (id, fields) => {
@@ -282,40 +384,25 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
     <div
       className={`rounded-2xl border p-4 flex flex-col gap-3 transition-all ${
         editing
-          ? dark
-            ? "border-white/60"
-            : "border-[#ff2d55] shadow-[0_8px_24px_rgba(255,45,85,0.12)]"
-          : dark
-          ? "bg-black border-white/20 hover:border-white/60"
-          : "bg-white border-[#eee] hover:-translate-y-0.5 hover:border-[#ff2d55] hover:shadow-[0_8px_24px_rgba(255,45,85,0.10)]"
+          ? dark ? "border-white/60" : "border-[#ff2d55] shadow-[0_8px_24px_rgba(255,45,85,0.12)]"
+          : dark ? "bg-black border-white/20 hover:border-white/60"
+                 : "bg-white border-[#eee] hover:-translate-y-0.5 hover:border-[#ff2d55] hover:shadow-[0_8px_24px_rgba(255,45,85,0.10)]"
       } ${dark ? "bg-black" : "bg-white"}`}
     >
-      {/* ── Top row (always visible) ── */}
+      {/* Top row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <span
-            className={`w-10 h-10 rounded-full flex items-center justify-center text-xl border ${
-              dark ? "border-white/20" : "border-[#eee]"
-            }`}
-          >
+          <span className={`w-10 h-10 rounded-full flex items-center justify-center text-xl border ${dark ? "border-white/20" : "border-[#eee]"}`}>
             {listing.icon}
           </span>
           <div>
-            <p className={`text-sm font-black leading-tight ${dark ? "text-white" : "text-[#111]"}`}>
-              {listing.title}
-            </p>
-            <p className={`text-xs mt-0.5 ${dark ? "text-white/50" : "text-[#999]"}`}>
-              {listing.category}
-            </p>
+            <p className={`text-sm font-black leading-tight ${dark ? "text-white" : "text-[#111]"}`}>{listing.title}</p>
+            <p className={`text-xs mt-0.5 ${dark ? "text-white/50" : "text-[#999]"}`}>{listing.category}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {isOwner && (
-            <span
-              className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                dark ? "bg-white/10 text-white/60" : "bg-[#f0f0f5] text-[#999]"
-              }`}
-            >
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${dark ? "bg-white/10 text-white/60" : "bg-[#f0f0f5] text-[#999]"}`}>
               Your listing
             </span>
           )}
@@ -323,26 +410,22 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
         </div>
       </div>
 
-      {/* ── Inline edit form OR card details ── */}
       {editing ? (
-        <InlineEditForm
-          listing={listing}
-          dark={dark}
-          onSave={handleSaveEdit}
-          onCancel={() => setEditing(false)}
-        />
+        <InlineEditForm listing={listing} dark={dark} onSave={handleSaveEdit} onCancel={() => setEditing(false)} />
       ) : (
         <>
-          {/* Details */}
           <div className={`text-xs flex flex-col gap-1 ${dark ? "text-white/60" : "text-[#777]"}`}>
             <span>📅 {listing.date}</span>
             <span>📍 {listing.venue}</span>
-            <span>
-              🎟️ {listing.qty} ticket{listing.qty > 1 ? "s" : ""} available · by {listing.seller}
-            </span>
+            <span>🎟️ {listing.qty} ticket{listing.qty > 1 ? "s" : ""} available · by {listing.seller}</span>
+            {/* Show image indicator to owner only */}
+            {isOwner && (
+              <span className={listing.image_url ? (dark ? "text-white/40" : "text-[#bbb]") : (dark ? "text-white/20" : "text-[#ddd]")}>
+                {listing.image_url ? "📷 Ticket photo attached" : "📷 No ticket photo"}
+              </span>
+            )}
           </div>
 
-          {/* Price + CTA */}
           <div className="flex items-center justify-between mt-1">
             <div>
               <p className={`text-xs ${dark ? "text-white/40" : "text-[#bbb]"}`}>per ticket</p>
@@ -352,7 +435,6 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
             </div>
 
             {isOwner ? (
-              /* ── Owner controls: Edit + Remove ── */
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditing(true)}
@@ -376,7 +458,6 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
                 </button>
               </div>
             ) : (
-              /* ── Buy button (non-owners only) ── */
               <button
                 onClick={() => onBuy(listing)}
                 className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
@@ -402,6 +483,8 @@ function BuyPanel({ dark, showToast, user }) {
   const [activeCategory, setActiveCategory] = useState("All");
   const [listings, setListings]           = useState([]);
   const [loading, setLoading]             = useState(true);
+  const [reveal, setReveal]               = useState(null);   // data for RevealModal
+  const [revealing, setRevealing]         = useState(null);   // id currently loading
 
   const toCard = (t) => {
     const catObj = EVENT_CATEGORIES.find((c) => c.label === t.category);
@@ -419,6 +502,7 @@ function BuyPanel({ dark, showToast, user }) {
       badge:       t.qty === 1 ? "Last one" : null,
       description: t.description ?? "",
       contact:     t.contact ?? "",
+      image_url:   t.image_url ?? null,
     };
   };
 
@@ -431,13 +515,22 @@ function BuyPanel({ dark, showToast, user }) {
       .finally(() => setLoading(false));
   }, [user]);
 
+  // ── Buy → reveal ticket image + contact ──────────────────────────────────
+  const handleBuy = async (listing) => {
+    setRevealing(listing.id);
+    try {
+      const res  = await fetch(`/api/tickets/${listing.id}/reveal`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) { showToast(`⚠️ ${data.error || "Could not load ticket details."}`); return; }
+      setReveal(data);
+    } catch { showToast("⚠️ Network error. Please try again."); }
+    finally  { setRevealing(null); }
+  };
+
   // ── Remove ────────────────────────────────────────────────────────────────
   const handleRemove = async (id) => {
     try {
-      const res = await fetch(`/api/tickets/${id}`, {
-        method:      "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(`/api/tickets/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         showToast(`⚠️ ${data.error || "Could not remove ticket."}`);
@@ -445,118 +538,100 @@ function BuyPanel({ dark, showToast, user }) {
       }
       setListings((prev) => prev.filter((l) => l.id !== id));
       showToast("✅ Ticket listing removed.");
-    } catch {
-      showToast("⚠️ Network error. Please try again.");
-    }
+    } catch { showToast("⚠️ Network error. Please try again."); }
   };
 
   // ── Edit ──────────────────────────────────────────────────────────────────
   const handleEdit = async (id, fields) => {
     try {
-      const res = await fetch(`/api/tickets/${id}`, {
+      const res  = await fetch(`/api/tickets/${id}`, {
         method:      "PATCH",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
         body:        JSON.stringify(fields),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showToast(`⚠️ ${data.error || "Could not update ticket."}`);
-        return;
-      }
-      // Merge updated fields into local state so the card reflects changes immediately
+      if (!res.ok) { showToast(`⚠️ ${data.error || "Could not update ticket."}`); return; }
       setListings((prev) =>
         prev.map((l) => {
           if (l.id !== id) return l;
           const catObj = EVENT_CATEGORIES.find((c) => c.label === fields.category);
-          return {
-            ...l,
-            ...fields,
-            icon:  catObj?.icon ?? l.icon,
-            badge: fields.qty === 1 ? "Last one" : null,
-          };
+          return { ...l, ...fields, icon: catObj?.icon ?? l.icon, badge: fields.qty === 1 ? "Last one" : null };
         })
       );
       showToast("✅ Ticket listing updated.");
-    } catch {
-      showToast("⚠️ Network error. Please try again.");
-    }
+    } catch { showToast("⚠️ Network error. Please try again."); }
   };
 
   const categories = ["All", ...EVENT_CATEGORIES.map((c) => c.label)];
-
   const filtered = listings.filter((l) => {
     const matchCat    = activeCategory === "All" || l.category === activeCategory;
-    const matchSearch =
-      search === "" ||
-      l.title.toLowerCase().includes(search.toLowerCase()) ||
-      l.venue.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = search === "" || l.title.toLowerCase().includes(search.toLowerCase()) || l.venue.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
 
   return (
-    <div className="flex flex-col gap-5">
-      <input
-        type="text"
-        placeholder="Search events, venues…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className={`w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
-          dark
-            ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/60"
-            : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
-        }`}
-      />
+    <>
+      {/* Reveal modal */}
+      <RevealModal data={reveal} dark={dark} onClose={() => setReveal(null)} />
 
-      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {categories.map((cat) => {
-          const active = activeCategory === cat;
-          const catObj = EVENT_CATEGORIES.find((c) => c.label === cat);
-          return (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition-all ${
-                active
-                  ? dark
-                    ? "bg-white text-black border-white"
-                    : "bg-[#ff2d55] text-white border-[#ff2d55]"
-                  : dark
-                  ? "bg-transparent text-white/60 border-white/20 hover:border-white/50"
-                  : "bg-transparent text-[#777] border-[#ddd] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-              }`}
-            >
-              {catObj && <span>{catObj.icon}</span>}
-              {cat}
-            </button>
-          );
-        })}
+      <div className="flex flex-col gap-5">
+        <input
+          type="text"
+          placeholder="Search events, venues…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={`w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
+            dark
+              ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/60"
+              : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
+          }`}
+        />
+
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {categories.map((cat) => {
+            const active = activeCategory === cat;
+            const catObj = EVENT_CATEGORIES.find((c) => c.label === cat);
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition-all ${
+                  active
+                    ? dark ? "bg-white text-black border-white" : "bg-[#ff2d55] text-white border-[#ff2d55]"
+                    : dark ? "bg-transparent text-white/60 border-white/20 hover:border-white/50"
+                           : "bg-transparent text-[#777] border-[#ddd] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                }`}
+              >
+                {catObj && <span>{catObj.icon}</span>}
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+
+        {loading ? (
+          <div className={`text-center py-16 text-sm ${dark ? "text-white/40" : "text-[#bbb]"}`}>Loading tickets…</div>
+        ) : filtered.length === 0 ? (
+          <div className={`text-center py-16 text-sm ${dark ? "text-white/40" : "text-[#bbb]"}`}>No tickets found. Try a different search or category.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {filtered.map((listing) => (
+              <TicketCard
+                key={listing.id}
+                listing={listing}
+                dark={dark}
+                currentUserId={user?.id ?? null}
+                onBuy={handleBuy}
+                onRemove={handleRemove}
+                onEdit={handleEdit}
+                revealing={revealing === listing.id}
+              />
+            ))}
+          </div>
+        )}
       </div>
-
-      {loading ? (
-        <div className={`text-center py-16 text-sm ${dark ? "text-white/40" : "text-[#bbb]"}`}>
-          Loading tickets…
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className={`text-center py-16 text-sm ${dark ? "text-white/40" : "text-[#bbb]"}`}>
-          No tickets found. Try a different search or category.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filtered.map((listing) => (
-            <TicketCard
-              key={listing.id}
-              listing={listing}
-              dark={dark}
-              currentUserId={user?.id ?? null}
-              onBuy={(l)       => showToast(`🎟️ Request sent for "${l.title}"!`)}
-              onRemove={handleRemove}
-              onEdit={handleEdit}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -564,83 +639,71 @@ function BuyPanel({ dark, showToast, user }) {
 
 function PostPanel({ dark, showToast }) {
   const [form, setForm] = useState({
-    title:       "",
-    category:    "",
-    date:        "",
-    venue:       "",
-    price:       "",
-    qty:         "1",
-    description: "",
-    contact:     "",
+    title: "", category: "", date: "", venue: "",
+    price: "", qty: "1", description: "", contact: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageUrl, setImageUrl]   = useState(null);
+  const [preview, setPreview]     = useState(null);
 
-  const set = (key) => (e) =>
-    setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  const set = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   const inputBase = `w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
     dark
       ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
       : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
   }`;
-
   const labelBase = `text-xs font-bold mb-1 block ${dark ? "text-white/60" : "text-[#888]"}`;
+
+  const handleImageUpload = async (file) => {
+    if (!file) { setImageUrl(null); setPreview(null); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res  = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd });
+      const data = await res.json();
+      if (!res.ok) { showToast(`⚠️ ${data.error || "Image upload failed."}`); return; }
+      setImageUrl(data.url);
+      setPreview(data.url);
+    } catch { showToast("⚠️ Image upload failed. Please try again."); }
+    finally  { setUploading(false); }
+  };
 
   const handleSubmit = async () => {
     const required = ["title", "category", "date", "venue", "price", "contact"];
-    if (required.some((k) => !form[k])) {
-      showToast("⚠️ Please fill in all required fields.");
-      return;
-    }
-    if (form.date < todayISO()) {
-      showToast("⚠️ Event date cannot be in the past.");
-      return;
-    }
+    if (required.some((k) => !form[k])) { showToast("⚠️ Please fill in all required fields."); return; }
+    if (form.date < todayISO())          { showToast("⚠️ Event date cannot be in the past.");   return; }
     try {
-      const res = await fetch("/api/tickets", {
+      const res  = await fetch("/api/tickets", {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          price: Number(form.price),
-          qty:   Number(form.qty) || 1,
-        }),
+        body: JSON.stringify({ ...form, price: Number(form.price), qty: Number(form.qty) || 1, image_url: imageUrl ?? "" }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        showToast(`⚠️ ${data.error || "Could not post ticket."}`);
-        return;
-      }
+      if (!res.ok) { showToast(`⚠️ ${data.error || "Could not post ticket."}`); return; }
       setSubmitted(true);
       showToast("✅ Ticket posted to Padosi Listings!");
-    } catch {
-      showToast("⚠️ Network error. Please try again.");
-    }
+    } catch { showToast("⚠️ Network error. Please try again."); }
   };
 
   if (submitted) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
         <span className="text-6xl">🎟️</span>
-        <p className={`text-2xl font-black ${dark ? "text-white" : "text-[#111]"}`}>
-          Ticket posted!
-        </p>
+        <p className={`text-2xl font-black ${dark ? "text-white" : "text-[#111]"}`}>Ticket posted!</p>
         <p className={`text-sm max-w-xs ${dark ? "text-white/50" : "text-[#999]"}`}>
           Your listing is now live. Neighbours nearby can see and contact you.
         </p>
         <button
           onClick={() => {
-            setForm({
-              title: "", category: "", date: "", venue: "",
-              price: "", qty: "1", description: "", contact: "",
-            });
-            setSubmitted(false);
+            setForm({ title: "", category: "", date: "", venue: "", price: "", qty: "1", description: "", contact: "" });
+            setImageUrl(null); setPreview(null); setSubmitted(false);
           }}
           className={`mt-2 px-6 py-2.5 rounded-xl text-sm font-bold border cursor-pointer transition-all ${
-            dark
-              ? "bg-white text-black border-white hover:bg-white/80"
-              : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+            dark ? "bg-white text-black border-white hover:bg-white/80" : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
           }`}
         >
           Post another
@@ -653,103 +716,60 @@ function PostPanel({ dark, showToast }) {
     <div className="flex flex-col gap-5 pb-10">
       <div>
         <label className={labelBase}>Event name *</label>
-        <input
-          className={inputBase}
-          placeholder="e.g. Arijit Singh Live"
-          value={form.title}
-          onChange={set("title")}
-        />
+        <input className={inputBase} placeholder="e.g. Arijit Singh Live" value={form.title} onChange={set("title")} />
       </div>
-
       <div>
         <label className={labelBase}>Category *</label>
         <select className={inputBase} value={form.category} onChange={set("category")}>
           <option value="">Select a category</option>
           {EVENT_CATEGORIES.map((c) => (
-            <option key={c.label} value={c.label}>
-              {c.icon} {c.label}
-            </option>
+            <option key={c.label} value={c.label}>{c.icon} {c.label}</option>
           ))}
         </select>
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelBase}>Event date *</label>
-          <input
-            type="date"
-            className={inputBase}
-            value={form.date}
-            min={todayISO()}
-            onChange={set("date")}
-          />
+          <input type="date" className={inputBase} value={form.date} min={todayISO()} onChange={set("date")} />
         </div>
         <div>
           <label className={labelBase}>Venue *</label>
-          <input
-            className={inputBase}
-            placeholder="Stadium or location name"
-            value={form.venue}
-            onChange={set("venue")}
-          />
+          <input className={inputBase} placeholder="Stadium or location name" value={form.venue} onChange={set("venue")} />
         </div>
       </div>
-
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelBase}>Price per ticket (₹) *</label>
-          <input
-            type="number"
-            min="0"
-            className={inputBase}
-            placeholder="e.g. 1200"
-            value={form.price}
-            onChange={set("price")}
-          />
+          <input type="number" min="0" className={inputBase} placeholder="e.g. 1200" value={form.price} onChange={set("price")} />
         </div>
         <div>
           <label className={labelBase}>Tickets available</label>
-          <input
-            type="number"
-            min="1"
-            max="20"
-            className={inputBase}
-            value={form.qty}
-            onChange={set("qty")}
-          />
+          <input type="number" min="1" max="20" className={inputBase} value={form.qty} onChange={set("qty")} />
         </div>
       </div>
-
       <div>
         <label className={labelBase}>Additional details</label>
-        <textarea
-          rows={3}
-          className={`${inputBase} resize-none`}
-          placeholder="Seat details, row, category, reason for selling…"
-          value={form.description}
-          onChange={set("description")}
-        />
+        <textarea rows={3} className={`${inputBase} resize-none`} placeholder="Seat details, row, category, reason for selling…" value={form.description} onChange={set("description")} />
       </div>
-
       <div>
         <label className={labelBase}>Your contact (phone / WhatsApp) *</label>
-        <input
-          className={inputBase}
-          placeholder="+91 98765 43210"
-          value={form.contact}
-          onChange={set("contact")}
-        />
+        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} />
       </div>
+
+      {/* Ticket image upload */}
+      <ImageUploadField dark={dark} onUpload={handleImageUpload} uploading={uploading} preview={preview} />
 
       <button
         onClick={handleSubmit}
+        disabled={uploading}
         className={`mt-2 w-full py-3 rounded-xl text-sm font-black cursor-pointer transition-all border ${
-          dark
-            ? "bg-white text-black border-white hover:bg-white/80"
-            : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+          uploading
+            ? dark ? "bg-white/20 text-white/40 border-white/10" : "bg-[#ffa0b0] text-white border-[#ffa0b0]"
+            : dark ? "bg-white text-black border-white hover:bg-white/80"
+                   : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
         }`}
       >
-        Post ticket →
+        {uploading ? "Uploading image…" : "Post ticket →"}
       </button>
     </div>
   );
@@ -773,43 +793,22 @@ export default function BuyTicketPage({ showToast, dark = false, user = null }) 
         dark ? "bg-black" : "bg-[#f6f7fb]"
       } ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
     >
-      {/* ── Header ── */}
-      <div
-        className={`h-[70px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
-          dark ? "bg-black border-white/20" : "bg-white border-[#eee]"
-        }`}
-      >
+      <div className={`h-[70px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${dark ? "bg-black border-white/20" : "bg-white border-[#eee]"}`}>
         <button
           onClick={() => setOpen(false)}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
-            dark
-              ? "bg-black border-white text-white hover:bg-white hover:text-black"
-              : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+            dark ? "bg-black border-white text-white hover:bg-white hover:text-black" : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
           }`}
         >
           ← Back
         </button>
-
         <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
-          Padosi{" "}
-          <span
-            className={`underline decoration-2 underline-offset-2 ${
-              dark ? "text-white" : "text-[#ff2d55]"
-            }`}
-          >
-            Tickets
-          </span>
+          Padosi <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>Tickets</span>
         </p>
-
         <div className="w-20" />
       </div>
 
-      {/* ── Hero ── */}
-      <div
-        className={`py-12 px-6 text-center ${
-          dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"
-        }`}
-      >
+      <div className={`py-12 px-6 text-center ${dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"}`}>
         <h1 className="text-5xl font-black">🎟️</h1>
         <h2 className="text-3xl font-black mt-2">Tickets</h2>
         <p className={`mt-2 text-sm max-w-sm mx-auto ${dark ? "opacity-60" : "opacity-90"}`}>
@@ -817,18 +816,12 @@ export default function BuyTicketPage({ showToast, dark = false, user = null }) 
         </p>
       </div>
 
-      {/* ── Body ── */}
       <div className="flex justify-center px-4 pb-16">
         <div className="w-full max-w-3xl -mt-6">
-          <div
-            className={`rounded-2xl border p-5 shadow-[0_10px_40px_rgba(0,0,0,0.08)] ${
-              dark ? "bg-black border-white/20" : "bg-white border-[#eee]"
-            }`}
-          >
+          <div className={`rounded-2xl border p-5 shadow-[0_10px_40px_rgba(0,0,0,0.08)] ${dark ? "bg-black border-white/20" : "bg-white border-[#eee]"}`}>
             <div className="mb-5">
               <TabBar tab={tab} setTab={setTab} dark={dark} />
             </div>
-
             {tab === "buy" ? (
               <BuyPanel dark={dark} showToast={showToast} user={user} />
             ) : (

@@ -17,6 +17,30 @@ const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
+const multer              = require("multer");
+const cloudinary          = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const upload = multer({
+  storage: new CloudinaryStorage({
+    cloudinary,
+    params: { folder: "padosi-tickets", allowed_formats: ["jpg","jpeg","png","webp"], transformation: [{ width: 1200, crop: "limit" }] },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+// POST /api/upload
+app.post("/api/upload", requireAuth, upload.single("image"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded." });
+  res.json({ url: req.file.path });
+});
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -868,7 +892,7 @@ app.post(
       return res.status(400).json({ error: errors.array()[0].msg });
     }
 
-    const { title, category, date, venue, price, qty, description, contact } = req.body;
+    const { title, category, date, venue, price, qty, description, contact, image_url } = req.body;
 
     try {
       const result = await db.runAsync(
@@ -931,14 +955,14 @@ app.patch(
       );
       if (!existing) return res.status(404).json({ error: 'Ticket not found or not yours.' });
 
-      await db.runAsync(
-        `UPDATE tickets
-         SET title = ?, category = ?, date = ?, venue = ?,
-             price = ?, qty = ?, description = ?, contact = ?
-         WHERE id = ? AND user_id = ?`,
-        [title, category, date, venue, Number(price), Number(qty),
-         description || '', contact, req.params.id, req.user.id]
-      );
+      await db.runAsyncawait db.runAsync(
+  `UPDATE tickets
+   SET title = ?, category = ?, date = ?, venue = ?,
+       price = ?, qty = ?, description = ?, contact = ?, image_url = ?
+   WHERE id = ? AND user_id = ?`,
+  [title, category, date, venue, Number(price), Number(qty),
+   description || '', contact, image_url || '', req.params.id, req.user.id]
+);
 
       const ticket = await db.getAsync('SELECT * FROM tickets WHERE id = ?', [req.params.id]);
       res.json({ ticket });
