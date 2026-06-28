@@ -22,6 +22,13 @@ const POST_CATEGORIES = [
   { icon: "🛠️", label: "Other" },
 ];
 
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const TITLE_LIMIT = 50;
+const DESC_LIMIT  = 100;
+const PRICE_MAX_DIGITS = 7;
+const EXP_MAX_DIGITS   = 2;
+
 export default function PostServicePage({ onSubmit, dark }) {
   const [open, setOpen] = useState(false);
   const fileInputRef = useRef(null);
@@ -32,9 +39,10 @@ export default function PostServicePage({ onSubmit, dark }) {
     description: "",
     priceType: "Monthly",
     price: "",
-    area: "",
     experience: "",
-    availability: "",
+    availabilityDays: [],
+    availabilityFrom: "",
+    availabilityTo: "",
     phone: "",
   });
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -47,6 +55,14 @@ export default function PostServicePage({ onSubmit, dark }) {
   }, []);
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const toggleDay = (day) =>
+    setForm((f) => ({
+      ...f,
+      availabilityDays: f.availabilityDays.includes(day)
+        ? f.availabilityDays.filter((d) => d !== day)
+        : [...f.availabilityDays, day],
+    }));
 
   const handlePhotoChange = (e) => {
     const file = e.target.files?.[0];
@@ -66,33 +82,55 @@ export default function PostServicePage({ onSubmit, dark }) {
     setSubmitted(false);
   };
 
-  const isValid = form.category && form.title.trim() && form.description.trim() && form.phone.trim();
+  const isValid =
+    form.category &&
+    form.title.trim() &&
+    form.description.trim() &&
+    form.phone.length === 10;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!isValid) return;
-    onSubmit?.({ ...form, photo: photoPreview });
-    // Close this page and go straight to the listings page
+
+    const availabilityStr =
+      form.availabilityDays.length > 0
+        ? `${form.availabilityDays.join(", ")}${
+            form.availabilityFrom && form.availabilityTo
+              ? `, ${form.availabilityFrom} – ${form.availabilityTo}`
+              : ""
+          }`
+        : "";
+
+    onSubmit?.({ ...form, availability: availabilityStr, photo: photoPreview });
     setOpen(false);
     setSubmitted(false);
     window.dispatchEvent(new Event("padosi:allListings"));
   };
 
-  // After posting, "View all listings" closes this page and opens the listings page
   const handleViewListings = () => {
     close();
     window.dispatchEvent(new Event("padosi:allListings"));
   };
 
+  /* ─── style helpers ─── */
   const inputBase = `w-full rounded-xl px-4 py-3 text-sm border outline-none transition-colors ${
     dark
       ? "bg-black border-white/30 text-white placeholder-white/40 focus:border-white"
       : "bg-white border-[#ddd] text-[#222] placeholder-[#999] focus:border-[#ff2d55]"
   }`;
-  const labelBase = `block text-xs font-bold mb-1.5 uppercase tracking-wide ${
+
+  const labelBase = `text-xs font-bold uppercase tracking-wide ${
     dark ? "text-white/70" : "text-[#777]"
   }`;
 
+  const counterColor = (len, limit) =>
+    len >= limit
+      ? "text-red-500 font-bold"
+      : dark
+      ? "text-white/40"
+      : "text-[#bbb]";
+
+  /* ─── render ─── */
   return (
     <div
       className={`fixed inset-0 z-[6000] flex flex-col overflow-y-auto transition-opacity duration-300 ${
@@ -117,7 +155,11 @@ export default function PostServicePage({ onSubmit, dark }) {
         </button>
         <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
           Post a{" "}
-          <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
+          <span
+            className={`underline decoration-2 underline-offset-2 ${
+              dark ? "text-white" : "text-[#ff2d55]"
+            }`}
+          >
             Service
           </span>
         </p>
@@ -127,6 +169,7 @@ export default function PostServicePage({ onSubmit, dark }) {
       <div className="flex justify-center px-6 py-10">
         <div className="w-full max-w-[640px]">
           {submitted ? (
+            /* ── Success state ── */
             <div
               className={`rounded-2xl p-10 text-center border ${
                 dark ? "border-white bg-black" : "border-[#eee] bg-white"
@@ -161,6 +204,7 @@ export default function PostServicePage({ onSubmit, dark }) {
               </div>
             </div>
           ) : (
+            /* ── Form ── */
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <p className={`text-sm -mt-2 mb-2 ${dark ? "text-white/60" : "text-[#777]"}`}>
                 Tell neighbours what you offer — it only takes a minute.
@@ -168,7 +212,7 @@ export default function PostServicePage({ onSubmit, dark }) {
 
               {/* Category */}
               <div>
-                <label className={labelBase}>Service category</label>
+                <label className={`block ${labelBase} mb-1.5`}>Service category</label>
                 <select
                   value={form.category}
                   onChange={update("category")}
@@ -186,25 +230,41 @@ export default function PostServicePage({ onSubmit, dark }) {
                 </select>
               </div>
 
-              {/* Title */}
+              {/* Title — 50 char limit */}
               <div>
-                <label className={labelBase}>Listing title</label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className={labelBase}>Listing title</label>
+                  <span className={`text-xs ${counterColor(form.title.length, TITLE_LIMIT)}`}>
+                    {form.title.length}/{TITLE_LIMIT}
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={form.title}
-                  onChange={update("title")}
+                  onChange={(e) => {
+                    if (e.target.value.length <= TITLE_LIMIT) update("title")(e);
+                  }}
+                  maxLength={TITLE_LIMIT}
                   placeholder="e.g. Quick AC repair & servicing"
                   required
                   className={inputBase}
                 />
               </div>
 
-              {/* Description */}
+              {/* Description — 100 char limit */}
               <div>
-                <label className={labelBase}>Description</label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className={labelBase}>Description</label>
+                  <span className={`text-xs ${counterColor(form.description.length, DESC_LIMIT)}`}>
+                    {form.description.length}/{DESC_LIMIT}
+                  </span>
+                </div>
                 <textarea
                   value={form.description}
-                  onChange={update("description")}
+                  onChange={(e) => {
+                    if (e.target.value.length <= DESC_LIMIT) update("description")(e);
+                  }}
+                  maxLength={DESC_LIMIT}
                   placeholder="Describe what you offer, your experience, and anything customers should know"
                   required
                   rows={4}
@@ -212,93 +272,163 @@ export default function PostServicePage({ onSubmit, dark }) {
                 />
               </div>
 
-              {/* Price */}
+              {/* Price — max 7 digits */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelBase}>Pricing</label>
-                  <select value={form.priceType} onChange={update("priceType")} className={`${inputBase} cursor-pointer`}>
+                  <label className={`block ${labelBase} mb-1.5`}>Pricing</label>
+                  <select
+                    value={form.priceType}
+                    onChange={update("priceType")}
+                    className={`${inputBase} cursor-pointer`}
+                  >
                     <option value="Monthly">Monthly</option>
                     <option value="One Time Service">One Time Service</option>
                   </select>
                 </div>
                 <div>
-                  <label className={labelBase}>Amount (₹)</label>
+                  <label className={`block ${labelBase} mb-1.5`}>Amount (₹)</label>
                   <input
                     type="number"
                     min="0"
                     value={form.price}
-                    onChange={update("price")}
+                    onChange={(e) => {
+                      if (String(e.target.value).replace("-", "").length <= PRICE_MAX_DIGITS)
+                        update("price")(e);
+                    }}
                     placeholder="e.g. 500"
                     className={inputBase}
                   />
                 </div>
               </div>
 
-              {/* Area served */}
-              <div>
-                <label className={labelBase}>Area you serve</label>
+              {/* Experience — max 2 digits */}
+              <div className="w-1/2 pr-1.5">
+                <label className={`block ${labelBase} mb-1.5`}>Experience (years)</label>
                 <input
-                  type="text"
-                  value={form.area}
-                  onChange={update("area")}
-                  placeholder="e.g. Within 5km of Sector 12"
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={form.experience}
+                  onChange={(e) => {
+                    if (String(e.target.value).replace("-", "").length <= EXP_MAX_DIGITS)
+                      update("experience")(e);
+                  }}
+                  placeholder="e.g. 3"
                   className={inputBase}
                 />
               </div>
 
-              {/* Experience + Availability */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelBase}>Experience (years)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.experience}
-                    onChange={update("experience")}
-                    placeholder="e.g. 3"
-                    className={inputBase}
-                  />
+              {/* Availability — day chips + From / To time */}
+              <div>
+                <label className={`block ${labelBase} mb-2`}>Availability</label>
+
+                {/* Day chips — Mon to Sun */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {DAYS.map((day) => {
+                    const selected = form.availabilityDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                          selected
+                            ? dark
+                              ? "bg-white text-black border-white"
+                              : "bg-[#ff2d55] text-white border-[#ff2d55]"
+                            : dark
+                            ? "bg-transparent text-white/70 border-white/30 hover:border-white hover:text-white"
+                            : "bg-white text-[#666] border-[#ddd] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <label className={labelBase}>Availability</label>
-                  <input
-                    type="text"
-                    value={form.availability}
-                    onChange={update("availability")}
-                    placeholder="e.g. Mon–Sat, 9am–6pm"
-                    className={inputBase}
-                  />
+
+                {/* From / To time */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className={`text-xs mb-1 ${dark ? "text-white/50" : "text-[#999]"}`}>
+                      From
+                    </p>
+                    <input
+                      type="time"
+                      value={form.availabilityFrom}
+                      onChange={update("availabilityFrom")}
+                      className={inputBase}
+                    />
+                  </div>
+                  <div>
+                    <p className={`text-xs mb-1 ${dark ? "text-white/50" : "text-[#999]"}`}>
+                      To
+                    </p>
+                    <input
+                      type="time"
+                      value={form.availabilityTo}
+                      onChange={update("availabilityTo")}
+                      className={inputBase}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Phone */}
+              {/* Phone — exactly 10 digits */}
               <div>
-                <label className={labelBase}>Contact phone number</label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className={labelBase}>Contact phone number</label>
+                  <span
+                    className={`text-xs ${
+                      form.phone.length === 10
+                        ? dark
+                          ? "text-green-400 font-bold"
+                          : "text-green-500 font-bold"
+                        : dark
+                        ? "text-white/40"
+                        : "text-[#bbb]"
+                    }`}
+                  >
+                    {form.phone.length}/10
+                  </span>
+                </div>
                 <input
                   type="tel"
                   value={form.phone}
-                  onChange={update("phone")}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setForm((f) => ({ ...f, phone: digits }));
+                  }}
                   placeholder="e.g. 98765 43210"
                   required
                   className={inputBase}
                 />
+                {form.phone.length > 0 && form.phone.length < 10 && (
+                  <p className={`text-xs mt-1 ${dark ? "text-red-400" : "text-red-500"}`}>
+                    Please enter a 10-digit phone number.
+                  </p>
+                )}
               </div>
 
               {/* Photo */}
               <div>
-                <label className={labelBase}>Photo</label>
+                <label className={`block ${labelBase} mb-1.5`}>Photo</label>
                 {photoPreview ? (
                   <div className="flex items-center gap-3">
                     <img
                       src={photoPreview}
                       alt="Service preview"
-                      className={`w-20 h-20 rounded-xl object-cover border ${dark ? "border-white/30" : "border-[#ddd]"}`}
+                      className={`w-20 h-20 rounded-xl object-cover border ${
+                        dark ? "border-white/30" : "border-[#ddd]"
+                      }`}
                     />
                     <button
                       type="button"
                       onClick={removePhoto}
                       className={`text-xs font-bold cursor-pointer underline ${
-                        dark ? "text-white/70 hover:text-white" : "text-[#777] hover:text-[#ff2d55]"
+                        dark
+                          ? "text-white/70 hover:text-white"
+                          : "text-[#777] hover:text-[#ff2d55]"
                       }`}
                     >
                       Remove
