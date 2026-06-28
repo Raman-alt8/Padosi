@@ -30,7 +30,7 @@ export default function PostServicePage({ onSubmit, dark }) {
     category: "",
     title: "",
     description: "",
-    priceType: "Fixed",
+    priceType: "Monthly",
     price: "",
     area: "",
     experience: "",
@@ -214,9 +214,8 @@ export default function PostServicePage({ onSubmit, dark }) {
                 <div>
                   <label className={labelBase}>Pricing</label>
                   <select value={form.priceType} onChange={update("priceType")} className={`${inputBase} cursor-pointer`}>
-                    <option value="Fixed">Fixed</option>
-                    <option value="Hourly">Hourly</option>
-                    <option value="Negotiable">Negotiable</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="One Time Service">One Time Service</option>
                   </select>
                 </div>
                 <div>
