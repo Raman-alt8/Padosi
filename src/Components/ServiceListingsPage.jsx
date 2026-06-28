@@ -95,7 +95,7 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
             ${dark ? "text-black" : "text-white"}
           `}
         >
-          Serve
+          All Listings
           {/* Animated underline that appears on hover */}
           <span className={`
             absolute left-0 -bottom-1 h-[3px] w-0 rounded-full
