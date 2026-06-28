@@ -212,8 +212,8 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
         </div>
 
         {/* Body */}
-        <div className="flex justify-center px-6 py-10">
-          <div className="w-full max-w-[720px] flex flex-col gap-4">
+        <div className="flex justify-center px-6 py-8">
+          <div className="w-full max-w-[900px] flex flex-col gap-4">
 
             <p className={`text-xs font-bold uppercase tracking-wide ${metaCol}`}>
               {listings.length === 0
@@ -228,118 +228,119 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
                 <p className={`text-sm ${bodyCol}`}>Post the first service — neighbours are waiting.</p>
               </div>
             ) : (
-              listings.map((listing, i) => (
-                <div key={i} className={`rounded-2xl border overflow-hidden ${cardBg}`}>
-                  <div className="flex gap-4 p-5">
-
-                    {/* Photo or emoji fallback */}
-                    {listing.photo ? (
-                      <img
-                        src={listing.photo}
-                        alt={listing.title}
-                        className={`w-[72px] h-[72px] rounded-xl object-cover flex-shrink-0 border ${
-                          dark ? "border-white/20" : "border-[#eee]"
-                        }`}
-                      />
-                    ) : (
-                      <div className={`w-[72px] h-[72px] rounded-xl flex-shrink-0 flex items-center justify-center text-3xl border ${
-                        dark ? "bg-white/5 border-white/10" : "bg-[#f6f7fb] border-[#eee]"
-                      }`}>
-                        {CATEGORY_ICONS[listing.category] ?? "🛠️"}
-                      </div>
-                    )}
-
-                    {/* Content */}
-                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                      <span className={`self-start text-[11px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${badgeBg}`}>
+              /* 3-column grid — 6 cards visible per screen */
+              <div className="grid grid-cols-3 gap-4">
+                {listings.map((listing, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-2xl border overflow-hidden flex flex-col ${cardBg}`}
+                  >
+                    {/* Square top — photo or emoji */}
+                    <div className="relative w-full aspect-square">
+                      {listing.photo ? (
+                        <img
+                          src={listing.photo}
+                          alt={listing.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center text-5xl ${
+                          dark ? "bg-white/5" : "bg-[#f6f7fb]"
+                        }`}>
+                          {CATEGORY_ICONS[listing.category] ?? "🛠️"}
+                        </div>
+                      )}
+                      {/* Category badge overlaid on image */}
+                      <span className={`absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${badgeBg}`}>
                         {listing.category}
                       </span>
-                      <h3 className={`text-sm font-black leading-snug ${titleCol}`}>{listing.title}</h3>
-                      <p className={`text-xs leading-relaxed line-clamp-2 ${bodyCol}`}>{listing.description}</p>
+                    </div>
 
-                      {/* Meta pills */}
-                      <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {/* Card body */}
+                    <div className="flex flex-col gap-1 p-3 flex-1">
+                      <h3 className={`text-xs font-black leading-snug line-clamp-1 ${titleCol}`}>
+                        {listing.title}
+                      </h3>
+                      <p className={`text-[11px] leading-relaxed line-clamp-2 ${bodyCol}`}>
+                        {listing.description}
+                      </p>
+
+                      {/* Price + area */}
+                      <div className="flex flex-wrap gap-1 mt-1">
                         {listing.price && (
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${pillBg}`}>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${pillBg}`}>
                             ₹{listing.price}{listing.priceType === "Monthly" ? "/mo" : ""}
                           </span>
                         )}
                         {listing.area && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>📍 {listing.area}</span>
-                        )}
-                        {listing.availability && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>🕐 {listing.availability}</span>
-                        )}
-                        {listing.experience && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${pillBg}`}>
-                            ⭐ {listing.experience} yr{listing.experience !== "1" ? "s" : ""}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${pillBg}`}>
+                            📍 {listing.area}
                           </span>
                         )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Footer — contact + edit/delete */}
-                  <div className={`px-5 py-3 border-t flex items-center justify-between gap-3 ${divider}`}>
-                    {/* Phone */}
-                    {listing.phone ? (
-                      <a
-                        href={`tel:${listing.phone}`}
-                        className={`text-sm font-bold transition-colors ${
-                          dark ? "text-white hover:text-white/70" : "text-[#ff2d55] hover:text-[#e0264a]"
-                        }`}
-                      >
-                        📞 {listing.phone}
-                      </a>
-                    ) : <span />}
-
-                    {/* Edit + Delete */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setEditTarget({ listing, index: i })}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                          dark
-                            ? "border-white/20 text-white/60 hover:border-white hover:text-white"
-                            : "border-[#ddd] text-[#666] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                        }`}
-                      >
-                        ✏️ Edit
-                      </button>
-                      {deleteConfirm === i ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleDelete(i)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirm(null)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                              dark
-                                ? "border-white/20 text-white/60 hover:border-white hover:text-white"
-                                : "border-[#ddd] text-[#666] hover:border-[#333] hover:text-[#333]"
-                            }`}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirm(i)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                            dark
-                              ? "border-white/20 text-white/60 hover:border-red-400 hover:text-red-400"
-                              : "border-[#ddd] text-[#666] hover:border-red-400 hover:text-red-500"
+                    {/* Footer — phone + edit/delete */}
+                    <div className={`px-3 py-2.5 border-t flex flex-col gap-2 ${divider}`}>
+                      {listing.phone && (
+                        <a
+                          href={`tel:${listing.phone}`}
+                          className={`text-[11px] font-bold transition-colors ${
+                            dark ? "text-white hover:text-white/70" : "text-[#ff2d55] hover:text-[#e0264a]"
                           }`}
                         >
-                          🗑️ Delete
-                        </button>
+                          📞 {listing.phone}
+                        </a>
                       )}
+
+                      {/* Edit + Delete row */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setEditTarget({ listing, index: i })}
+                          className={`flex-1 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors ${
+                            dark
+                              ? "border-white/20 text-white/60 hover:border-white hover:text-white"
+                              : "border-[#ddd] text-[#666] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                          }`}
+                        >
+                          ✏️ Edit
+                        </button>
+                        {deleteConfirm === i ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(i)}
+                              className="flex-1 py-1 rounded-full text-[10px] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className={`flex-1 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors ${
+                                dark
+                                  ? "border-white/20 text-white/60 hover:border-white hover:text-white"
+                                  : "border-[#ddd] text-[#666] hover:border-[#333] hover:text-[#333]"
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(i)}
+                            className={`flex-1 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors ${
+                              dark
+                                ? "border-white/20 text-white/60 hover:border-red-400 hover:text-red-400"
+                                : "border-[#ddd] text-[#666] hover:border-red-400 hover:text-red-500"
+                            }`}
+                          >
+                            🗑️ Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
