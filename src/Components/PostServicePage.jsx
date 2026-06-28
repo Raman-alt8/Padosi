@@ -1,6 +1,26 @@
 // PostServicePage.jsx
 import { useState, useEffect, useRef } from "react";
-import { SERVICE_CATEGORIES } from "./ServiceListingsPage";
+
+const POST_CATEGORIES = [
+  { icon: "🔧", label: "Plumber" },
+  { icon: "⚡", label: "Electrician" },
+  { icon: "👶", label: "Daycare & Babysitting" },
+  { icon: "🔨", label: "Carpenter" },
+  { icon: "🎨", label: "Painter" },
+  { icon: "❄️", label: "AC & Appliance Repair" },
+  { icon: "🧹", label: "House Cleaning" },
+  { icon: "🐛", label: "Pest Control" },
+  { icon: "✂️", label: "Salon & Beauty" },
+  { icon: "📚", label: "Tutoring" },
+  { icon: "🐾", label: "Pet Care" },
+  { icon: "🚚", label: "Packers & Movers" },
+  { icon: "🪪", label: "Driver on Demand" },
+  { icon: "🍽️", label: "Cook & Catering" },
+  { icon: "💻", label: "Computer & Mobile Repair" },
+  { icon: "👕", label: "Laundry & Ironing" },
+  { icon: "🧓", label: "Elderly Care" },
+  { icon: "🛠️", label: "Other" },
+];
 
 export default function PostServicePage({ onSubmit, dark }) {
   const [open, setOpen] = useState(false);
@@ -155,7 +175,7 @@ export default function PostServicePage({ onSubmit, dark }) {
                   <option value="" disabled>
                     Select a category
                   </option>
-                  {SERVICE_CATEGORIES.map((cat) => (
+                  {POST_CATEGORIES.map((cat) => (
                     <option key={cat.label} value={cat.label}>
                       {cat.icon} {cat.label}
                     </option>
