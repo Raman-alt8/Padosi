@@ -46,11 +46,6 @@ export default function PostServicePage({ onSubmit, dark }) {
     setSubmitted(false);
   };
 
-  const openAllListings = () => {
-    close();
-    window.dispatchEvent(new Event("padosi:allListings"));
-  };
-
   const isValid = form.category && form.title.trim() && form.description.trim() && form.phone.trim();
 
   const handleSubmit = (e) => {
@@ -58,6 +53,12 @@ export default function PostServicePage({ onSubmit, dark }) {
     if (!isValid) return;
     onSubmit?.({ ...form, photo: photoPreview });
     setSubmitted(true);
+  };
+
+  // After posting, "View all listings" closes this page and opens the listings page
+  const handleViewListings = () => {
+    close();
+    window.dispatchEvent(new Event("padosi:allListings"));
   };
 
   const inputBase = `w-full rounded-xl px-4 py-3 text-sm border outline-none transition-colors ${
@@ -115,32 +116,24 @@ export default function PostServicePage({ onSubmit, dark }) {
               <p className={`text-sm mb-6 ${dark ? "text-white/70" : "text-[#666]"}`}>
                 Your service is now visible to neighbours nearby.
               </p>
-
               <div className="flex flex-col items-center gap-3">
                 <button
-                  onClick={close}
+                  onClick={handleViewListings}
                   className={`px-6 py-2.5 rounded-full text-sm font-bold cursor-pointer transition-colors ${
-                    dark ? "bg-white text-black hover:bg-white/90" : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
+                    dark
+                      ? "bg-white text-black hover:bg-white/90"
+                      : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
+                  }`}
+                >
+                  View all listings
+                </button>
+                <button
+                  onClick={close}
+                  className={`text-sm font-bold cursor-pointer transition-colors ${
+                    dark ? "text-white/50 hover:text-white" : "text-[#aaa] hover:text-[#555]"
                   }`}
                 >
                   Done
-                </button>
-
-                {/* All Listed Services link button */}
-                <button
-                  onClick={openAllListings}
-                  className={`
-                    px-6 py-2.5 rounded-full text-sm font-bold cursor-pointer
-                    transition-all duration-150
-                    border border-transparent
-                    ${
-                      dark
-                        ? "text-white/70 hover:text-white hover:border-white"
-                        : "text-[#777] hover:text-[#ff2d55] hover:border-[#ff2d55]"
-                    }
-                  `}
-                >
-                  All Listed Services →
                 </button>
               </div>
             </div>
