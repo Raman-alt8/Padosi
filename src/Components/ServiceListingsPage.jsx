@@ -16,10 +16,15 @@ export const SERVICE_CATEGORIES = [
   { icon: "🚚", label: "Packers & Movers",         prompt: "Need help packing/moving " },
   { icon: "🪪", label: "Driver on Demand",         prompt: "Need a driver for " },
   { icon: "🍽️", label: "Cook & Catering",          prompt: "Need a cook/catering for " },
-  { icon: "🌱", label: "Gardening",                prompt: "Need gardening help with " },
   { icon: "💻", label: "Computer & Mobile Repair", prompt: "Need help repairing my " },
   { icon: "👕", label: "Laundry & Ironing",        prompt: "Need laundry/ironing help for " },
   { icon: "🧓", label: "Elderly Care",             prompt: "Need elderly care assistance with " },
+  { icon: "🏋️", label: "Fitness & Yoga",           prompt: "Need a fitness/yoga trainer for " },
+  { icon: "🚗", label: "Car Wash & Detailing",     prompt: "Need car wash/detailing for " },
+  { icon: "📸", label: "Photography",              prompt: "Need a photographer for " },
+  { icon: "🔐", label: "Locksmith",                prompt: "Need a locksmith to " },
+  { icon: "🏠", label: "Interior Design",          prompt: "Need interior design help for " },
+  { icon: "🩺", label: "Home Healthcare",          prompt: "Need home healthcare support for " },
 ];
 
 export default function ServiceListingsPage({ onSelectCategory, onPostService, dark }) {
