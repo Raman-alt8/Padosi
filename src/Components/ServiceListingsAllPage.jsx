@@ -175,13 +175,16 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
 
   const bg       = dark ? "bg-black"               : "bg-[#f6f7fb]";
   const headerBg = dark ? "bg-black border-white"  : "bg-white border-[#eee]";
-  const cardBg   = dark ? "bg-black border-white/20" : "bg-white border-[#eee]";
   const titleCol = dark ? "text-white"              : "text-[#111]";
-  const bodyCol  = dark ? "text-white/70"           : "text-[#555]";
   const metaCol  = dark ? "text-white/40"           : "text-[#aaa]";
-  const pillBg   = dark ? "bg-white/10 text-white/60" : "bg-[#f0f0f0] text-[#666]";
-  const badgeBg  = dark ? "bg-white/10 text-white/80" : "bg-[#ff2d55]/10 text-[#ff2d55]";
-  const divider  = dark ? "border-white/10"         : "border-[#f2f2f2]";
+
+  // ── Card colours always white bg / black text ──
+  const cardBg  = "bg-white border-[#eee]";
+  const cardTitle = "text-[#111]";
+  const cardBody  = "text-[#555]";
+  const cardBadge = "bg-[#ff2d55]/10 text-[#ff2d55]";
+  const cardPill  = "bg-[#f0f0f0] text-[#666]";
+  const cardDivider = "border-[#f2f2f2]";
 
   return (
     <>
@@ -222,8 +225,8 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
 
           {listings.length === 0 ? (
             <div className={`rounded-2xl border p-14 flex flex-col items-center gap-3 text-center ${cardBg}`}>
-              <p className={`text-base font-black ${titleCol}`}>Nothing here yet</p>
-              <p className={`text-sm ${bodyCol}`}>Post the first service — neighbours are waiting.</p>
+              <p className={`text-base font-black ${cardTitle}`}>Nothing here yet</p>
+              <p className={`text-sm ${cardBody}`}>Post the first service — neighbours are waiting.</p>
             </div>
           ) : (
             /* 3-col grid, rows auto-sized so 2 rows = 6 cards fill the viewport */
@@ -240,20 +243,20 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
                   <div className="flex flex-col gap-2 p-4 flex-1 overflow-hidden">
 
                     {/* Category badge + title */}
-                    <span className={`self-start text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${badgeBg}`}>
+                    <span className={`self-start text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${cardBadge}`}>
                       {listing.category}
                     </span>
-                    <h3 className={`text-sm font-black leading-snug line-clamp-2 ${titleCol}`}>
+                    <h3 className={`text-sm font-black leading-snug line-clamp-2 ${cardTitle}`}>
                       {listing.title}
                     </h3>
-                    <p className={`text-[11px] leading-relaxed line-clamp-3 ${bodyCol}`}>
+                    <p className={`text-[11px] leading-relaxed line-clamp-3 ${cardBody}`}>
                       {listing.description}
                     </p>
 
                     {/* Info rows */}
-                    <div className={`flex flex-col gap-1 mt-auto text-[11px] ${bodyCol}`}>
+                    <div className={`flex flex-col gap-1 mt-auto text-[11px] ${cardBody}`}>
                       {listing.price && (
-                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full self-start ${pillBg}`}>
+                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full self-start ${cardPill}`}>
                           ₹{listing.price} · {listing.priceType}
                         </span>
                       )}
@@ -270,13 +273,11 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
                   </div>
 
                   {/* Footer — phone + edit/delete */}
-                  <div className={`px-4 py-2.5 border-t flex items-center justify-between gap-2 flex-shrink-0 ${divider}`}>
+                  <div className={`px-4 py-2.5 border-t flex items-center justify-between gap-2 flex-shrink-0 ${cardDivider}`}>
                     {listing.phone ? (
                       <a
                         href={`tel:${listing.phone}`}
-                        className={`text-[11px] font-bold transition-colors truncate ${
-                          dark ? "text-white hover:text-white/70" : "text-[#ff2d55] hover:text-[#e0264a]"
-                        }`}
+                        className="text-[11px] font-bold transition-colors truncate text-[#ff2d55] hover:text-[#e0264a]"
                       >
                         {listing.phone}
                       </a>
@@ -285,11 +286,7 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => setEditTarget({ listing, index: i })}
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors ${
-                          dark
-                            ? "border-white/20 text-white/60 hover:border-white hover:text-white"
-                            : "border-[#ddd] text-[#666] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                        }`}
+                        className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors border-[#ddd] text-[#666] hover:border-[#ff2d55] hover:text-[#ff2d55]"
                       >
                         Edit
                       </button>
@@ -303,11 +300,7 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
                           </button>
                           <button
                             onClick={() => setDeleteConfirm(null)}
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors ${
-                              dark
-                                ? "border-white/20 text-white/60 hover:border-white hover:text-white"
-                                : "border-[#ddd] text-[#666] hover:border-[#333] hover:text-[#333]"
-                            }`}
+                            className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors border-[#ddd] text-[#666] hover:border-[#333] hover:text-[#333]"
                           >
                             No
                           </button>
@@ -315,11 +308,7 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
                       ) : (
                         <button
                           onClick={() => setDeleteConfirm(i)}
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors ${
-                            dark
-                              ? "border-white/20 text-white/60 hover:border-red-400 hover:text-red-400"
-                              : "border-[#ddd] text-[#666] hover:border-red-400 hover:text-red-500"
-                          }`}
+                          className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border transition-colors border-[#ddd] text-[#666] hover:border-red-400 hover:text-red-500"
                         >
                           Delete
                         </button>
