@@ -47,6 +47,8 @@ export default function PostServicePage({ onSubmit, dark }) {
   });
   const [photoPreview, setPhotoPreview] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -80,6 +82,7 @@ export default function PostServicePage({ onSubmit, dark }) {
   const close = () => {
     setOpen(false);
     setSubmitted(false);
+    setError("");
   };
 
   const isValid =
@@ -88,23 +91,68 @@ export default function PostServicePage({ onSubmit, dark }) {
     form.description.trim() &&
     form.phone.length === 10;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isValid) return;
+    if (!isValid || submitting) return;
 
-    const availabilityStr =
-      form.availabilityDays.length > 0
-        ? `${form.availabilityDays.join(", ")}${
-            form.availabilityFrom && form.availabilityTo
-              ? `, ${form.availabilityFrom} – ${form.availabilityTo}`
-              : ""
-          }`
-        : "";
+    setSubmitting(true);
+    setError("");
 
-    onSubmit?.({ ...form, availability: availabilityStr, photo: photoPreview });
-    setOpen(false);
-    setSubmitted(false);
-    window.dispatchEvent(new Event("padosi:allListings"));
+    try {
+      // 1. Upload the photo first (if one was picked) so we can store its URL.
+      let photo_url = "";
+      const file = fileInputRef.current?.files?.[0];
+      if (file) {
+        const fd = new FormData();
+        fd.append("image", file);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          credentials: "include",
+          body: fd,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.error || "Photo upload failed.");
+        photo_url = uploadData.url;
+      }
+
+      const availabilityStr =
+        form.availabilityDays.length > 0
+          ? `${form.availabilityDays.join(", ")}${
+              form.availabilityFrom && form.availabilityTo
+                ? `, ${form.availabilityFrom} – ${form.availabilityTo}`
+                : ""
+            }`
+          : "";
+
+      // 2. Save the listing itself — this is what makes it visible to every account.
+      const res = await fetch("/api/services", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: form.category,
+          title: form.title,
+          description: form.description,
+          priceType: form.priceType,
+          price: form.price,
+          phone: form.phone,
+          experience: form.experience,
+          availability: availabilityStr,
+          photo_url,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not post listing.");
+
+      onSubmit?.(data.service);
+      setOpen(false);
+      setSubmitted(false);
+      window.dispatchEvent(new Event("padosi:allListings"));
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleViewListings = () => {
@@ -445,18 +493,24 @@ export default function PostServicePage({ onSubmit, dark }) {
                 />
               </div>
 
+              {error && (
+                <p className={`text-xs font-bold ${dark ? "text-red-400" : "text-red-500"}`}>
+                  ⚠️ {error}
+                </p>
+              )}
+
               <button
                 type="submit"
-                disabled={!isValid}
+                disabled={!isValid || submitting}
                 className={`mt-3 w-full py-3.5 rounded-full text-sm font-bold cursor-pointer transition-colors ${
-                  isValid
+                  isValid && !submitting
                     ? dark
                       ? "bg-white text-black hover:bg-white/90"
                       : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
                     : "bg-[#ccc] text-white cursor-not-allowed"
                 }`}
               >
-                Post Listing
+                {submitting ? "Posting…" : "Post Listing"}
               </button>
             </form>
           )}

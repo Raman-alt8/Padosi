@@ -1,5 +1,5 @@
 // PadosiListings.jsx
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import RideSharePage from "./RideSharePage";
 import BuyTicketPage from "./BuyTicketPage";
 import ServiceListingsPage from "./ServiceListingsPage";
@@ -64,23 +64,82 @@ function ListingsGrid({ showToast, dark }) {
 export default function PadosiListings({ showToast, currentUser, onSelectCategory, dark = false }) {
   const [listings, setListings] = useState([]);
 
-  const handleNewListing = (listing) => {
-    setListings((prev) => [listing, ...prev]);
+  // Pull every listing from the shared backend — this is what makes a post
+  // from one account visible on every other account, not just the poster's.
+  const fetchListings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/services", { credentials: "include" });
+      const data = await res.json();
+      if (res.ok) setListings(data.services || []);
+    } catch (err) {
+      console.error("Could not load service listings:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchListings();
+    // Re-fetch whenever a new listing is posted or the "All listings" view is opened,
+    // so everyone sees the latest shared data instead of a stale local copy.
+    window.addEventListener("padosi:allListings", fetchListings);
+    return () => window.removeEventListener("padosi:allListings", fetchListings);
+  }, [fetchListings]);
+
+  const handleUpdateListing = async (index, updated) => {
+    const listing = listings[index];
+    if (!listing) return;
+
+    try {
+      const res = await fetch(`/api/services/${listing.id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: updated.category,
+          title: updated.title,
+          description: updated.description,
+          priceType: updated.priceType,
+          price: updated.price,
+          area: updated.area,
+          phone: updated.phone,
+          experience: updated.experience,
+          availability: updated.availability,
+          photo_url: updated.photoUrl,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update listing.");
+
+      setListings((prev) => prev.map((l, i) => (i === index ? data.service : l)));
+    } catch (err) {
+      showToast?.(`⚠️ ${err.message}`);
+    }
   };
 
-  const handleUpdateListing = (index, updated) => {
-    setListings((prev) => prev.map((l, i) => (i === index ? updated : l)));
-  };
+  const handleDeleteListing = async (index) => {
+    const listing = listings[index];
+    if (!listing) return;
 
-  const handleDeleteListing = (index) => {
-    setListings((prev) => prev.filter((_, i) => i !== index));
+    try {
+      const res = await fetch(`/api/services/${listing.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not delete listing.");
+
+      setListings((prev) => prev.filter((_, i) => i !== index));
+    } catch (err) {
+      showToast?.(`⚠️ ${err.message}`);
+    }
   };
 
   return (
     <>
       <ListingsGrid showToast={showToast} dark={dark} />
       <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
-      <PostServicePage dark={dark} onSubmit={handleNewListing} />
+      {/* PostServicePage saves directly to the backend and fires "padosi:allListings"
+          on success, which triggers fetchListings() above to refresh everyone's view. */}
+      <PostServicePage dark={dark} onSubmit={() => fetchListings()} />
       <ServiceListingsAllPage
         dark={dark}
         listings={listings}
