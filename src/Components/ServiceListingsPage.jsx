@@ -19,12 +19,7 @@ export const SERVICE_CATEGORIES = [
   { icon: "💻", label: "Computer & Mobile Repair", prompt: "Need help repairing my " },
   { icon: "👕", label: "Laundry & Ironing",        prompt: "Need laundry/ironing help for " },
   { icon: "🧓", label: "Elderly Care",             prompt: "Need elderly care assistance with " },
-  { icon: "🏋️", label: "Fitness & Yoga",           prompt: "Need a fitness/yoga trainer for " },
-  { icon: "🚗", label: "Car Wash & Detailing",     prompt: "Need car wash/detailing for " },
-  { icon: "📸", label: "Photography",              prompt: "Need a photographer for " },
-  { icon: "🔐", label: "Locksmith",                prompt: "Need a locksmith to " },
-  { icon: "🏠", label: "Interior Design",          prompt: "Need interior design help for " },
-  { icon: "🩺", label: "Home Healthcare",          prompt: "Need home healthcare support for " },
+  { icon: "🔵", label: "Other",                    prompt: "Need help with " },
 ];
 
 export default function ServiceListingsPage({ onSelectCategory, onPostService, dark }) {
@@ -89,7 +84,6 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
       <div className={`py-14 px-6 text-center ${
         dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"
       }`}>
-        {/* "Serve" is now a clickable heading that opens the all-listings page */}
         <button
           onClick={handleOpenAllListings}
           className={`
@@ -101,7 +95,6 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
           `}
         >
           All Listings
-          {/* Animated underline that appears on hover */}
           <span className={`
             absolute left-0 -bottom-1 h-[3px] w-0 rounded-full
             transition-all duration-200 group-hover:w-full
