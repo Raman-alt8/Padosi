@@ -29,29 +29,92 @@ const DESC_LIMIT  = 100;
 const PRICE_MAX_DIGITS = 7;
 const EXP_MAX_DIGITS   = 2;
 
+const EMPTY_FORM = {
+  category: "",
+  title: "",
+  description: "",
+  priceType: "Monthly",
+  price: "",
+  experience: "",
+  availabilityDays: [],
+  availabilityFrom: "",
+  availabilityTo: "",
+  phone: "",
+};
+
+// Reverses the string built in handleSubmit (e.g. "Mon, Wed, 09:00 – 18:00")
+// back into day chips + a from/to time range, so editing a listing starts
+// from its actual saved availability instead of a blank slate.
+function parseAvailability(str) {
+  if (!str) return { days: [], from: "", to: "" };
+
+  let from = "";
+  let to = "";
+  const days = [];
+
+  str.split(",").forEach((rawPart) => {
+    const part = rawPart.trim();
+    if (part.includes("–")) {
+      const [f, t] = part.split("–").map((s) => s.trim());
+      from = f || "";
+      to = t || "";
+    } else if (DAYS.includes(part)) {
+      days.push(part);
+    }
+  });
+
+  return { days, from, to };
+}
+
 export default function PostServicePage({ onSubmit, dark }) {
   const [open, setOpen] = useState(false);
   const fileInputRef = useRef(null);
 
-  const [form, setForm] = useState({
-    category: "",
-    title: "",
-    description: "",
-    priceType: "Monthly",
-    price: "",
-    experience: "",
-    availabilityDays: [],
-    availabilityFrom: "",
-    availabilityTo: "",
-    phone: "",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState("");
+  const [editingId, setEditingId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const isEditing = editingId != null;
+
   useEffect(() => {
-    const handler = () => setOpen(true);
+    // detail.listing is present when ServiceListingsAllPage redirects here to
+    // edit an existing post; absent when opened fresh to create a new one.
+    const handler = (e) => {
+      const listing = e?.detail?.listing;
+
+      if (listing) {
+        const { days, from, to } = parseAvailability(listing.availability);
+        setForm({
+          category: listing.category || "",
+          title: listing.title || "",
+          description: listing.description || "",
+          priceType: listing.priceType || "Monthly",
+          price: listing.price != null ? String(listing.price) : "",
+          experience: listing.experience != null ? String(listing.experience) : "",
+          availabilityDays: days,
+          availabilityFrom: from,
+          availabilityTo: to,
+          phone: listing.phone || "",
+        });
+        setExistingPhotoUrl(listing.photoUrl || "");
+        setPhotoPreview(listing.photoUrl || null);
+        setEditingId(listing.id);
+      } else {
+        setForm(EMPTY_FORM);
+        setExistingPhotoUrl("");
+        setPhotoPreview(null);
+        setEditingId(null);
+      }
+
+      setSubmitted(false);
+      setError("");
+      setOpen(true);
+    };
+
     window.addEventListener("padosi:postService", handler);
     return () => window.removeEventListener("padosi:postService", handler);
   }, []);
@@ -76,6 +139,7 @@ export default function PostServicePage({ onSubmit, dark }) {
 
   const removePhoto = () => {
     setPhotoPreview(null);
+    setExistingPhotoUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -99,8 +163,9 @@ export default function PostServicePage({ onSubmit, dark }) {
     setError("");
 
     try {
-      // 1. Upload the photo first (if one was picked) so we can store its URL.
-      let photo_url = "";
+      // Start from whatever photo the listing already had (if editing); a
+      // newly picked file below overrides it.
+      let photo_url = existingPhotoUrl || "";
       const file = fileInputRef.current?.files?.[0];
       if (file) {
         const fd = new FormData();
@@ -124,25 +189,35 @@ export default function PostServicePage({ onSubmit, dark }) {
             }`
           : "";
 
-      // 2. Save the listing itself — this is what makes it visible to every account.
-      const res = await fetch("/api/services", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: form.category,
-          title: form.title,
-          description: form.description,
-          priceType: form.priceType,
-          price: form.price,
-          phone: form.phone,
-          experience: form.experience,
-          availability: availabilityStr,
-          photo_url,
-        }),
-      });
+      const payload = {
+        category: form.category,
+        title: form.title,
+        description: form.description,
+        priceType: form.priceType,
+        price: form.price,
+        phone: form.phone,
+        experience: form.experience,
+        availability: availabilityStr,
+        photo_url,
+      };
+
+      // Same endpoint family either way — POST to create, PUT to update the
+      // listing being edited — so both paths end up visible to every account.
+      const res = await fetch(
+        isEditing ? `/api/services/${editingId}` : "/api/services",
+        {
+          method: isEditing ? "PUT" : "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not post listing.");
+      if (!res.ok) {
+        throw new Error(
+          data.error || (isEditing ? "Could not update listing." : "Could not post listing.")
+        );
+      }
 
       onSubmit?.(data.service);
       setOpen(false);
@@ -195,7 +270,7 @@ export default function PostServicePage({ onSubmit, dark }) {
           ← Back
         </button>
         <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
-          Post a{" "}
+          {isEditing ? "Edit" : "Post a"}{" "}
           <span
             className={`underline decoration-2 underline-offset-2 ${
               dark ? "text-white" : "text-[#ff2d55]"
@@ -218,7 +293,7 @@ export default function PostServicePage({ onSubmit, dark }) {
             >
               <div className="text-5xl mb-4">✅</div>
               <h2 className={`text-2xl font-black mb-2 ${dark ? "text-white" : "text-[#111]"}`}>
-                Listing posted!
+                {isEditing ? "Listing updated!" : "Listing posted!"}
               </h2>
               <p className={`text-sm mb-6 ${dark ? "text-white/70" : "text-[#666]"}`}>
                 Your service is now visible to neighbours nearby.
@@ -248,7 +323,9 @@ export default function PostServicePage({ onSubmit, dark }) {
             /* ── Form ── */
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <p className={`text-sm -mt-2 mb-2 ${dark ? "text-white/60" : "text-[#777]"}`}>
-                Tell neighbours what you offer — it only takes a minute.
+                {isEditing
+                  ? "Update your listing details below."
+                  : "Tell neighbours what you offer — it only takes a minute."}
               </p>
 
               {/* Category */}
@@ -510,7 +587,9 @@ export default function PostServicePage({ onSubmit, dark }) {
                     : "bg-[#ccc] text-white cursor-not-allowed"
                 }`}
               >
-                {submitting ? "Posting…" : "Post Listing"}
+                {submitting
+                  ? (isEditing ? "Saving…" : "Posting…")
+                  : (isEditing ? "Save Changes" : "Post Listing")}
               </button>
             </form>
           )}

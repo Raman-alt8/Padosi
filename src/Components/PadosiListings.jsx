@@ -78,42 +78,12 @@ export default function PadosiListings({ showToast, currentUser, onSelectCategor
 
   useEffect(() => {
     fetchListings();
-    // Re-fetch whenever a new listing is posted or the "All listings" view is opened,
-    // so everyone sees the latest shared data instead of a stale local copy.
+    // Re-fetch whenever a new listing is posted, an existing one is edited,
+    // or the "All listings" view is opened, so everyone sees the latest
+    // shared data instead of a stale local copy.
     window.addEventListener("padosi:allListings", fetchListings);
     return () => window.removeEventListener("padosi:allListings", fetchListings);
   }, [fetchListings]);
-
-  const handleUpdateListing = async (index, updated) => {
-    const listing = listings[index];
-    if (!listing) return;
-
-    try {
-      const res = await fetch(`/api/services/${listing.id}`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: updated.category,
-          title: updated.title,
-          description: updated.description,
-          priceType: updated.priceType,
-          price: updated.price,
-          area: updated.area,
-          phone: updated.phone,
-          experience: updated.experience,
-          availability: updated.availability,
-          photo_url: updated.photoUrl,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not update listing.");
-
-      setListings((prev) => prev.map((l, i) => (i === index ? data.service : l)));
-    } catch (err) {
-      showToast?.(`⚠️ ${err.message}`);
-    }
-  };
 
   const handleDeleteListing = async (index) => {
     const listing = listings[index];
@@ -138,12 +108,13 @@ export default function PadosiListings({ showToast, currentUser, onSelectCategor
       <ListingsGrid showToast={showToast} dark={dark} />
       <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
       {/* PostServicePage saves directly to the backend and fires "padosi:allListings"
-          on success, which triggers fetchListings() above to refresh everyone's view. */}
+          on success, which triggers fetchListings() above to refresh everyone's view.
+          It also doubles as the edit screen: ServiceListingsAllPage's Edit button
+          dispatches the same "padosi:postService" event with a listing attached. */}
       <PostServicePage dark={dark} onSubmit={() => fetchListings()} />
       <ServiceListingsAllPage
         dark={dark}
         listings={listings}
-        onUpdate={handleUpdateListing}
         onDelete={handleDeleteListing}
       />
       <BuyTicketPage showToast={showToast} dark={dark} user={currentUser} />
