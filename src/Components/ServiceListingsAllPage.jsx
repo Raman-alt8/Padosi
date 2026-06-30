@@ -49,7 +49,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
   const ring = ringFor(index);
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col h-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
+    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col max-h-[300px] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
 
       {/* Pin — corkboard detail, sits above the card edge */}
       <span className="absolute -top-[6px] left-5 w-3 h-3 rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
@@ -82,7 +82,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
         {/* Identity row — avatar badge with tinted halo, overlapping the photo
             bottom edge, ticket-prototype style instead of text-over-scrim */}
-        <div className="relative flex items-center gap-2 px-3 pt-0 pb-1.5 -mt-5">
+        <div className="relative flex items-center gap-2 px-3 pt-1.5 pb-1.5 -mt-4">
           <div
             className="w-9 h-9 flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-base"
             style={{ boxShadow: `0 0 0 2.5px #fff, 0 0 0 3.5px ${ring}` }}
@@ -356,7 +356,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 grid-rows-3 gap-4 h-full">
+                <div className="grid grid-cols-3 auto-rows-[minmax(0,1fr)] gap-4 h-full content-start">
                   {visibleListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
@@ -391,6 +391,16 @@ const DEMO_LISTINGS = [
 
 export function Demo() {
   const [listings, setListings] = useState(DEMO_LISTINGS);
+  return (
+    <ServiceListingsAllPage
+      listings={listings}
+      onDelete={(idx) => setListings((prev) => prev.filter((_, i) => i !== idx))}
+    />
+  );
+}
+
+export function DemoSingle() {
+  const [listings, setListings] = useState([DEMO_LISTINGS[1]]);
   return (
     <ServiceListingsAllPage
       listings={listings}
