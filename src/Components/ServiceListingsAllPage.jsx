@@ -356,7 +356,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 auto-rows-[minmax(0,1fr)] gap-4 h-full content-start">
+                <div className="grid grid-cols-3 auto-rows-min content-start items-start gap-4">
                   {visibleListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
