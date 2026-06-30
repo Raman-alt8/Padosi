@@ -56,7 +56,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
       <div className="rounded-2xl overflow-hidden flex flex-col flex-1">
         {/* Photo — full-bleed hero, zooms gently on hover */}
-        <div className="relative h-40 w-full flex-shrink-0 overflow-hidden">
+        <div className="relative h-28 w-full flex-shrink-0 overflow-hidden">
           {listing.photoUrl ? (
             <img
               src={listing.photoUrl}
@@ -82,10 +82,10 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
         {/* Identity row — avatar badge with tinted halo, overlapping the photo
             bottom edge, ticket-prototype style instead of text-over-scrim */}
-        <div className="relative flex items-center gap-3 px-3.5 pt-0 pb-2 -mt-6">
+        <div className="relative flex items-center gap-2 px-3 pt-0 pb-1.5 -mt-5">
           <div
-            className="w-12 h-12 flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-xl"
-            style={{ boxShadow: `0 0 0 3px #fff, 0 0 0 4.5px ${ring}` }}
+            className="w-9 h-9 flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-base"
+            style={{ boxShadow: `0 0 0 2.5px #fff, 0 0 0 3.5px ${ring}` }}
           >
             {listing.photoUrl ? (
               <img src={listing.photoUrl} alt="" className="w-full h-full object-cover" />
@@ -93,34 +93,34 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
               <span>{icon}</span>
             )}
           </div>
-          <div className="min-w-0 flex-1 pt-1">
-            <p className="text-[9.5px] font-bold uppercase tracking-widest text-[#999] flex items-center gap-1">
+          <div className="min-w-0 flex-1 pt-0.5">
+            <p className="text-[8.5px] font-bold uppercase tracking-widest text-[#999] flex items-center gap-1 truncate">
               {icon} {listing.category}
             </p>
-            <h3 className="text-[14.5px] font-black text-[#1a1a1a] leading-snug truncate mt-0.5">
+            <h3 className="text-[13px] font-black text-[#1a1a1a] leading-snug truncate mt-0.5">
               {listing.title}
             </h3>
           </div>
         </div>
 
         {/* Card body */}
-        <div className="flex flex-col gap-2.5 px-3.5 flex-1">
+        <div className="flex flex-col gap-1.5 px-3 flex-1">
           {listing.description && (
-            <p className="text-[11.5px] text-[#888] leading-relaxed line-clamp-2">
+            <p className="text-[10.5px] text-[#888] leading-snug line-clamp-2">
               {listing.description}
             </p>
           )}
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {listing.area && (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
-                <span className="text-[10px]">📍</span>
+              <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2 py-0.5">
+                <span className="text-[9px]">📍</span>
                 {listing.area}
               </span>
             )}
             {listing.availability && (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
-                <span className="text-[10px]">🕐</span>
+              <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2 py-0.5">
+                <span className="text-[9px]">🕐</span>
                 {listing.availability}
               </span>
             )}
@@ -128,18 +128,18 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
           {/* Spacer with rotated experience stamp, anchored bottom-right —
               mirrors the original prototype's "stamp" detail */}
-          <div className="relative flex-1 min-h-[8px]">
+          <div className="relative flex-1 min-h-[4px]">
             {listing.experience && (
               <div
-                className="absolute right-0 bottom-0 w-11 h-11 rounded-full border-[1.5px] flex flex-col items-center justify-center opacity-85"
+                className="absolute right-0 bottom-0 w-8 h-8 rounded-full border flex flex-col items-center justify-center opacity-85"
                 style={{ borderColor: ring, transform: "rotate(-9deg)" }}
               >
-                <span className="text-[13px] font-black text-[#1a1a1a] opacity-55 leading-none">
+                <span className="text-[10px] font-black text-[#1a1a1a] opacity-55 leading-none">
                   {listing.experience}
-                  <sup className="text-[8px]">y</sup>
+                  <sup className="text-[6.5px]">y</sup>
                 </span>
-                <span className="text-[6px] font-bold uppercase tracking-widest text-[#1a1a1a] opacity-40 mt-0.5">
-                  Experience
+                <span className="text-[5px] font-bold uppercase tracking-widest text-[#1a1a1a] opacity-40 mt-0.5">
+                  Exp
                 </span>
               </div>
             )}
@@ -148,28 +148,28 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
         {/* Seam — dashed perforation with notch cutouts, like a torn ticket
             stub, separating the card body from the footer */}
-        <div className="relative mt-1">
-          <span className="absolute top-1/2 -left-px -translate-y-1/2 w-3 h-3 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
-          <span className="absolute top-1/2 -right-px -translate-y-1/2 w-3 h-3 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
+        <div className="relative mt-0.5">
+          <span className="absolute top-1/2 -left-px -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
+          <span className="absolute top-1/2 -right-px -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
           <div className="border-t border-dashed border-[#dcd8cf] mx-3" />
         </div>
 
         {/* Footer */}
-        <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+        <div className="px-3 py-1.5 flex items-center justify-between gap-2">
           {listing.phone ? (
             <a
               href={`tel:${listing.phone}`}
-              className="text-[11px] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-1"
+              className="text-[10px] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-1"
             >
-              <span className="text-[10px]">📞</span>
+              <span className="text-[9px]">📞</span>
               {listing.phone}
             </a>
           ) : <span />}
 
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => onEdit(listing)}
-              className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+              className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
             >
               Edit
             </button>
@@ -178,13 +178,13 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
               <>
                 <button
                   onClick={() => onDeleteConfirm(index)}
-                  className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
                 >
                   Confirm
                 </button>
                 <button
                   onClick={onDeleteCancel}
-                  className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
+                  className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
                 >
                   No
                 </button>
@@ -192,7 +192,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
             ) : (
               <button
                 onClick={() => onDeleteRequest(index)}
-                className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
               >
                 Delete
               </button>
@@ -356,7 +356,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-5 items-start">
+                <div className="grid grid-cols-3 grid-rows-3 gap-4 h-full">
                   {visibleListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
