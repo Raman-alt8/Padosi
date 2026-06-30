@@ -43,6 +43,13 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
     window.dispatchEvent(new Event("padosi:allListings"));
   };
 
+  const handleSelectCategory = (cat) => {
+    setOpen(false);
+    // Jump straight to the All Listings page, pre-filtered to this category
+    window.dispatchEvent(new CustomEvent("padosi:allListings", { detail: { category: cat.label } }));
+    onSelectCategory?.(cat);
+  };
+
   return (
     <div className={`fixed inset-0 z-[5000] flex flex-col overflow-y-auto transition-opacity duration-300 ${
       dark ? "bg-black" : "bg-[#f6f7fb]"
@@ -114,7 +121,7 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
             {SERVICE_CATEGORIES.map((cat, i) => (
               <button
                 key={i}
-                onClick={() => { setOpen(false); onSelectCategory(cat); }}
+                onClick={() => handleSelectCategory(cat)}
                 className={`rounded-2xl py-5 px-3 flex flex-col items-center gap-3 cursor-pointer transition-all hover:-translate-y-1 group border ${
                   dark
                     ? "bg-black border-white shadow-[0_10px_30px_rgba(0,0,0,0.6)] hover:bg-white hover:shadow-[0_15px_35px_rgba(255,255,255,0.15)]"

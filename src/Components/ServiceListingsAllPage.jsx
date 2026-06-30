@@ -291,13 +291,18 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
   const [sortBy, setSortBy] = useState("newest");
 
   useEffect(() => {
-    const handler = () => setOpen(true);
+    const handler = (e) => {
+      setOpen(true);
+      // If opened from a category card (ServiceListingsPage), e.detail.category is set;
+      // the hero "All Listings" button dispatches a plain Event with no detail → show all.
+      const incomingCategory = e?.detail?.category;
+      setCategoryFilter(
+        incomingCategory && POST_CATEGORIES.includes(incomingCategory) ? incomingCategory : "All"
+      );
+    };
     window.addEventListener("padosi:allListings", handler);
     return () => window.removeEventListener("padosi:allListings", handler);
   }, []);
-
-  // Reset filter/sort each time the page is freshly opened from an empty state isn't necessary,
-  // but if the active category disappears from the data we fall back to "All" gracefully below.
 
   const close = () => setOpen(false);
 
