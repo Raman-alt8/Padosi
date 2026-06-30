@@ -36,71 +36,72 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden flex flex-col h-full transition-shadow hover:shadow-md hover:shadow-black/5">
+    <div className="group bg-white rounded-2xl border border-[#ebebeb] overflow-hidden flex flex-col h-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
+
+      {/* Photo — does the visual heavy lifting now: full-bleed, zooms gently
+          on hover, with the title/category set right on top via a bottom
+          gradient scrim, poster-style. No photo falls back to a colored
+          gradient field so the layout still feels intentional, not broken. */}
+      <div className="relative h-44 w-full flex-shrink-0 overflow-hidden">
+        {listing.photoUrl ? (
+          <img
+            src={listing.photoUrl}
+            alt={listing.title}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.08]"
+          />
+        ) : (
+          <div className="absolute inset-0 w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-[#ff2d55] to-[#ff8a65] transition-transform duration-500 ease-out group-hover:scale-[1.08]">
+            {icon}
+          </div>
+        )}
+
+        {/* Price — floats above the photo */}
+        {listing.price && (
+          <span className="absolute top-2.5 right-2.5 text-[11px] font-bold text-[#111] bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 whitespace-nowrap leading-none shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+            ₹{listing.price}
+            <span className="font-normal text-[#999] ml-1">
+              {listing.priceType === "Monthly" ? "/mo" : "· once"}
+            </span>
+          </span>
+        )}
+
+        {/* Title + category — set on a bottom scrim over the photo */}
+        <div className="absolute inset-x-0 bottom-0 pt-12 pb-3 px-3.5 bg-gradient-to-t from-black/85 via-black/35 to-transparent">
+          <p className="text-[9.5px] font-bold uppercase tracking-widest text-white/85">
+            {listing.category}
+          </p>
+          <h3 className="text-[14.5px] font-black text-white leading-snug line-clamp-1 mt-0.5">
+            {listing.title}
+          </h3>
+        </div>
+      </div>
 
       {/* Card body */}
-      <div className="flex flex-col gap-3 p-4 flex-1">
+      <div className="flex flex-col gap-2.5 p-3.5 flex-1">
 
-        {/* Header: small circular "face" photo + category/title + price.
-            A photo gets a gradient story-ring (a nod to the listing being
-            "live"); no photo falls back to a plain category-icon avatar. */}
-        <div className="flex items-start gap-2.5">
-          {listing.photoUrl ? (
-            <div className="flex-shrink-0 p-[2px] rounded-full bg-gradient-to-tr from-[#ff2d55] to-[#ffb199]">
-              <img
-                src={listing.photoUrl}
-                alt={listing.title}
-                className="w-9 h-9 rounded-full object-cover border-2 border-white"
-              />
-            </div>
-          ) : (
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-base bg-[#fff0f3] flex-shrink-0">
-              {icon}
-            </div>
-          )}
-
-          <div className="flex-1 min-w-0 pt-0.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#ff2d55] truncate">
-              {listing.category}
-            </p>
-            <h3 className="text-[13px] font-black text-[#111] leading-snug line-clamp-1">
-              {listing.title}
-            </h3>
-          </div>
-
-          {listing.price && (
-            <span className="text-[11px] font-bold text-[#333] bg-[#f4f4f4] rounded-full px-2.5 py-1 whitespace-nowrap leading-none flex-shrink-0">
-              ₹{listing.price}
-              <span className="font-normal text-[#999] ml-1">
-                {listing.priceType === "Monthly" ? "/mo" : "· once"}
-              </span>
-            </span>
-          )}
-        </div>
-
-        {/* Row 3: description */}
+        {/* Description */}
         {listing.description && (
           <p className="text-[11.5px] text-[#777] leading-relaxed line-clamp-2">
             {listing.description}
           </p>
         )}
 
-        {/* Row 4: meta pills */}
+        {/* Meta pills */}
         <div className="flex flex-wrap gap-1.5 mt-auto pt-1">
           {listing.area && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] text-[#666] bg-[#f7f7f7] rounded-full px-2.5 py-1">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
               <span className="text-[10px]">📍</span>
               {listing.area}
             </span>
           )}
           {listing.availability && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] text-[#666] bg-[#f7f7f7] rounded-full px-2.5 py-1">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
               <span className="text-[10px]">🕐</span>
               {listing.availability}
             </span>
           )}
           {listing.experience && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] text-[#666] bg-[#f7f7f7] rounded-full px-2.5 py-1">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
               <span className="text-[10px]">⭐</span>
               {listing.experience}y exp
             </span>
@@ -109,7 +110,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-[#f0f0f0] bg-[#fafafa] flex items-center justify-between gap-2">
+      <div className="px-3.5 py-2.5 border-t border-[#f0f0f0] bg-[#fafafa] flex items-center justify-between gap-2">
         {listing.phone ? (
           <a
             href={`tel:${listing.phone}`}
@@ -123,7 +124,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             onClick={() => onEdit(listing)}
-            className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55] transition-colors"
+            className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
           >
             Edit
           </button>
@@ -146,7 +147,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
           ) : (
             <button
               onClick={() => onDeleteRequest(index)}
-              className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-red-300 hover:text-red-400 transition-colors"
+              className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
             >
               Delete
             </button>
@@ -321,10 +322,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                   </button>
                 </div>
               ) : (
-                <div
-                  className="grid grid-cols-3 gap-4"
-                  style={{ gridAutoRows: "calc((100vh - 64px - 100px) / 2 - 8px)" }}
-                >
+                <div className="grid grid-cols-3 gap-5 items-start">
                   {visibleListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
