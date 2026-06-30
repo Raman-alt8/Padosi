@@ -31,142 +31,6 @@ const SORT_OPTIONS = [
   { value: "experience", label: "Most experienced" },
 ];
 
-// ── Edit Modal ────────────────────────────────────────────────────────────────
-function EditModal({ listing, index, dark, onSave, onClose }) {
-  const [form, setForm] = useState({ ...listing });
-
-  const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-
-  const inputBase = `w-full rounded-xl px-4 py-3 text-sm border outline-none transition-colors ${
-    dark
-      ? "bg-black border-white/20 text-white placeholder-white/30 focus:border-white/60"
-      : "bg-[#fafafa] border-[#e8e8e8] text-[#222] placeholder-[#bbb] focus:border-[#ff2d55] focus:bg-white"
-  }`;
-  const labelBase = `block text-[11px] font-bold mb-1.5 uppercase tracking-widest ${
-    dark ? "text-white/40" : "text-[#999]"
-  }`;
-
-  return (
-    <div
-      className="fixed inset-0 z-[8000] flex items-start justify-center px-4 py-10 overflow-y-auto"
-      style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className={`w-full max-w-[540px] rounded-3xl border shadow-2xl flex flex-col gap-5 p-7 ${
-        dark ? "bg-[#111] border-white/10" : "bg-white border-[#ebebeb]"
-      }`}>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className={`text-base font-black tracking-tight ${dark ? "text-white" : "text-[#111]"}`}>
-              Edit listing
-            </p>
-            <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>
-              Changes save immediately
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm cursor-pointer transition-all ${
-              dark ? "bg-white/10 text-white hover:bg-white/20" : "bg-[#f4f4f4] text-[#555] hover:bg-[#eee]"
-            }`}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Divider */}
-        <div className={`h-px w-full ${dark ? "bg-white/10" : "bg-[#f0f0f0]"}`} />
-
-        {/* Category */}
-        <div>
-          <label className={labelBase}>Category</label>
-          <select value={form.category} onChange={update("category")} className={`${inputBase} cursor-pointer`}>
-            {POST_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{CATEGORY_ICONS[cat]} {cat}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Title */}
-        <div>
-          <label className={labelBase}>Listing title</label>
-          <input type="text" value={form.title} onChange={update("title")} className={inputBase} />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className={labelBase}>Description</label>
-          <textarea value={form.description} onChange={update("description")} rows={3} className={`${inputBase} resize-none`} />
-        </div>
-
-        {/* Price */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelBase}>Pricing type</label>
-            <select value={form.priceType} onChange={update("priceType")} className={`${inputBase} cursor-pointer`}>
-              <option value="Monthly">Monthly</option>
-              <option value="One Time Service">One Time Service</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelBase}>Amount (₹)</label>
-            <input type="number" min="0" value={form.price} onChange={update("price")} placeholder="e.g. 500" className={inputBase} />
-          </div>
-        </div>
-
-        {/* Area + Phone */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelBase}>Area you serve</label>
-            <input type="text" value={form.area} onChange={update("area")} className={inputBase} />
-          </div>
-          <div>
-            <label className={labelBase}>Phone</label>
-            <input type="tel" value={form.phone} onChange={update("phone")} className={inputBase} />
-          </div>
-        </div>
-
-        {/* Experience + Availability */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelBase}>Experience (years)</label>
-            <input type="number" min="0" value={form.experience} onChange={update("experience")} className={inputBase} />
-          </div>
-          <div>
-            <label className={labelBase}>Availability</label>
-            <input type="text" value={form.availability} onChange={update("availability")} className={inputBase} />
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 pt-1">
-          <button
-            onClick={() => onSave(index, form)}
-            className={`flex-1 py-3 rounded-2xl text-sm font-bold cursor-pointer transition-all active:scale-[0.98] ${
-              dark
-                ? "bg-white text-black hover:bg-white/90"
-                : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
-            }`}
-          >
-            Save changes
-          </button>
-          <button
-            onClick={onClose}
-            className={`px-6 py-3 rounded-2xl text-sm font-bold cursor-pointer border transition-all active:scale-[0.98] ${
-              dark
-                ? "border-white/20 text-white/60 hover:border-white/50 hover:text-white"
-                : "border-[#e8e8e8] text-[#888] hover:border-[#ccc] hover:text-[#444]"
-            }`}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Service Card ──────────────────────────────────────────────────────────────
 function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
@@ -247,7 +111,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
-            onClick={() => onEdit(listing, index)}
+            onClick={() => onEdit(listing)}
             className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55] transition-colors"
           >
             Edit
@@ -283,9 +147,8 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function ServiceListingsAllPage({ listings = [], onUpdate, onDelete, dark }) {
+export default function ServiceListingsAllPage({ listings = [], onDelete, dark }) {
   const [open, setOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
@@ -306,9 +169,13 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
 
   const close = () => setOpen(false);
 
-  const handleSave = (index, updated) => {
-    onUpdate?.(index, updated);
-    setEditTarget(null);
+  // Editing now happens on the full PostServicePage instead of a small inline
+  // modal: close this view and hand the listing off via the same event
+  // PostServicePage already listens to for opening, with the listing attached
+  // so it knows to pre-fill the form and PUT instead of POST on submit.
+  const handleEdit = (listing) => {
+    setOpen(false);
+    window.dispatchEvent(new CustomEvent("padosi:postService", { detail: { listing } }));
   };
 
   const handleDelete = (index) => {
@@ -316,7 +183,7 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
     setDeleteConfirm(null);
   };
 
-  // Keep each listing's original array index (needed by edit/delete) while filtering + sorting
+  // Keep each listing's original array index (needed by delete) while filtering + sorting
   const visibleListings = useMemo(() => {
     const indexed = listings.map((listing, originalIndex) => ({ listing, originalIndex }));
     const filtered = categoryFilter === "All"
@@ -352,132 +219,119 @@ export default function ServiceListingsAllPage({ listings = [], onUpdate, onDele
   }`;
 
   return (
-    <>
-      <div
-        className={`fixed inset-0 z-[7000] flex flex-col transition-opacity duration-300 ${bg} ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        {/* Header */}
-        <div className={`h-[64px] flex-shrink-0 flex items-center justify-between px-6 border-b ${headerBg}`}>
-          <button
-            onClick={close}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold cursor-pointer border transition-all active:scale-[0.97] ${
-              dark
-                ? "bg-transparent border-white/20 text-white/70 hover:bg-white/10 hover:text-white"
-                : "bg-white border-[#e0e0e0] text-[#555] hover:border-[#ccc] hover:text-[#222]"
-            }`}
-          >
-            ← Back
-          </button>
+    <div
+      className={`fixed inset-0 z-[7000] flex flex-col transition-opacity duration-300 ${bg} ${
+        open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}
+    >
+      {/* Header */}
+      <div className={`h-[64px] flex-shrink-0 flex items-center justify-between px-6 border-b ${headerBg}`}>
+        <button
+          onClick={close}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold cursor-pointer border transition-all active:scale-[0.97] ${
+            dark
+              ? "bg-transparent border-white/20 text-white/70 hover:bg-white/10 hover:text-white"
+              : "bg-white border-[#e0e0e0] text-[#555] hover:border-[#ccc] hover:text-[#222]"
+          }`}
+        >
+          ← Back
+        </button>
 
-          <p className={`text-[15px] font-black tracking-tight ${titleCol}`}>
-            Listed Services
-          </p>
+        <p className={`text-[15px] font-black tracking-tight ${titleCol}`}>
+          Listed Services
+        </p>
 
-          {/* Count badge */}
-          <div className={`min-w-[40px] text-right`}>
-            {listings.length > 0 && (
-              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
-                dark ? "bg-white/10 text-white/60" : "bg-[#ff2d55]/10 text-[#ff2d55]"
-              }`}>
-                {listings.length}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Body — fixed to fill remaining viewport height so 6 cards are always visible by default */}
-        <div className="flex-1 min-h-0 w-full px-6 py-6 flex flex-col gap-4 overflow-hidden">
-
-          {listings.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#ddd] bg-white p-16 flex flex-col items-center gap-3 text-center">
-              <span className="text-4xl">🏘️</span>
-              <p className="text-[15px] font-black text-[#111]">Nothing here yet</p>
-              <p className="text-sm text-[#888]">Post the first service — neighbours are waiting.</p>
-            </div>
-          ) : (
-            <>
-              {/* Category + sort controls — replaces the old sub-label line */}
-              <div className="h-9 flex-shrink-0 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className={selectClass}
-                  >
-                    <option value="All">All categories</option>
-                    {POST_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{CATEGORY_ICONS[cat]} {cat}</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className={selectClass}
-                  >
-                    {SORT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <span className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap ${metaCol}`}>
-                  {visibleListings.length} of {listings.length} shown
-                </span>
-              </div>
-
-              {/* Grid — fixed row height keeps exactly 6 cards visible without scrolling; more items scroll */}
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                {visibleListings.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
-                    <span className="text-3xl">🔍</span>
-                    <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#333]"}`}>
-                      No listings in {categoryFilter}
-                    </p>
-                    <button
-                      onClick={() => setCategoryFilter("All")}
-                      className="text-[11px] font-bold text-[#ff2d55] underline underline-offset-2 cursor-pointer"
-                    >
-                      Clear filter
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className="grid grid-cols-3 gap-4"
-                    style={{ gridAutoRows: "calc((100vh - 64px - 100px) / 2 - 8px)" }}
-                  >
-                    {visibleListings.map(({ listing, originalIndex }) => (
-                      <ServiceCard
-                        key={originalIndex}
-                        listing={listing}
-                        index={originalIndex}
-                        deleteConfirm={deleteConfirm}
-                        onEdit={(l, idx) => setEditTarget({ listing: l, index: idx })}
-                        onDeleteRequest={(idx) => setDeleteConfirm(idx)}
-                        onDeleteConfirm={handleDelete}
-                        onDeleteCancel={() => setDeleteConfirm(null)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
+        {/* Count badge */}
+        <div className={`min-w-[40px] text-right`}>
+          {listings.length > 0 && (
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+              dark ? "bg-white/10 text-white/60" : "bg-[#ff2d55]/10 text-[#ff2d55]"
+            }`}>
+              {listings.length}
+            </span>
           )}
         </div>
       </div>
 
-      {/* Edit modal */}
-      {editTarget && (
-        <EditModal
-          listing={editTarget.listing}
-          index={editTarget.index}
-          dark={dark}
-          onSave={handleSave}
-          onClose={() => setEditTarget(null)}
-        />
-      )}
-    </>
+      {/* Body — fixed to fill remaining viewport height so 6 cards are always visible by default */}
+      <div className="flex-1 min-h-0 w-full px-6 py-6 flex flex-col gap-4 overflow-hidden">
+
+        {listings.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#ddd] bg-white p-16 flex flex-col items-center gap-3 text-center">
+            <span className="text-4xl">🏘️</span>
+            <p className="text-[15px] font-black text-[#111]">Nothing here yet</p>
+            <p className="text-sm text-[#888]">Post the first service — neighbours are waiting.</p>
+          </div>
+        ) : (
+          <>
+            {/* Category + sort controls — replaces the old sub-label line */}
+            <div className="h-9 flex-shrink-0 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="All">All categories</option>
+                  {POST_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{CATEGORY_ICONS[cat]} {cat}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className={selectClass}
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <span className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap ${metaCol}`}>
+                {visibleListings.length} of {listings.length} shown
+              </span>
+            </div>
+
+            {/* Grid — fixed row height keeps exactly 6 cards visible without scrolling; more items scroll */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {visibleListings.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
+                  <span className="text-3xl">🔍</span>
+                  <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#333]"}`}>
+                    No listings in {categoryFilter}
+                  </p>
+                  <button
+                    onClick={() => setCategoryFilter("All")}
+                    className="text-[11px] font-bold text-[#ff2d55] underline underline-offset-2 cursor-pointer"
+                  >
+                    Clear filter
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="grid grid-cols-3 gap-4"
+                  style={{ gridAutoRows: "calc((100vh - 64px - 100px) / 2 - 8px)" }}
+                >
+                  {visibleListings.map(({ listing, originalIndex }) => (
+                    <ServiceCard
+                      key={originalIndex}
+                      listing={listing}
+                      index={originalIndex}
+                      deleteConfirm={deleteConfirm}
+                      onEdit={handleEdit}
+                      onDeleteRequest={(idx) => setDeleteConfirm(idx)}
+                      onDeleteConfirm={handleDelete}
+                      onDeleteCancel={() => setDeleteConfirm(null)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
