@@ -49,7 +49,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
   const ring = ringFor(index);
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col max-h-[250px] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
+    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col h-full w-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
 
       {/* Pin — corkboard detail, sits above the card edge */}
       <span className="absolute -top-[6px] left-5 w-3 h-3 rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
@@ -356,7 +356,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 auto-rows-min content-start items-start gap-4">
+                <div className="grid grid-cols-[repeat(auto-fill,200px)] auto-rows-[200px] content-start items-start gap-4">
                   {visibleListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
