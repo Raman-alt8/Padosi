@@ -36,36 +36,38 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
 
   return (
-    <div className="group bg-white rounded-2xl border border-[#ebebeb] overflow-hidden flex flex-col transition-shadow hover:shadow-md hover:shadow-black/5">
-
-      {/* Top accent strip — thin colored line at top keyed to category */}
-      <div className="h-[3px] w-full bg-gradient-to-r from-[#ff2d55] to-[#ff6b6b] opacity-80" />
-
-      {/* Photo — shows what the poster uploaded so every account sees the same
-          image; falls back to a category-icon placeholder when none was added */}
-      {listing.photoUrl ? (
-        <img
-          src={listing.photoUrl}
-          alt={listing.title}
-          className="h-32 w-full object-cover bg-[#f4f4f4]"
-        />
-      ) : (
-        <div className="h-32 w-full flex items-center justify-center bg-[#f7f7f7] text-4xl">
-          {icon}
-        </div>
-      )}
+    <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden flex flex-col h-full transition-shadow hover:shadow-md hover:shadow-black/5">
 
       {/* Card body */}
       <div className="flex flex-col gap-3 p-4 flex-1">
 
-        {/* Row 1: icon + category + price */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{icon}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#ff2d55]">
+        {/* Header: small circular "face" photo + category/title + price.
+            A photo gets a gradient story-ring (a nod to the listing being
+            "live"); no photo falls back to a plain category-icon avatar. */}
+        <div className="flex items-start gap-2.5">
+          {listing.photoUrl ? (
+            <div className="flex-shrink-0 p-[2px] rounded-full bg-gradient-to-tr from-[#ff2d55] to-[#ffb199]">
+              <img
+                src={listing.photoUrl}
+                alt={listing.title}
+                className="w-9 h-9 rounded-full object-cover border-2 border-white"
+              />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-base bg-[#fff0f3] flex-shrink-0">
+              {icon}
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 pt-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#ff2d55] truncate">
               {listing.category}
-            </span>
+            </p>
+            <h3 className="text-[13px] font-black text-[#111] leading-snug line-clamp-1">
+              {listing.title}
+            </h3>
           </div>
+
           {listing.price && (
             <span className="text-[11px] font-bold text-[#333] bg-[#f4f4f4] rounded-full px-2.5 py-1 whitespace-nowrap leading-none flex-shrink-0">
               ₹{listing.price}
@@ -75,11 +77,6 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
             </span>
           )}
         </div>
-
-        {/* Row 2: title */}
-        <h3 className="text-[13px] font-black text-[#111] leading-snug line-clamp-2 -mt-0.5">
-          {listing.title}
-        </h3>
 
         {/* Row 3: description */}
         {listing.description && (
@@ -324,7 +321,10 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-4 items-start">
+                <div
+                  className="grid grid-cols-3 gap-4"
+                  style={{ gridAutoRows: "calc((100vh - 64px - 100px) / 2 - 8px)" }}
+                >
                   {visibleListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
