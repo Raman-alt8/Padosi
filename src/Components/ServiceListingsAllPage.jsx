@@ -41,6 +41,20 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
       {/* Top accent strip — thin colored line at top keyed to category */}
       <div className="h-[3px] w-full bg-gradient-to-r from-[#ff2d55] to-[#ff6b6b] opacity-80" />
 
+      {/* Photo — shows what the poster uploaded so every account sees the same
+          image; falls back to a category-icon placeholder when none was added */}
+      {listing.photoUrl ? (
+        <img
+          src={listing.photoUrl}
+          alt={listing.title}
+          className="h-32 w-full object-cover bg-[#f4f4f4]"
+        />
+      ) : (
+        <div className="h-32 w-full flex items-center justify-center bg-[#f7f7f7] text-4xl">
+          {icon}
+        </div>
+      )}
+
       {/* Card body */}
       <div className="flex flex-col gap-3 p-4 flex-1">
 
@@ -310,10 +324,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                   </button>
                 </div>
               ) : (
-                <div
-                  className="grid grid-cols-3 gap-4"
-                  style={{ gridAutoRows: "calc((100vh - 64px - 100px) / 2 - 8px)" }}
-                >
+                <div className="grid grid-cols-3 gap-4 items-start">
                   {visibleListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
