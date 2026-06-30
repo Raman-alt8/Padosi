@@ -31,127 +31,173 @@ const SORT_OPTIONS = [
   { value: "experience", label: "Most experienced" },
 ];
 
+// Ring tints keyed off category so the avatar halo + stamp colour feel
+// intentional rather than random — pulled from the original index-card prototype.
+const RING_TINTS = ["#ffd1d6", "#ffdcaf", "#bfe6c9", "#bcd6f5", "#dcc7f0", "#f3c9e0"];
+function ringFor(index) {
+  return RING_TINTS[index % RING_TINTS.length];
+}
+
 // ── Service Card ──────────────────────────────────────────────────────────────
+// Merges the photo-hero treatment with the corkboard "index card" details from
+// the original prototype: a pin at the top, a round avatar badge with a tinted
+// halo sitting on the photo, a torn-ticket dashed seam above the footer, and a
+// rotated experience stamp — so the card still reads as a pinned listing card,
+// not just a generic photo tile.
 function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
+  const ring = ringFor(index);
 
   return (
-    <div className="group bg-white rounded-2xl border border-[#ebebeb] overflow-hidden flex flex-col h-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
+    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col h-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
 
-      {/* Photo — does the visual heavy lifting now: full-bleed, zooms gently
-          on hover, with the title/category set right on top via a bottom
-          gradient scrim, poster-style. No photo falls back to a colored
-          gradient field so the layout still feels intentional, not broken. */}
-      <div className="relative h-44 w-full flex-shrink-0 overflow-hidden">
-        {listing.photoUrl ? (
-          <img
-            src={listing.photoUrl}
-            alt={listing.title}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.08]"
-          />
-        ) : (
-          <div className="absolute inset-0 w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-[#ff2d55] to-[#ff8a65] transition-transform duration-500 ease-out group-hover:scale-[1.08]">
-            {icon}
-          </div>
-        )}
+      {/* Pin — corkboard detail, sits above the card edge */}
+      <span className="absolute -top-[6px] left-5 w-3 h-3 rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
 
-        {/* Price — floats above the photo */}
-        {listing.price && (
-          <span className="absolute top-2.5 right-2.5 text-[11px] font-bold text-[#111] bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 whitespace-nowrap leading-none shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-            ₹{listing.price}
-            <span className="font-normal text-[#999] ml-1">
-              {listing.priceType === "Monthly" ? "/mo" : "· once"}
-            </span>
-          </span>
-        )}
-
-        {/* Title + category — set on a bottom scrim over the photo */}
-        <div className="absolute inset-x-0 bottom-0 pt-12 pb-3 px-3.5 bg-gradient-to-t from-black/85 via-black/35 to-transparent">
-          <p className="text-[9.5px] font-bold uppercase tracking-widest text-white/85">
-            {listing.category}
-          </p>
-          <h3 className="text-[14.5px] font-black text-white leading-snug line-clamp-1 mt-0.5">
-            {listing.title}
-          </h3>
-        </div>
-      </div>
-
-      {/* Card body */}
-      <div className="flex flex-col gap-2.5 p-3.5 flex-1">
-
-        {/* Description */}
-        {listing.description && (
-          <p className="text-[11.5px] text-[#777] leading-relaxed line-clamp-2">
-            {listing.description}
-          </p>
-        )}
-
-        {/* Meta pills */}
-        <div className="flex flex-wrap gap-1.5 mt-auto pt-1">
-          {listing.area && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
-              <span className="text-[10px]">📍</span>
-              {listing.area}
-            </span>
-          )}
-          {listing.availability && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
-              <span className="text-[10px]">🕐</span>
-              {listing.availability}
-            </span>
-          )}
-          {listing.experience && (
-            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
-              <span className="text-[10px]">⭐</span>
-              {listing.experience}y exp
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="px-3.5 py-2.5 border-t border-[#f0f0f0] bg-[#fafafa] flex items-center justify-between gap-2">
-        {listing.phone ? (
-          <a
-            href={`tel:${listing.phone}`}
-            className="text-[11px] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-1"
-          >
-            <span className="text-[10px]">📞</span>
-            {listing.phone}
-          </a>
-        ) : <span />}
-
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button
-            onClick={() => onEdit(listing)}
-            className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
-          >
-            Edit
-          </button>
-
-          {deleteConfirm === index ? (
-            <>
-              <button
-                onClick={() => onDeleteConfirm(index)}
-                className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={onDeleteCancel}
-                className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
-              >
-                No
-              </button>
-            </>
+      <div className="rounded-2xl overflow-hidden flex flex-col flex-1">
+        {/* Photo — full-bleed hero, zooms gently on hover */}
+        <div className="relative h-40 w-full flex-shrink-0 overflow-hidden">
+          {listing.photoUrl ? (
+            <img
+              src={listing.photoUrl}
+              alt={listing.title}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.08]"
+            />
           ) : (
-            <button
-              onClick={() => onDeleteRequest(index)}
-              className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
-            >
-              Delete
-            </button>
+            <div className="absolute inset-0 w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-[#ff2d55] to-[#ff8a65] transition-transform duration-500 ease-out group-hover:scale-[1.08]">
+              {icon}
+            </div>
           )}
+
+          {/* Price — floats above the photo */}
+          {listing.price && (
+            <span className="absolute top-2.5 right-2.5 text-[11px] font-bold text-[#111] bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 whitespace-nowrap leading-none shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+              ₹{listing.price}
+              <span className="font-normal text-[#999] ml-1">
+                {listing.priceType === "Monthly" ? "/mo" : "· once"}
+              </span>
+            </span>
+          )}
+        </div>
+
+        {/* Identity row — avatar badge with tinted halo, overlapping the photo
+            bottom edge, ticket-prototype style instead of text-over-scrim */}
+        <div className="relative flex items-center gap-3 px-3.5 pt-0 pb-2 -mt-6">
+          <div
+            className="w-12 h-12 flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-xl"
+            style={{ boxShadow: `0 0 0 3px #fff, 0 0 0 4.5px ${ring}` }}
+          >
+            {listing.photoUrl ? (
+              <img src={listing.photoUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span>{icon}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 pt-1">
+            <p className="text-[9.5px] font-bold uppercase tracking-widest text-[#999] flex items-center gap-1">
+              {icon} {listing.category}
+            </p>
+            <h3 className="text-[14.5px] font-black text-[#1a1a1a] leading-snug truncate mt-0.5">
+              {listing.title}
+            </h3>
+          </div>
+        </div>
+
+        {/* Card body */}
+        <div className="flex flex-col gap-2.5 px-3.5 flex-1">
+          {listing.description && (
+            <p className="text-[11.5px] text-[#888] leading-relaxed line-clamp-2">
+              {listing.description}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-1.5">
+            {listing.area && (
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
+                <span className="text-[10px]">📍</span>
+                {listing.area}
+              </span>
+            )}
+            {listing.availability && (
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2.5 py-1">
+                <span className="text-[10px]">🕐</span>
+                {listing.availability}
+              </span>
+            )}
+          </div>
+
+          {/* Spacer with rotated experience stamp, anchored bottom-right —
+              mirrors the original prototype's "stamp" detail */}
+          <div className="relative flex-1 min-h-[8px]">
+            {listing.experience && (
+              <div
+                className="absolute right-0 bottom-0 w-11 h-11 rounded-full border-[1.5px] flex flex-col items-center justify-center opacity-85"
+                style={{ borderColor: ring, transform: "rotate(-9deg)" }}
+              >
+                <span className="text-[13px] font-black text-[#1a1a1a] opacity-55 leading-none">
+                  {listing.experience}
+                  <sup className="text-[8px]">y</sup>
+                </span>
+                <span className="text-[6px] font-bold uppercase tracking-widest text-[#1a1a1a] opacity-40 mt-0.5">
+                  Experience
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Seam — dashed perforation with notch cutouts, like a torn ticket
+            stub, separating the card body from the footer */}
+        <div className="relative mt-1">
+          <span className="absolute top-1/2 -left-px -translate-y-1/2 w-3 h-3 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
+          <span className="absolute top-1/2 -right-px -translate-y-1/2 w-3 h-3 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
+          <div className="border-t border-dashed border-[#dcd8cf] mx-3" />
+        </div>
+
+        {/* Footer */}
+        <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+          {listing.phone ? (
+            <a
+              href={`tel:${listing.phone}`}
+              className="text-[11px] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-1"
+            >
+              <span className="text-[10px]">📞</span>
+              {listing.phone}
+            </a>
+          ) : <span />}
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => onEdit(listing)}
+              className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+            >
+              Edit
+            </button>
+
+            {deleteConfirm === index ? (
+              <>
+                <button
+                  onClick={() => onDeleteConfirm(index)}
+                  className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={onDeleteCancel}
+                  className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
+                >
+                  No
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => onDeleteRequest(index)}
+                className="px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+              >
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -160,7 +206,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ServiceListingsAllPage({ listings = [], onDelete, dark }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true); // default true for preview purposes
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
@@ -168,8 +214,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
   useEffect(() => {
     const handler = (e) => {
       setOpen(true);
-      // If opened from a category card (ServiceListingsPage), e.detail.category is set;
-      // the hero "All Listings" button dispatches a plain Event with no detail → show all.
       const incomingCategory = e?.detail?.category;
       setCategoryFilter(
         incomingCategory && POST_CATEGORIES.includes(incomingCategory) ? incomingCategory : "All"
@@ -181,10 +225,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
 
   const close = () => setOpen(false);
 
-  // Editing now happens on the full PostServicePage instead of a small inline
-  // modal: close this view and hand the listing off via the same event
-  // PostServicePage already listens to for opening, with the listing attached
-  // so it knows to pre-fill the form and PUT instead of POST on submit.
   const handleEdit = (listing) => {
     setOpen(false);
     window.dispatchEvent(new CustomEvent("padosi:postService", { detail: { listing } }));
@@ -195,7 +235,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
     setDeleteConfirm(null);
   };
 
-  // Keep each listing's original array index (needed by delete) while filtering + sorting
   const visibleListings = useMemo(() => {
     const indexed = listings.map((listing, originalIndex) => ({ listing, originalIndex }));
     const filtered = categoryFilter === "All"
@@ -236,7 +275,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
         open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       }`}
     >
-      {/* Header */}
       <div className={`h-[64px] flex-shrink-0 flex items-center justify-between px-6 border-b ${headerBg}`}>
         <button
           onClick={close}
@@ -253,7 +291,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
           Listed Services
         </p>
 
-        {/* Count badge */}
         <div className={`min-w-[40px] text-right`}>
           {listings.length > 0 && (
             <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
@@ -265,7 +302,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
         </div>
       </div>
 
-      {/* Body — fixed to fill remaining viewport height so 6 cards are always visible by default */}
       <div className="flex-1 min-h-0 w-full px-6 py-6 flex flex-col gap-4 overflow-hidden">
 
         {listings.length === 0 ? (
@@ -276,7 +312,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
           </div>
         ) : (
           <>
-            {/* Category + sort controls — replaces the old sub-label line */}
             <div className="h-9 flex-shrink-0 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <select
@@ -306,7 +341,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
               </span>
             </div>
 
-            {/* Grid — fixed row height keeps exactly 6 cards visible without scrolling; more items scroll */}
             <div className="flex-1 min-h-0 overflow-y-auto">
               {visibleListings.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
@@ -342,5 +376,25 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
         )}
       </div>
     </div>
+  );
+}
+
+// ── Demo data + wrapper so this renders standalone in the artifact preview ───
+const DEMO_LISTINGS = [
+  { title: "Ramesh Kumar — Plumbing", category: "Plumber", price: 350, priceType: "Per visit", description: "24/7 emergency leak fixing, pipe fitting, and bathroom installs. 12 years in the colony.", area: "Sector 14", availability: "Mon-Sat", experience: 12, phone: "+91 98765 43210", photoUrl: null },
+  { title: "Sunita's Daycare", category: "Daycare & Babysitting", price: 6500, priceType: "Monthly", description: "Safe, loving daycare for ages 1-5. CPR certified, home-cooked meals included.", area: "Green Park", availability: "8am-6pm", experience: 7, phone: "+91 91234 56789", photoUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&h=400&fit=crop" },
+  { title: "Quick Fix Electrical", category: "Electrician", price: 250, priceType: "Per visit", description: "Wiring, fan installs, MCB issues — same day response.", area: "Sector 9", availability: "Anytime", experience: 5, phone: "+91 99887 76655", photoUrl: null },
+  { title: "Anjali Tutoring", category: "Tutoring", price: 800, priceType: "Monthly", description: "Maths & Science, grades 6-10. Board exam focused, small batches.", area: "Lake View", availability: "Evenings", experience: 4, phone: "+91 90000 11122", photoUrl: "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?w=400&h=400&fit=crop" },
+  { title: "Bruno's Pet Walks", category: "Pet Care", price: 200, priceType: "One-time", description: "Daily walks and weekend boarding for dogs of any size.", area: "Sector 14", availability: "Morning", experience: 2, phone: "+91 98123 45678", photoUrl: null },
+  { title: "Ghar Ka Khana", category: "Cook & Catering", price: 4000, priceType: "Monthly", description: "North Indian home-style tiffin service, fresh daily.", area: "Model Town", availability: "Lunch & Dinner", experience: 9, phone: "+91 97654 32109", photoUrl: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=400&fit=crop" },
+];
+
+export function Demo() {
+  const [listings, setListings] = useState(DEMO_LISTINGS);
+  return (
+    <ServiceListingsAllPage
+      listings={listings}
+      onDelete={(idx) => setListings((prev) => prev.filter((_, i) => i !== idx))}
+    />
   );
 }
