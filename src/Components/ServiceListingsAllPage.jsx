@@ -49,14 +49,14 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
   const ring = ringFor(index);
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col max-h-[300px] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
+    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col max-h-[250px] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
 
       {/* Pin — corkboard detail, sits above the card edge */}
       <span className="absolute -top-[6px] left-5 w-3 h-3 rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
 
       <div className="rounded-2xl overflow-hidden flex flex-col flex-1">
         {/* Photo — full-bleed hero, zooms gently on hover */}
-        <div className="relative h-28 w-full flex-shrink-0 overflow-hidden">
+        <div className="relative h-20 w-full flex-shrink-0 overflow-hidden">
           {listing.photoUrl ? (
             <img
               src={listing.photoUrl}
@@ -82,10 +82,10 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
         {/* Identity row — avatar badge with tinted halo, overlapping the photo
             bottom edge, ticket-prototype style instead of text-over-scrim */}
-        <div className="relative flex items-center gap-2 px-3 pt-1.5 pb-1.5 -mt-4">
+        <div className="relative flex items-center gap-1.5 px-2.5 pt-1 pb-1 -mt-3.5">
           <div
-            className="w-9 h-9 flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-base"
-            style={{ boxShadow: `0 0 0 2.5px #fff, 0 0 0 3.5px ${ring}` }}
+            className="w-7 h-7 flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-sm"
+            style={{ boxShadow: `0 0 0 2px #fff, 0 0 0 3px ${ring}` }}
           >
             {listing.photoUrl ? (
               <img src={listing.photoUrl} alt="" className="w-full h-full object-cover" />
@@ -93,34 +93,34 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
               <span>{icon}</span>
             )}
           </div>
-          <div className="min-w-0 flex-1 pt-0.5">
-            <p className="text-[8.5px] font-bold uppercase tracking-widest text-[#999] flex items-center gap-1 truncate">
+          <div className="min-w-0 flex-1">
+            <p className="text-[7.5px] font-bold uppercase tracking-widest text-[#999] flex items-center gap-1 truncate">
               {icon} {listing.category}
             </p>
-            <h3 className="text-[13px] font-black text-[#1a1a1a] leading-snug truncate mt-0.5">
+            <h3 className="text-[11.5px] font-black text-[#1a1a1a] leading-snug truncate mt-0.5">
               {listing.title}
             </h3>
           </div>
         </div>
 
         {/* Card body */}
-        <div className="flex flex-col gap-1.5 px-3 flex-1">
+        <div className="flex flex-col gap-1 px-2.5 flex-1">
           {listing.description && (
-            <p className="text-[10.5px] text-[#888] leading-snug line-clamp-2">
+            <p className="text-[9.5px] text-[#888] leading-snug line-clamp-2">
               {listing.description}
             </p>
           )}
 
           <div className="flex flex-wrap gap-1">
             {listing.area && (
-              <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2 py-0.5">
-                <span className="text-[9px]">📍</span>
+              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-1.5 py-0.5">
+                <span className="text-[8px]">📍</span>
                 {listing.area}
               </span>
             )}
             {listing.availability && (
-              <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-2 py-0.5">
-                <span className="text-[9px]">🕐</span>
+              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-1.5 py-0.5">
+                <span className="text-[8px]">🕐</span>
                 {listing.availability}
               </span>
             )}
@@ -128,17 +128,17 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
           {/* Spacer with rotated experience stamp, anchored bottom-right —
               mirrors the original prototype's "stamp" detail */}
-          <div className="relative flex-1 min-h-[4px]">
+          <div className="relative flex-1 min-h-[2px]">
             {listing.experience && (
               <div
-                className="absolute right-0 bottom-0 w-8 h-8 rounded-full border flex flex-col items-center justify-center opacity-85"
+                className="absolute right-0 bottom-0 w-7 h-7 rounded-full border flex flex-col items-center justify-center opacity-85"
                 style={{ borderColor: ring, transform: "rotate(-9deg)" }}
               >
-                <span className="text-[10px] font-black text-[#1a1a1a] opacity-55 leading-none">
+                <span className="text-[9px] font-black text-[#1a1a1a] opacity-55 leading-none">
                   {listing.experience}
-                  <sup className="text-[6.5px]">y</sup>
+                  <sup className="text-[6px]">y</sup>
                 </span>
-                <span className="text-[5px] font-bold uppercase tracking-widest text-[#1a1a1a] opacity-40 mt-0.5">
+                <span className="text-[4.5px] font-bold uppercase tracking-widest text-[#1a1a1a] opacity-40 mt-0.5">
                   Exp
                 </span>
               </div>
@@ -206,7 +206,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ServiceListingsAllPage({ listings = [], onDelete, dark }) {
-  const [open, setOpen] = useState(true); // default true for preview purposes
+  const [open, setOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
