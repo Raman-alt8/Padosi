@@ -40,6 +40,32 @@ function ringFor(index) {
   return RING_TINTS[index % RING_TINTS.length];
 }
 
+// Human-readable price unit — falls back to whatever string was stored so
+// unrecognised priceType values still show something rather than nothing.
+function priceLabel(priceType) {
+  if (priceType === "Monthly") return "per month";
+  if (priceType === "Per visit") return "per visit";
+  if (priceType === "One-time") return "one-time";
+  return priceType || "";
+}
+
+// Simple line-style heart, filled + tinted when saved. Kept as its own
+// component so the fill/stroke swap in one place instead of being inlined
+// twice.
+function HeartIcon({ filled }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-[4.4cqw] h-[4.4cqw]"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={filled ? 0 : 2}
+    >
+      <path d="M12 20.3c-.24 0-.47-.08-.66-.23C6.9 16.71 3.6 13.83 3.6 9.9 3.6 6.9 5.87 4.7 8.7 4.7c1.6 0 3.13.77 4.06 1.97l1.24 1.6 1.24-1.6c.93-1.2 2.46-1.97 4.06-1.97 2.83 0 5.1 2.2 5.1 5.2 0 3.93-3.3 6.81-7.74 10.17-.19.15-.42.23-.66.23z" />
+    </svg>
+  );
+}
+
 // ── Service Card ──────────────────────────────────────────────────────────────
 // NOTE: `[container-type:inline-size]` on the card root turns the card into a
 // CSS query container. Sizes below use `cqw` so content scales with the card's
@@ -51,7 +77,15 @@ function ringFor(index) {
 //      clip the footer. The grid below uses auto rows sized to content, and
 //      the page scrolls if six full cards don't fit — so Accept/Decline/Edit/
 //      phone number are always visible.
-function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onChat }) {
+//
+// Internal redesign: category is now a colour-tagged badge (ties into the
+// same ring tint as the avatar and the experience seal, so one colour reads
+// as "this listing" everywhere on the card). Price moved out of the cramped
+// identity row into its own line as the card's second-biggest read after the
+// title — it's the number people actually scan for. A heart toggle sits in
+// the top-right corner, inside the card, mirroring the pinned-flyer corkboard
+// pin at top-left without competing with it.
+function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onChat, onToggleWishlist }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
   const ring = ringFor(index);
   const isOwner = listing.isOwner;
@@ -62,9 +96,23 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDele
       {/* Pin */}
       <span className="absolute -top-[2.6cqw] left-[9cqw] w-[5.2cqw] h-[5.2cqw] rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
 
+      {/* Wishlist */}
+      <button
+        onClick={() => onToggleWishlist?.(index)}
+        aria-label={isWishlisted ? "Remove from wishlist" : "Save to wishlist"}
+        aria-pressed={isWishlisted}
+        className={`absolute top-[3.2cqw] right-[3.2cqw] z-20 w-[8.6cqw] h-[8.6cqw] flex-shrink-0 rounded-full flex items-center justify-center cursor-pointer border transition-all duration-200 active:scale-90 ${
+          isWishlisted
+            ? "bg-[#ff2d55] border-[#ff2d55] text-white shadow-[0_4px_10px_rgba(255,45,85,0.35)]"
+            : "bg-white/95 border-[#ebebeb] text-[#bbb] shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:text-[#ff2d55] hover:border-[#ff2d55]/40"
+        }`}
+      >
+        <HeartIcon filled={isWishlisted} />
+      </button>
+
       <div className="rounded-2xl overflow-hidden flex flex-col flex-1">
         {/* Identity row */}
-        <div className="relative flex items-start gap-[3cqw] px-[5cqw] pt-[5.5cqw] pb-[2cqw]">
+        <div className="relative flex items-start gap-[3cqw] pl-[5cqw] pr-[11cqw] pt-[5.5cqw] pb-[1.6cqw]">
           <div
             className="w-[12cqw] h-[12cqw] flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-[6cqw]"
             style={{ boxShadow: `0 0 0 2px #fff, 0 0 0 3px ${ring}` }}
@@ -76,25 +124,31 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDele
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[3.4cqw] font-bold uppercase tracking-widest text-[#999] flex items-center gap-[1.8cqw] truncate">
-              {icon} {listing.category}
-            </p>
-            <h3 className="text-[5cqw] font-black text-[#1a1a1a] leading-snug mt-[1cqw] line-clamp-2 break-words">
+            <span
+              className="inline-flex max-w-full items-center gap-[1.6cqw] text-[3.1cqw] font-black uppercase tracking-wide text-[#1a1a1a] rounded-full pl-[2.2cqw] pr-[2.8cqw] py-[1cqw]"
+              style={{ backgroundColor: ring }}
+            >
+              <span className="text-[3.6cqw] leading-none flex-shrink-0">{icon}</span>
+              <span className="truncate">{listing.category}</span>
+            </span>
+            <h3 className="text-[5cqw] font-black text-[#1a1a1a] leading-snug mt-[1.6cqw] line-clamp-2 break-words">
               {listing.title}
             </h3>
           </div>
-          {listing.price && (
-            <span className="flex-shrink-0 text-[4cqw] font-bold text-[#111] bg-[#f4f4f4] rounded-full px-[3.2cqw] py-[1.2cqw] whitespace-nowrap leading-none">
-              ₹{listing.price}
-              <span className="font-normal text-[#999] ml-[1.6cqw]">
-                {listing.priceType === "Monthly" ? "/mo" : "· once"}
-              </span>
-            </span>
-          )}
         </div>
 
         {/* Card body */}
         <div className="flex flex-col gap-[2.2cqw] px-[5.5cqw] flex-1">
+          {listing.price && (
+            <div className="flex items-baseline gap-[2cqw]">
+              <span className="text-[6.6cqw] font-black text-[#1a1a1a] leading-none">
+                ₹{listing.price}
+              </span>
+              <span className="text-[3.2cqw] font-bold text-[#999] uppercase tracking-wide leading-none">
+                {priceLabel(listing.priceType)}
+              </span>
+            </div>
+          )}
           {listing.description && (
             <p className="text-[4.6cqw] text-[#888] leading-snug line-clamp-2">
               {listing.description}
