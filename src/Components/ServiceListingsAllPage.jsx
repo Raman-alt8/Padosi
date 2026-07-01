@@ -152,27 +152,32 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDele
           <div className="border-t border-dashed border-[#dcd8cf] mx-[6cqw]" />
         </div>
 
-        {/* Footer */}
-        <div className="px-[6cqw] py-[3.5cqw] flex items-center justify-between gap-[4cqw]">
+        {/* Footer
+            NOTE: font sizes/padding here use clamp(min, Ncqw, max) instead of
+            bare cqw. Bare cqw scaled with the *card's* width, and on wide
+            (3-per-row desktop) cards that pushed the phone number + buttons
+            past the available width, cutting the number off. clamp() keeps
+            the same fluid feel on small cards but caps growth on large ones. */}
+        <div className="px-[6cqw] py-[3.5cqw] flex items-center gap-[clamp(6px,2cqw,14px)]">
           {isOwner || !isAccepted ? (
             listing.phone ? (
               <a
                 href={`tel:${listing.phone}`}
-                className="text-[4.6cqw] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-[1.8cqw]"
+                className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-[clamp(3px,0.8cqw,6px)]"
               >
-                <span className="text-[4.2cqw]">📞</span>
-                {listing.phone}
+                <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
+                <span className="truncate">{listing.phone}</span>
               </a>
             ) : <span />
           ) : <span />}
 
-          <div className="flex items-center gap-[2cqw] flex-shrink-0">
+          <div className="flex items-center gap-[clamp(4px,1cqw,8px)] flex-shrink-0">
             {isOwner ? (
               /* ── Owner: Edit + Delete ── */
               <>
                 <button
                   onClick={() => onEdit(listing)}
-                  className="px-[3.8cqw] py-[1.4cqw] rounded-full text-[4.2cqw] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+                  className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
                 >
                   Edit
                 </button>
@@ -181,13 +186,13 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDele
                   <>
                     <button
                       onClick={() => onDeleteConfirm(index)}
-                      className="px-[3.8cqw] py-[1.4cqw] rounded-full text-[4.2cqw] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+                      className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap bg-red-500 text-white hover:bg-red-600 transition-colors"
                     >
                       Confirm
                     </button>
                     <button
                       onClick={onDeleteCancel}
-                      className="px-[3.8cqw] py-[1.4cqw] rounded-full text-[4.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
+                      className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
                     >
                       No
                     </button>
@@ -195,7 +200,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDele
                 ) : (
                   <button
                     onClick={() => onDeleteRequest(index)}
-                    className="px-[3.8cqw] py-[1.4cqw] rounded-full text-[4.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                    className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
                   >
                     Delete
                   </button>
@@ -203,23 +208,23 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDele
               </>
             ) : isAccepted ? (
               /* ── Accepted: poster's phone number + chat icon ── */
-              <div className="flex items-center gap-[3cqw] w-full justify-between">
+              <div className="flex items-center gap-[clamp(6px,1.6cqw,12px)] w-full justify-between">
                 {listing.phone ? (
                   <a
                     href={`tel:${listing.phone}`}
-                    className="text-[4.6cqw] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-[1.8cqw]"
+                    className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors flex items-center gap-[clamp(3px,0.8cqw,6px)]"
                   >
-                    <span className="text-[4.2cqw]">📞</span>
-                    {listing.phone}
+                    <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
+                    <span className="truncate">{listing.phone}</span>
                   </a>
                 ) : (
-                  <span className="text-[4.2cqw] font-bold text-[#999]">No number</span>
+                  <span className="text-[clamp(11px,2.1cqw,13px)] font-bold text-[#999]">No number</span>
                 )}
                 <button
                   onClick={() => onChat?.(index)}
                   aria-label="Chat"
                   title="Chat"
-                  className="w-[11cqw] h-[11cqw] flex-shrink-0 rounded-full flex items-center justify-center text-[5cqw] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+                  className="w-[clamp(26px,6cqw,34px)] h-[clamp(26px,6cqw,34px)] flex-shrink-0 rounded-full flex items-center justify-center text-[clamp(12px,2.6cqw,16px)] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
                 >
                   💬
                 </button>
@@ -464,12 +469,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
               </div>
             </div>
 
-            {/* Changed from a fixed grid-rows-3/2 + overflow-hidden (which could
-                clip the footer of any card taller than its allotted row) to
-                auto-height rows with a scrollable region. Six cards still fit
-                one screen in the common case, but nothing gets cut off if a
-                card needs a bit more room (long title, long description). */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-hidden">
               {visibleListings.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
                   <span className="text-3xl">🔍</span>
@@ -484,7 +484,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 auto-rows-[minmax(260px,auto)] gap-4 w-full">
+                <div className="grid grid-cols-2 grid-rows-3 md:grid-cols-3 md:grid-rows-2 gap-4 h-full w-full">
                   {pagedListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
