@@ -31,6 +31,10 @@ const SORT_OPTIONS = [
   { value: "experience", label: "Most experienced" },
 ];
 
+// Fixed page size so exactly one screen's worth of cards shows at a time —
+// 3 columns × 2 rows on wider screens, 2 columns × 3 rows on narrow ones.
+const CARDS_PER_PAGE = 6;
+
 // ── TODO: REMOVE — temporary hardcoded cards for UI preview ──────────────────
 // Delete this whole constant (and the `allListings` merge below) when real data is wired up.
 const TEMP_CARDS = [
@@ -247,6 +251,13 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
   const [declinedIndexes, setDeclinedIndexes] = useState(() => new Set());
   const [acceptedIndexes, setAcceptedIndexes] = useState(() => new Set());
 
+  const [page, setPage] = useState(1);
+
+  // Jump back to page 1 whenever the filter or sort changes the list.
+  useEffect(() => {
+    setPage(1);
+  }, [categoryFilter, sortBy]);
+
   useEffect(() => {
     const handler = (e) => {
       setOpen(true);
@@ -310,6 +321,21 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
 
     return sorted;
   }, [allListings, categoryFilter, sortBy, declinedIndexes]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleListings.length / CARDS_PER_PAGE));
+
+  // Clamp page if a decline (or filter change) shrinks the list out from under it.
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
+  const pagedListings = useMemo(() => {
+    const start = (page - 1) * CARDS_PER_PAGE;
+    return visibleListings.slice(start, start + CARDS_PER_PAGE);
+  }, [visibleListings, page]);
+
+  const rangeStart = visibleListings.length === 0 ? 0 : (page - 1) * CARDS_PER_PAGE + 1;
+  const rangeEnd = Math.min(page * CARDS_PER_PAGE, visibleListings.length);
 
   const bg = dark ? "bg-[#0d0d0d]" : "bg-[#f5f5f7]";
   const headerBg = dark ? "bg-[#111] border-white/10" : "bg-white border-[#ebebeb]";
@@ -389,12 +415,46 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                 </select>
               </div>
 
-              <span className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap ${metaCol}`}>
-                {visibleListings.length} of {allListings.length} shown
-              </span>
+              <div className="flex items-center gap-3">
+                <span className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap ${metaCol}`}>
+                  {rangeStart}–{rangeEnd} of {visibleListings.length}
+                </span>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      aria-label="Previous page"
+                      className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold border transition-colors ${
+                        page === 1
+                          ? "opacity-30 cursor-not-allowed border-[#e0e0e0] text-[#999]"
+                          : "cursor-pointer border-[#e0e0e0] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                      } ${dark ? "border-white/15 text-white/60" : ""}`}
+                    >
+                      ‹
+                    </button>
+                    <span className={`text-[11px] font-bold whitespace-nowrap ${dark ? "text-white/60" : "text-[#555]"}`}>
+                      {page} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      aria-label="Next page"
+                      className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold border transition-colors ${
+                        page === totalPages
+                          ? "opacity-30 cursor-not-allowed border-[#e0e0e0] text-[#999]"
+                          : "cursor-pointer border-[#e0e0e0] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                      } ${dark ? "border-white/15 text-white/60" : ""}`}
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-hidden">
               {visibleListings.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
                   <span className="text-3xl">🔍</span>
@@ -409,8 +469,8 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,200px)] auto-rows-[200px] content-start items-start gap-4">
-                  {visibleListings.map(({ listing, originalIndex }) => (
+                <div className="grid grid-cols-2 grid-rows-3 md:grid-cols-3 md:grid-rows-2 gap-4 h-full w-full">
+                  {pagedListings.map(({ listing, originalIndex }) => (
                     <ServiceCard
                       key={originalIndex}
                       listing={listing}
