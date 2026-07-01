@@ -55,34 +55,8 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
       <span className="absolute -top-[6px] left-5 w-3 h-3 rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
 
       <div className="rounded-2xl overflow-hidden flex flex-col flex-1">
-        {/* Photo — full-bleed hero, zooms gently on hover */}
-        <div className="relative h-20 w-full flex-shrink-0 overflow-hidden">
-          {listing.photoUrl ? (
-            <img
-              src={listing.photoUrl}
-              alt={listing.title}
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.08]"
-            />
-          ) : (
-            <div className="absolute inset-0 w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-[#ff2d55] to-[#ff8a65] transition-transform duration-500 ease-out group-hover:scale-[1.08]">
-              {icon}
-            </div>
-          )}
-
-          {/* Price — floats above the photo */}
-          {listing.price && (
-            <span className="absolute top-2.5 right-2.5 text-[11px] font-bold text-[#111] bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 whitespace-nowrap leading-none shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-              ₹{listing.price}
-              <span className="font-normal text-[#999] ml-1">
-                {listing.priceType === "Monthly" ? "/mo" : "· once"}
-              </span>
-            </span>
-          )}
-        </div>
-
-        {/* Identity row — avatar badge with tinted halo, overlapping the photo
-            bottom edge, ticket-prototype style instead of text-over-scrim */}
-        <div className="relative flex items-center gap-1.5 px-2.5 pt-1 pb-1 -mt-3.5">
+        {/* Identity row */}
+        <div className="relative flex items-center gap-1.5 px-2.5 pt-3 pb-1">
           <div
             className="w-7 h-7 flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-sm"
             style={{ boxShadow: `0 0 0 2px #fff, 0 0 0 3px ${ring}` }}
@@ -101,6 +75,14 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
               {listing.title}
             </h3>
           </div>
+          {listing.price && (
+            <span className="flex-shrink-0 text-[11px] font-bold text-[#111] bg-[#f4f4f4] rounded-full px-2 py-0.5 whitespace-nowrap leading-none">
+              ₹{listing.price}
+              <span className="font-normal text-[#999] ml-1">
+                {listing.priceType === "Monthly" ? "/mo" : "· once"}
+              </span>
+            </span>
+          )}
         </div>
 
         {/* Card body */}
