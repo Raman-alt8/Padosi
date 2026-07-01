@@ -35,17 +35,6 @@ const SORT_OPTIONS = [
 // 3 columns × 2 rows on wider screens, 2 columns × 3 rows on narrow ones.
 const CARDS_PER_PAGE = 6;
 
-// ── TODO: REMOVE — temporary hardcoded cards for UI preview ──────────────────
-// Delete this whole constant (and the `allListings` merge below) when real data is wired up.
-const TEMP_CARDS = [
-  { _isTemp: true, isOwner: true,  title: "Vikram's Carpentry",      category: "Carpenter",            price: 500,  priceType: "Per visit", description: "Custom furniture, door fitting, and woodwork repairs. Quality guaranteed.", area: "Sector 7",    availability: "Mon-Fri",      experience: 8,  phone: "+91 98001 11111" },
-  { _isTemp: true, isOwner: false, title: "Priya House Cleaning",    category: "House Cleaning",        price: 800,  priceType: "Monthly",   description: "Deep clean, regular sweep, and kitchen scrub. Reliable and thorough.", area: "Green Park",  availability: "Mornings",     experience: 3,  phone: "+91 98002 22222" },
-  { _isTemp: true, isOwner: false, title: "Ravi AC & Fridge Repair", category: "AC & Appliance Repair", price: 400,  priceType: "Per visit", description: "All brands serviced. Gas refill, coil cleaning, compressor checks.", area: "Model Town", availability: "Anytime",      experience: 10, phone: "+91 98003 33333" },
-  { _isTemp: true, isOwner: false, title: "Sharma Pest Control",     category: "Pest Control",          price: 1200, priceType: "One-time",  description: "Cockroaches, termites, rodents — full home treatment with warranty.", area: "Sector 14",  availability: "Weekends",     experience: 6,  phone: "+91 98004 44444" },
-  { _isTemp: true, isOwner: false, title: "Meena Beauty at Home",    category: "Salon & Beauty",        price: 300,  priceType: "Per visit", description: "Facial, waxing, threading, and bridal packages at your doorstep.", area: "Lake View",  availability: "By appt.",     experience: 5,  phone: "+91 98005 55555" },
-];
-// ─────────────────────────────────────────────────────────────────────────────
-
 const RING_TINTS = ["#ffd1d6", "#ffdcaf", "#bfe6c9", "#bcd6f5", "#dcc7f0", "#f3c9e0"];
 function ringFor(index) {
   return RING_TINTS[index % RING_TINTS.length];
@@ -308,11 +297,8 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
     onDecline?.(index);
   };
 
-  // TODO: REMOVE — merge real listings with temp cards; delete `allListings` and use `listings` directly when done
-  const allListings = useMemo(() => [...listings, ...TEMP_CARDS], [listings]);
-
   const visibleListings = useMemo(() => {
-    const indexed = allListings
+    const indexed = listings
       .map((listing, originalIndex) => ({ listing, originalIndex }))
       .filter(({ originalIndex }) => !declinedIndexes.has(originalIndex));
 
@@ -335,7 +321,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
     });
 
     return sorted;
-  }, [allListings, categoryFilter, sortBy, declinedIndexes]);
+  }, [listings, categoryFilter, sortBy, declinedIndexes]);
 
   const totalPages = Math.max(1, Math.ceil(visibleListings.length / CARDS_PER_PAGE));
 
@@ -386,11 +372,11 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
         </p>
 
         <div className="min-w-[40px] text-right">
-          {allListings.length > 0 && (
+          {listings.length > 0 && (
             <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
               dark ? "bg-white/10 text-white/60" : "bg-[#ff2d55]/10 text-[#ff2d55]"
             }`}>
-              {allListings.length}
+              {listings.length}
             </span>
           )}
         </div>
@@ -398,7 +384,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
 
       <div className="flex-1 min-h-0 w-full px-6 py-6 flex flex-col gap-4 overflow-hidden">
 
-        {allListings.length === 0 ? (
+        {listings.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#ddd] bg-white p-16 flex flex-col items-center gap-3 text-center">
             <span className="text-4xl">🏘️</span>
             <p className="text-[15px] font-black text-[#111]">Nothing here yet</p>
