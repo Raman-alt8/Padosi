@@ -31,27 +31,32 @@ const SORT_OPTIONS = [
   { value: "experience", label: "Most experienced" },
 ];
 
-// Ring tints keyed off category so the avatar halo + stamp colour feel
-// intentional rather than random — pulled from the original index-card prototype.
+// ── TODO: REMOVE — temporary hardcoded cards for UI preview ──────────────────
+// Delete this whole constant (and the `allListings` merge below) when real data is wired up.
+const TEMP_CARDS = [
+  { _isTemp: true, isOwner: true,  title: "Vikram's Carpentry",      category: "Carpenter",            price: 500,  priceType: "Per visit", description: "Custom furniture, door fitting, and woodwork repairs. Quality guaranteed.", area: "Sector 7",    availability: "Mon-Fri",      experience: 8,  phone: "+91 98001 11111" },
+  { _isTemp: true, isOwner: false, title: "Priya House Cleaning",    category: "House Cleaning",        price: 800,  priceType: "Monthly",   description: "Deep clean, regular sweep, and kitchen scrub. Reliable and thorough.", area: "Green Park",  availability: "Mornings",     experience: 3,  phone: "+91 98002 22222" },
+  { _isTemp: true, isOwner: false, title: "Ravi AC & Fridge Repair", category: "AC & Appliance Repair", price: 400,  priceType: "Per visit", description: "All brands serviced. Gas refill, coil cleaning, compressor checks.", area: "Model Town", availability: "Anytime",      experience: 10, phone: "+91 98003 33333" },
+  { _isTemp: true, isOwner: false, title: "Sharma Pest Control",     category: "Pest Control",          price: 1200, priceType: "One-time",  description: "Cockroaches, termites, rodents — full home treatment with warranty.", area: "Sector 14",  availability: "Weekends",     experience: 6,  phone: "+91 98004 44444" },
+  { _isTemp: true, isOwner: false, title: "Meena Beauty at Home",    category: "Salon & Beauty",        price: 300,  priceType: "Per visit", description: "Facial, waxing, threading, and bridal packages at your doorstep.", area: "Lake View",  availability: "By appt.",     experience: 5,  phone: "+91 98005 55555" },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
 const RING_TINTS = ["#ffd1d6", "#ffdcaf", "#bfe6c9", "#bcd6f5", "#dcc7f0", "#f3c9e0"];
 function ringFor(index) {
   return RING_TINTS[index % RING_TINTS.length];
 }
 
 // ── Service Card ──────────────────────────────────────────────────────────────
-// Merges the photo-hero treatment with the corkboard "index card" details from
-// the original prototype: a pin at the top, a round avatar badge with a tinted
-// halo sitting on the photo, a torn-ticket dashed seam above the footer, and a
-// rotated experience stamp — so the card still reads as a pinned listing card,
-// not just a generic photo tile.
-function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel }) {
+function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
   const ring = ringFor(index);
+  const isOwner = listing.isOwner;
 
   return (
     <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col h-full w-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25">
 
-      {/* Pin — corkboard detail, sits above the card edge */}
+      {/* Pin */}
       <span className="absolute -top-[6px] left-5 w-3 h-3 rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
 
       <div className="rounded-2xl overflow-hidden flex flex-col flex-1">
@@ -108,8 +113,6 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
             )}
           </div>
 
-          {/* Spacer with rotated experience stamp, anchored bottom-right —
-              mirrors the original prototype's "stamp" detail */}
           <div className="relative flex-1 min-h-[2px]">
             {listing.experience && (
               <div
@@ -128,8 +131,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
           </div>
         </div>
 
-        {/* Seam — dashed perforation with notch cutouts, like a torn ticket
-            stub, separating the card body from the footer */}
+        {/* Seam */}
         <div className="relative mt-0.5">
           <span className="absolute top-1/2 -left-px -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
           <span className="absolute top-1/2 -right-px -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
@@ -149,35 +151,56 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
           ) : <span />}
 
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => onEdit(listing)}
-              className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
-            >
-              Edit
-            </button>
-
-            {deleteConfirm === index ? (
+            {isOwner ? (
+              /* ── Owner: Edit + Delete ── */
               <>
                 <button
-                  onClick={() => onDeleteConfirm(index)}
-                  className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  onClick={() => onEdit(listing)}
+                  className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
                 >
-                  Confirm
+                  Edit
                 </button>
-                <button
-                  onClick={onDeleteCancel}
-                  className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
-                >
-                  No
-                </button>
+
+                {deleteConfirm === index ? (
+                  <>
+                    <button
+                      onClick={() => onDeleteConfirm(index)}
+                      className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={onDeleteCancel}
+                      className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
+                    >
+                      No
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => onDeleteRequest(index)}
+                    className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                  >
+                    Delete
+                  </button>
+                )}
               </>
             ) : (
-              <button
-                onClick={() => onDeleteRequest(index)}
-                className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
-              >
-                Delete
-              </button>
+              /* ── Other user: Accept + Decline ── */
+              <>
+                <button
+                  onClick={() => onAccept?.(index)}
+                  className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => onDecline?.(index)}
+                  className="px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  Decline
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -187,7 +210,7 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function ServiceListingsAllPage({ listings = [], onDelete, dark }) {
+export default function ServiceListingsAllPage({ listings = [], onDelete, onAccept, onDecline, dark }) {
   const [open, setOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -217,8 +240,11 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
     setDeleteConfirm(null);
   };
 
+  // TODO: REMOVE — merge real listings with temp cards; delete `allListings` and use `listings` directly when done
+  const allListings = useMemo(() => [...listings, ...TEMP_CARDS], [listings]);
+
   const visibleListings = useMemo(() => {
-    const indexed = listings.map((listing, originalIndex) => ({ listing, originalIndex }));
+    const indexed = allListings.map((listing, originalIndex) => ({ listing, originalIndex }));
     const filtered = categoryFilter === "All"
       ? indexed
       : indexed.filter(({ listing }) => listing.category === categoryFilter);
@@ -238,7 +264,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
     });
 
     return sorted;
-  }, [listings, categoryFilter, sortBy]);
+  }, [allListings, categoryFilter, sortBy]);
 
   const bg = dark ? "bg-[#0d0d0d]" : "bg-[#f5f5f7]";
   const headerBg = dark ? "bg-[#111] border-white/10" : "bg-white border-[#ebebeb]";
@@ -273,12 +299,12 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
           Listed Services
         </p>
 
-        <div className={`min-w-[40px] text-right`}>
-          {listings.length > 0 && (
+        <div className="min-w-[40px] text-right">
+          {allListings.length > 0 && (
             <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
               dark ? "bg-white/10 text-white/60" : "bg-[#ff2d55]/10 text-[#ff2d55]"
             }`}>
-              {listings.length}
+              {allListings.length}
             </span>
           )}
         </div>
@@ -286,7 +312,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
 
       <div className="flex-1 min-h-0 w-full px-6 py-6 flex flex-col gap-4 overflow-hidden">
 
-        {listings.length === 0 ? (
+        {allListings.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#ddd] bg-white p-16 flex flex-col items-center gap-3 text-center">
             <span className="text-4xl">🏘️</span>
             <p className="text-[15px] font-black text-[#111]">Nothing here yet</p>
@@ -319,7 +345,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
               </div>
 
               <span className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap ${metaCol}`}>
-                {visibleListings.length} of {listings.length} shown
+                {visibleListings.length} of {allListings.length} shown
               </span>
             </div>
 
@@ -349,6 +375,8 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
                       onDeleteRequest={(idx) => setDeleteConfirm(idx)}
                       onDeleteConfirm={handleDelete}
                       onDeleteCancel={() => setDeleteConfirm(null)}
+                      onAccept={onAccept}
+                      onDecline={onDecline}
                     />
                   ))}
                 </div>
@@ -361,32 +389,17 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, dark }
   );
 }
 
-// ── Demo data + wrapper so this renders standalone in the artifact preview ───
-const DEMO_LISTINGS = [
-  { title: "Ramesh Kumar — Plumbing", category: "Plumber", price: 350, priceType: "Per visit", description: "24/7 emergency leak fixing, pipe fitting, and bathroom installs. 12 years in the colony.", area: "Sector 14", availability: "Mon-Sat", experience: 12, phone: "+91 98765 43210", photoUrl: null },
-  { title: "Sunita's Daycare", category: "Daycare & Babysitting", price: 6500, priceType: "Monthly", description: "Safe, loving daycare for ages 1-5. CPR certified, home-cooked meals included.", area: "Green Park", availability: "8am-6pm", experience: 7, phone: "+91 91234 56789", photoUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&h=400&fit=crop" },
-  { title: "Quick Fix Electrical", category: "Electrician", price: 250, priceType: "Per visit", description: "Wiring, fan installs, MCB issues — same day response.", area: "Sector 9", availability: "Anytime", experience: 5, phone: "+91 99887 76655", photoUrl: null },
-  { title: "Anjali Tutoring", category: "Tutoring", price: 800, priceType: "Monthly", description: "Maths & Science, grades 6-10. Board exam focused, small batches.", area: "Lake View", availability: "Evenings", experience: 4, phone: "+91 90000 11122", photoUrl: "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?w=400&h=400&fit=crop" },
-  { title: "Bruno's Pet Walks", category: "Pet Care", price: 200, priceType: "One-time", description: "Daily walks and weekend boarding for dogs of any size.", area: "Sector 14", availability: "Morning", experience: 2, phone: "+91 98123 45678", photoUrl: null },
-  { title: "Ghar Ka Khana", category: "Cook & Catering", price: 4000, priceType: "Monthly", description: "North Indian home-style tiffin service, fresh daily.", area: "Model Town", availability: "Lunch & Dinner", experience: 9, phone: "+91 97654 32109", photoUrl: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=400&fit=crop" },
-];
-
+// ── Demo wrapper ──────────────────────────────────────────────────────────────
 export function Demo() {
-  const [listings, setListings] = useState(DEMO_LISTINGS);
+  const [listings, setListings] = useState([
+    { isOwner: true, title: "My Plumbing Service", category: "Plumber", price: 350, priceType: "Per visit", description: "24/7 emergency leak fixing, pipe fitting, and bathroom installs.", area: "Sector 14", availability: "Mon-Sat", experience: 12, phone: "+91 98765 43210" },
+  ]);
   return (
     <ServiceListingsAllPage
       listings={listings}
       onDelete={(idx) => setListings((prev) => prev.filter((_, i) => i !== idx))}
-    />
-  );
-}
-
-export function DemoSingle() {
-  const [listings, setListings] = useState([DEMO_LISTINGS[1]]);
-  return (
-    <ServiceListingsAllPage
-      listings={listings}
-      onDelete={(idx) => setListings((prev) => prev.filter((_, i) => i !== idx))}
+      onAccept={(idx) => console.log("Accepted", idx)}
+      onDecline={(idx) => console.log("Declined", idx)}
     />
   );
 }
