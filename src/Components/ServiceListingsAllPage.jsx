@@ -48,7 +48,7 @@ function ringFor(index) {
 }
 
 // ── Service Card ──────────────────────────────────────────────────────────────
-function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline }) {
+function ServiceCard({ listing, index, deleteConfirm, isAccepted, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onChat }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
   const ring = ringFor(index);
   const isOwner = listing.isOwner;
@@ -140,14 +140,16 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 
         {/* Footer */}
         <div className="px-3 py-1.5 flex items-center justify-between gap-2">
-          {listing.phone ? (
-            <a
-              href={`tel:${listing.phone}`}
-              className="text-[10px] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-1"
-            >
-              <span className="text-[9px]">📞</span>
-              {listing.phone}
-            </a>
+          {isOwner || !isAccepted ? (
+            listing.phone ? (
+              <a
+                href={`tel:${listing.phone}`}
+                className="text-[10px] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-1"
+              >
+                <span className="text-[9px]">📞</span>
+                {listing.phone}
+              </a>
+            ) : <span />
           ) : <span />}
 
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -185,6 +187,29 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
                   </button>
                 )}
               </>
+            ) : isAccepted ? (
+              /* ── Accepted: poster's phone number + chat icon ── */
+              <div className="flex items-center gap-1.5 w-full justify-between">
+                {listing.phone ? (
+                  <a
+                    href={`tel:${listing.phone}`}
+                    className="text-[10px] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-1"
+                  >
+                    <span className="text-[9px]">📞</span>
+                    {listing.phone}
+                  </a>
+                ) : (
+                  <span className="text-[9px] font-bold text-[#999]">No number</span>
+                )}
+                <button
+                  onClick={() => onChat?.(index)}
+                  aria-label="Chat"
+                  title="Chat"
+                  className="w-6 h-6 flex-shrink-0 rounded-full flex items-center justify-center text-[11px] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+                >
+                  💬
+                </button>
+              </div>
             ) : (
               /* ── Other user: Accept + Decline ── */
               <>
@@ -210,11 +235,17 @@ function ServiceCard({ listing, index, deleteConfirm, onEdit, onDeleteRequest, o
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function ServiceListingsAllPage({ listings = [], onDelete, onAccept, onDecline, dark }) {
+export default function ServiceListingsAllPage({ listings = [], onDelete, onAccept, onDecline, onChat, dark }) {
   const [open, setOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
+
+  // Locally-scoped, "this account only" state. Declining hides a card just for
+  // this viewer without touching the underlying listing; accepting flips that
+  // card's footer to show contact details instead of Accept/Decline.
+  const [declinedIndexes, setDeclinedIndexes] = useState(() => new Set());
+  const [acceptedIndexes, setAcceptedIndexes] = useState(() => new Set());
 
   useEffect(() => {
     const handler = (e) => {
@@ -240,11 +271,25 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
     setDeleteConfirm(null);
   };
 
+  const handleAccept = (index) => {
+    setAcceptedIndexes((prev) => new Set(prev).add(index));
+    onAccept?.(index);
+  };
+
+  const handleDecline = (index) => {
+    // Remove from this viewer's list only — the listing itself is untouched.
+    setDeclinedIndexes((prev) => new Set(prev).add(index));
+    onDecline?.(index);
+  };
+
   // TODO: REMOVE — merge real listings with temp cards; delete `allListings` and use `listings` directly when done
   const allListings = useMemo(() => [...listings, ...TEMP_CARDS], [listings]);
 
   const visibleListings = useMemo(() => {
-    const indexed = allListings.map((listing, originalIndex) => ({ listing, originalIndex }));
+    const indexed = allListings
+      .map((listing, originalIndex) => ({ listing, originalIndex }))
+      .filter(({ originalIndex }) => !declinedIndexes.has(originalIndex));
+
     const filtered = categoryFilter === "All"
       ? indexed
       : indexed.filter(({ listing }) => listing.category === categoryFilter);
@@ -264,7 +309,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
     });
 
     return sorted;
-  }, [allListings, categoryFilter, sortBy]);
+  }, [allListings, categoryFilter, sortBy, declinedIndexes]);
 
   const bg = dark ? "bg-[#0d0d0d]" : "bg-[#f5f5f7]";
   const headerBg = dark ? "bg-[#111] border-white/10" : "bg-white border-[#ebebeb]";
@@ -371,12 +416,14 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                       listing={listing}
                       index={originalIndex}
                       deleteConfirm={deleteConfirm}
+                      isAccepted={acceptedIndexes.has(originalIndex)}
                       onEdit={handleEdit}
                       onDeleteRequest={(idx) => setDeleteConfirm(idx)}
                       onDeleteConfirm={handleDelete}
                       onDeleteCancel={() => setDeleteConfirm(null)}
-                      onAccept={onAccept}
-                      onDecline={onDecline}
+                      onAccept={handleAccept}
+                      onDecline={handleDecline}
+                      onChat={onChat}
                     />
                   ))}
                 </div>
@@ -400,6 +447,7 @@ export function Demo() {
       onDelete={(idx) => setListings((prev) => prev.filter((_, i) => i !== idx))}
       onAccept={(idx) => console.log("Accepted", idx)}
       onDecline={(idx) => console.log("Declined", idx)}
+      onChat={(idx) => console.log("Open chat for", idx)}
     />
   );
 }
