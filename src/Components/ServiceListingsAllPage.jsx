@@ -51,7 +51,7 @@ function HeartIcon({ filled }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="w-[4.4cqw] h-[4.4cqw]"
+      className="w-[3.6cqw] h-[3.6cqw]"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={filled ? 0 : 2}
@@ -91,7 +91,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
         onClick={() => onToggleWishlist?.(index)}
         aria-label={isWishlisted ? "Remove from wishlist" : "Save to wishlist"}
         aria-pressed={isWishlisted}
-        className={`absolute top-[3.2cqw] right-[3.2cqw] z-20 w-[8.6cqw] h-[8.6cqw] flex-shrink-0 rounded-full flex items-center justify-center cursor-pointer border transition-all duration-200 active:scale-90 ${
+        className={`absolute top-[2.6cqw] right-[2.6cqw] z-20 w-[7.2cqw] h-[7.2cqw] flex-shrink-0 rounded-full flex items-center justify-center cursor-pointer border transition-all duration-200 active:scale-90 ${
           isWishlisted
             ? "bg-[#ff2d55] border-[#ff2d55] text-white shadow-[0_4px_10px_rgba(255,45,85,0.35)]"
             : "bg-white/95 border-[#ebebeb] text-[#bbb] shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:text-[#ff2d55] hover:border-[#ff2d55]/40"
@@ -102,8 +102,8 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
 
       <div className="flex flex-col flex-1">
         {/* Identity row */}
-        <div className="flex items-start gap-[3cqw] pl-[5.5cqw] pr-[11cqw] pt-[5.5cqw] pb-[3cqw]">
-          <div className="w-[15cqw] h-[15cqw] flex-shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br from-[#fff5f7] to-[#eef4ff] border border-white shadow-sm flex items-center justify-center text-[7cqw] transition-transform duration-300 group-hover:scale-105">
+        <div className="flex items-start gap-[2.6cqw] pl-[4.5cqw] pr-[9cqw] pt-[4.2cqw] pb-[2cqw]">
+          <div className="w-[11.5cqw] h-[11.5cqw] flex-shrink-0 rounded-xl overflow-hidden bg-gradient-to-br from-[#fff5f7] to-[#eef4ff] border border-white shadow-sm flex items-center justify-center text-[5.4cqw] transition-transform duration-300 group-hover:scale-105">
             {listing.photoUrl ? (
               <img src={listing.photoUrl} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -111,21 +111,21 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-[1.4cqw]">
-              <span className="inline-flex max-w-full items-center text-[2.9cqw] font-black uppercase tracking-wide text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-[2.6cqw] py-[1cqw] truncate">
+            <div className="flex flex-wrap items-center gap-[1.1cqw]">
+              <span className="inline-flex max-w-full items-center text-[2.3cqw] font-black uppercase tracking-wide text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-[2cqw] py-[0.8cqw] truncate">
                 {listing.category}
               </span>
               {listing.verified && (
-                <span className="inline-flex items-center text-[2.9cqw] font-bold text-[#16a34a] bg-[#dcfce7] rounded-full px-[2.6cqw] py-[1cqw] whitespace-nowrap">
+                <span className="inline-flex items-center text-[2.3cqw] font-bold text-[#16a34a] bg-[#dcfce7] rounded-full px-[2cqw] py-[0.8cqw] whitespace-nowrap">
                   Verified
                 </span>
               )}
             </div>
-            <h3 className="text-[4.8cqw] font-extrabold tracking-tight leading-tight text-[#1a1a1a] mt-[2cqw] line-clamp-1 break-words">
+            <h3 className="text-[3.8cqw] font-extrabold tracking-tight leading-snug text-[#1a1a1a] mt-[1.2cqw] line-clamp-2 break-words">
               {listing.title}
             </h3>
             {listing.description && (
-              <p className="text-[3.6cqw] text-[#999] leading-snug line-clamp-1 mt-[0.6cqw]">
+              <p className="text-[2.9cqw] text-[#999] leading-snug line-clamp-2 mt-[0.5cqw] break-words">
                 {listing.description}
               </p>
             )}
@@ -134,27 +134,27 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
 
         {/* Meta rows + stat rows — flex-1 so the footer stays pinned to the
             bottom of the card regardless of how much content is above it. */}
-        <div className="flex flex-col gap-[2.4cqw] px-[5.5cqw] flex-1">
+        <div className="flex flex-col gap-[1.6cqw] px-[4.5cqw] flex-1">
           {(listing.area || listing.availability) && (
-            <div className="flex flex-wrap gap-[1.5cqw]">
+            <div className="flex flex-wrap gap-[1.2cqw]">
               {listing.area && (
-                <span className="inline-flex items-center gap-[1.4cqw] rounded-full bg-gray-100 px-[2cqw] py-[0.8cqw] text-[3.2cqw] font-semibold text-[#555]">
+                <span className="inline-flex items-center gap-[1cqw] rounded-full bg-gray-100 px-[1.8cqw] py-[0.7cqw] text-[2.6cqw] font-semibold text-[#555] max-w-full truncate">
                   📍 {listing.area}
                 </span>
               )}
               {listing.availability && (
-                <span className="inline-flex items-center gap-[1.4cqw] rounded-full bg-gray-100 px-[2cqw] py-[0.8cqw] text-[3.2cqw] font-semibold text-[#555]">
+                <span className="inline-flex items-center gap-[1cqw] rounded-full bg-gray-100 px-[1.8cqw] py-[0.7cqw] text-[2.6cqw] font-semibold text-[#555] max-w-full truncate">
                   🕐 {listing.availability}
                 </span>
               )}
             </div>
           )}
           {listing.rating != null && (
-            <div className="flex items-center gap-[1.6cqw] text-[3.8cqw] font-bold text-[#1a1a1a]">
-              <span className="text-[3.8cqw]">⭐</span>
+            <div className="flex items-center gap-[1.2cqw] text-[3cqw] font-bold text-[#1a1a1a]">
+              <span className="text-[3cqw]">⭐</span>
               {listing.rating}
               {listing.reviewCount != null && (
-                <span className="text-[3.4cqw] font-semibold text-[#999]">({listing.reviewCount} reviews)</span>
+                <span className="text-[2.6cqw] font-semibold text-[#999]">({listing.reviewCount} reviews)</span>
               )}
             </div>
           )}
@@ -164,20 +164,20 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
           )}
 
           {(listing.price || listing.experience) && (
-            <div className="flex items-end justify-between gap-[2cqw]">
+            <div className="flex items-end justify-between gap-[1.6cqw]">
               {listing.price && (
-                <div className="flex flex-col gap-[0.4cqw]">
-                  <p className="text-[3.2cqw] font-semibold text-gray-500">Starting at</p>
-                  <div className="flex items-end gap-[0.8cqw]">
-                    <span className="text-[5.6cqw] font-black text-[#ff2d55] leading-none">₹{listing.price}</span>
+                <div className="min-w-0 flex flex-col gap-[0.3cqw]">
+                  <p className="text-[2.5cqw] font-semibold text-gray-500">Starting at</p>
+                  <div className="flex items-end gap-[0.6cqw]">
+                    <span className="text-[4.4cqw] font-black text-[#ff2d55] leading-none whitespace-nowrap">₹{listing.price}</span>
                     {priceUnitShort(listing.priceType) && (
-                      <span className="text-[3cqw] text-gray-500 leading-none">{priceUnitShort(listing.priceType)}</span>
+                      <span className="text-[2.3cqw] text-gray-500 leading-none whitespace-nowrap">{priceUnitShort(listing.priceType)}</span>
                     )}
                   </div>
                 </div>
               )}
               {listing.experience && (
-                <span className="inline-flex flex-shrink-0 items-center gap-[1cqw] rounded-full bg-amber-50 text-amber-700 px-[2.5cqw] py-[1cqw] text-[3.2cqw] font-semibold whitespace-nowrap">
+                <span className="inline-flex flex-shrink-0 items-center gap-[0.8cqw] rounded-full bg-amber-50 text-amber-700 px-[2cqw] py-[0.8cqw] text-[2.5cqw] font-semibold whitespace-nowrap">
                   ⭐ {listing.experience} Years
                 </span>
               )}
@@ -186,7 +186,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mx-[5.5cqw] mt-[2.5cqw]" />
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mx-[4.5cqw] mt-[1.8cqw]" />
 
         {/* Footer
             NOTE: font sizes/padding here use clamp(min, Ncqw, max) instead of
@@ -194,7 +194,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             (3-per-row desktop) cards that pushed the phone number + buttons
             past the available width, cutting the number off. clamp() keeps
             the same fluid feel on small cards but caps growth on large ones. */}
-        <div className="px-[6cqw] py-[3.5cqw] flex items-center gap-[clamp(6px,2cqw,14px)]">
+        <div className="px-[4.5cqw] py-[2.6cqw] flex items-center gap-[clamp(6px,2cqw,14px)]">
           {isOwner || !isAccepted ? (
             listing.phone ? (
               <a
@@ -270,13 +270,13 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
               <>
                 <button
                   onClick={() => onAccept?.(index)}
-                  className="px-[3.8cqw] py-[1.4cqw] rounded-full text-[4.2cqw] font-bold cursor-pointer border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
+                  className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
                 >
                   Accept
                 </button>
                 <button
                   onClick={() => onDecline?.(index)}
-                  className="px-[3.8cqw] py-[1.4cqw] rounded-full text-[4.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                  className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
                 >
                   Decline
                 </button>
