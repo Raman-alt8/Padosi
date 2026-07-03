@@ -216,7 +216,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
 
           <div className="flex items-center gap-[clamp(4px,1cqw,8px)] flex-shrink-0">
             {isOwner ? (
-              /* ── Owner: Edit + Delete ── */
+              /* ── Owner: Edit + Remove ── */
               <>
                 <button
                   onClick={() => onEdit(listing)}
@@ -245,7 +245,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
                     onClick={() => onDeleteRequest(index)}
                     className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
                   >
-                    Delete
+                    Remove
                   </button>
                 )}
               </>
