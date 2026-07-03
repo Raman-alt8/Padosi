@@ -60,21 +60,39 @@ function ListingsGrid({ showToast, dark }) {
   );
 }
 
+// Pulls whichever id field is present on the logged-in user object, so this
+// keeps working regardless of whether auth wires up `id`, `_id`, or `userId`.
+function currentUserId(currentUser) {
+  const raw = currentUser?.id ?? currentUser?._id ?? currentUser?.userId;
+  return raw != null ? String(raw) : null;
+}
+
 // ─── Main export ─────────────────────────────────────────────────────────────
 export default function PadosiListings({ showToast, currentUser, onSelectCategory, dark = false }) {
   const [listings, setListings] = useState([]);
 
   // Pull every listing from the shared backend — this is what makes a post
   // from one account visible on every other account, not just the poster's.
+  // Each row comes back with `user_id` (the poster's id) from the services
+  // table; we stamp `isOwner` here by comparing that against the logged-in
+  // user, since ServiceListingsAllPage only trusts `listing.isOwner` and
+  // never computes ownership itself.
   const fetchListings = useCallback(async () => {
     try {
       const res = await fetch("/api/services", { credentials: "include" });
       const data = await res.json();
-      if (res.ok) setListings(data.services || []);
+      if (res.ok) {
+        const myId = currentUserId(currentUser);
+        const withOwnership = (data.services || []).map((service) => ({
+          ...service,
+          isOwner: myId != null && String(service.user_id) === myId,
+        }));
+        setListings(withOwnership);
+      }
     } catch (err) {
       console.error("Could not load service listings:", err);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     fetchListings();
