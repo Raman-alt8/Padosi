@@ -47,7 +47,6 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
     setOpen(false);
     // Jump straight to the All Listings page, pre-filtered to this category
     window.dispatchEvent(new CustomEvent("padosi:allListings", { detail: { category: cat.label } }));
-    onSelectCategory?.(cat);
   };
 
   return (
