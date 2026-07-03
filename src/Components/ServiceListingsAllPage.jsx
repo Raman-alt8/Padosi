@@ -102,8 +102,8 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
 
       <div className="flex flex-col flex-1">
         {/* Identity row */}
-        <div className="flex items-start gap-[3cqw] pl-[5.5cqw] pr-[11cqw] pt-[5.5cqw] pb-[2cqw]">
-          <div className="w-[13cqw] h-[13cqw] flex-shrink-0 rounded-xl overflow-hidden bg-[#f5f5f5] flex items-center justify-center text-[6cqw]">
+        <div className="flex items-start gap-[3cqw] pl-[5.5cqw] pr-[11cqw] pt-[5.5cqw] pb-[3cqw]">
+          <div className="w-[15cqw] h-[15cqw] flex-shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br from-[#fff5f7] to-[#eef4ff] border border-white shadow-sm flex items-center justify-center text-[7cqw] transition-transform duration-300 group-hover:scale-105">
             {listing.photoUrl ? (
               <img src={listing.photoUrl} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -112,7 +112,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-[1.4cqw]">
-              <span className="inline-flex max-w-full items-center text-[2.9cqw] font-black uppercase tracking-wide text-[#2563eb] bg-[#eaf2ff] rounded-full px-[2.6cqw] py-[1cqw] truncate">
+              <span className="inline-flex max-w-full items-center text-[2.9cqw] font-black uppercase tracking-wide text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-[2.6cqw] py-[1cqw] truncate">
                 {listing.category}
               </span>
               {listing.verified && (
@@ -121,7 +121,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
                 </span>
               )}
             </div>
-            <h3 className="text-[4.8cqw] font-black text-[#1a1a1a] leading-snug mt-[1.6cqw] line-clamp-1 break-words">
+            <h3 className="text-[4.8cqw] font-extrabold tracking-tight leading-tight text-[#1a1a1a] mt-[2cqw] line-clamp-1 break-words">
               {listing.title}
             </h3>
             {listing.description && (
@@ -134,17 +134,19 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
 
         {/* Meta rows + stat rows — flex-1 so the footer stays pinned to the
             bottom of the card regardless of how much content is above it. */}
-        <div className="flex flex-col gap-[1.8cqw] px-[5.5cqw] flex-1">
-          {listing.area && (
-            <div className="flex items-center gap-[2cqw] text-[3.8cqw] font-semibold text-[#555]">
-              <span className="text-[3.8cqw] flex-shrink-0">📍</span>
-              <span className="truncate">{listing.area}</span>
-            </div>
-          )}
-          {listing.availability && (
-            <div className="flex items-center gap-[2cqw] text-[3.8cqw] font-semibold text-[#555]">
-              <span className="text-[3.8cqw] flex-shrink-0">🕐</span>
-              <span className="truncate">{listing.availability}</span>
+        <div className="flex flex-col gap-[2.4cqw] px-[5.5cqw] flex-1">
+          {(listing.area || listing.availability) && (
+            <div className="flex flex-wrap gap-[1.5cqw]">
+              {listing.area && (
+                <span className="inline-flex items-center gap-[1.4cqw] rounded-full bg-gray-100 px-[2cqw] py-[0.8cqw] text-[3.2cqw] font-semibold text-[#555]">
+                  📍 {listing.area}
+                </span>
+              )}
+              {listing.availability && (
+                <span className="inline-flex items-center gap-[1.4cqw] rounded-full bg-gray-100 px-[2cqw] py-[0.8cqw] text-[3.2cqw] font-semibold text-[#555]">
+                  🕐 {listing.availability}
+                </span>
+              )}
             </div>
           )}
           {listing.rating != null && (
@@ -157,28 +159,34 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             </div>
           )}
 
-          {hasMetaRow && hasStatRow && <div className="border-t border-[#eee]" />}
-
-          {listing.price && (
-            <div className="flex items-center justify-between gap-[2cqw]">
-              <span className="text-[3.4cqw] font-semibold text-[#999]">Starting from</span>
-              <span className="text-[4.4cqw] font-black text-[#1a1a1a] whitespace-nowrap">
-                ₹{listing.price}{priceUnitShort(listing.priceType)}
-              </span>
-            </div>
+          {hasMetaRow && hasStatRow && (
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
           )}
-          {listing.experience && (
-            <div className="flex items-center justify-between gap-[2cqw]">
-              <span className="text-[3.4cqw] font-semibold text-[#999]">Experience</span>
-              <span className="text-[3.8cqw] font-bold text-[#1a1a1a] whitespace-nowrap">
-                {listing.experience} years
-              </span>
+
+          {(listing.price || listing.experience) && (
+            <div className="flex items-end justify-between gap-[2cqw]">
+              {listing.price && (
+                <div className="flex flex-col gap-[0.4cqw]">
+                  <p className="text-[3.2cqw] font-semibold text-gray-500">Starting at</p>
+                  <div className="flex items-end gap-[0.8cqw]">
+                    <span className="text-[5.6cqw] font-black text-[#ff2d55] leading-none">₹{listing.price}</span>
+                    {priceUnitShort(listing.priceType) && (
+                      <span className="text-[3cqw] text-gray-500 leading-none">{priceUnitShort(listing.priceType)}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              {listing.experience && (
+                <span className="inline-flex flex-shrink-0 items-center gap-[1cqw] rounded-full bg-amber-50 text-amber-700 px-[2.5cqw] py-[1cqw] text-[3.2cqw] font-semibold whitespace-nowrap">
+                  ⭐ {listing.experience} Years
+                </span>
+              )}
             </div>
           )}
         </div>
 
         {/* Divider */}
-        <div className="border-t border-[#eee] mx-[5.5cqw] mt-[2.5cqw]" />
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mx-[5.5cqw] mt-[2.5cqw]" />
 
         {/* Footer
             NOTE: font sizes/padding here use clamp(min, Ncqw, max) instead of
@@ -191,7 +199,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             listing.phone ? (
               <a
                 href={`tel:${listing.phone}`}
-                className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors truncate flex items-center gap-[clamp(3px,0.8cqw,6px)]"
+                className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#111] hover:text-[#ff2d55] transition-colors truncate flex items-center gap-[clamp(3px,0.8cqw,6px)]"
               >
                 <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
                 <span className="truncate">{listing.phone}</span>
@@ -240,7 +248,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
                 {listing.phone ? (
                   <a
                     href={`tel:${listing.phone}`}
-                    className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-bold text-[#ff2d55] hover:text-[#e0264a] transition-colors flex items-center gap-[clamp(3px,0.8cqw,6px)]"
+                    className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#111] hover:text-[#ff2d55] transition-colors flex items-center gap-[clamp(3px,0.8cqw,6px)]"
                   >
                     <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
                     <span className="truncate">{listing.phone}</span>
