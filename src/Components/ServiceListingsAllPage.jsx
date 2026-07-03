@@ -35,18 +35,13 @@ const SORT_OPTIONS = [
 // 3 columns × 2 rows on wider screens, 2 columns × 3 rows on narrow ones.
 const CARDS_PER_PAGE = 6;
 
-const RING_TINTS = ["#ffd1d6", "#ffdcaf", "#bfe6c9", "#bcd6f5", "#dcc7f0", "#f3c9e0"];
-function ringFor(index) {
-  return RING_TINTS[index % RING_TINTS.length];
-}
-
-// Human-readable price unit — falls back to whatever string was stored so
-// unrecognised priceType values still show something rather than nothing.
-function priceLabel(priceType) {
-  if (priceType === "Monthly") return "per month";
-  if (priceType === "Per visit") return "per visit";
-  if (priceType === "One-time") return "one-time";
-  return priceType || "";
+// Human-readable, compact price suffix — falls back to a parenthesised raw
+// value so unrecognised priceType strings still render something sane.
+function priceUnitShort(priceType) {
+  if (priceType === "Monthly") return "/month";
+  if (priceType === "Per visit") return "/visit";
+  if (priceType === "One-time") return "";
+  return priceType ? ` (${priceType})` : "";
 }
 
 // Simple line-style heart, filled + tinted when saved. Kept as its own
@@ -69,32 +64,27 @@ function HeartIcon({ filled }) {
 // ── Service Card ──────────────────────────────────────────────────────────────
 // NOTE: `[container-type:inline-size]` on the card root turns the card into a
 // CSS query container. Sizes below use `cqw` so content scales with the card's
-// own width. Two fixes vs. the old version:
-//   1. The identity row no longer starves the title of space — the avatar and
-//      price badge are smaller, and the title wraps to 2 lines instead of
-//      getting hard-truncated to a few characters.
-//   2. The card is no longer forced into a fixed grid row height that could
-//      clip the footer. The grid below uses auto rows sized to content, and
-//      the page scrolls if six full cards don't fit — so Accept/Decline/Edit/
-//      phone number are always visible.
+// own width. The grid uses auto rows sized to content, and the page scrolls if
+// six full cards don't fit — so the footer's phone number and action buttons
+// are always visible.
 //
-// Internal redesign: category is now a colour-tagged badge (ties into the
-// same ring tint as the avatar and the experience seal, so one colour reads
-// as "this listing" everywhere on the card). Price moved out of the cramped
-// identity row into its own line as the card's second-biggest read after the
-// title — it's the number people actually scan for. A heart toggle sits in
-// the top-right corner, inside the card, mirroring the pinned-flyer corkboard
-// pin at top-left without competing with it.
+// Layout: square image tile (falls back to the category emoji when there's
+// no photo) next to category + optional "Verified" badges, title, and a
+// one-line tagline. Below that, scannable meta rows (location, hours, and —
+// only when the data exists — a star rating) hand off to two label/value
+// stat rows for price and experience, the two numbers people are actually
+// comparing across cards. A heart toggle sits top-right for saving a listing.
+// `listing.verified`, `listing.rating`, and `listing.reviewCount` are all
+// optional — each row only renders when the field is present, nothing is
+// invented.
 function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onChat, onToggleWishlist }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
-  const ring = ringFor(index);
   const isOwner = listing.isOwner;
+  const hasMetaRow = listing.area || listing.availability || listing.rating != null;
+  const hasStatRow = listing.price || listing.experience;
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-visible flex flex-col h-full w-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25 [container-type:inline-size]">
-
-      {/* Pin */}
-      <span className="absolute -top-[2.6cqw] left-[9cqw] w-[5.2cqw] h-[5.2cqw] rounded-full bg-[#ff2d55] shadow-[0_2px_4px_rgba(0,0,0,0.25)] z-10" />
+    <div className="group relative bg-white rounded-2xl border border-[#ebebeb] overflow-hidden flex flex-col h-full w-full transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_22px_45px_rgba(0,0,0,0.14)] hover:border-[#ff2d55]/25 [container-type:inline-size]">
 
       {/* Wishlist */}
       <button
@@ -110,13 +100,10 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
         <HeartIcon filled={isWishlisted} />
       </button>
 
-      <div className="rounded-2xl overflow-hidden flex flex-col flex-1">
+      <div className="flex flex-col flex-1">
         {/* Identity row */}
-        <div className="relative flex items-start gap-[3cqw] pl-[5cqw] pr-[11cqw] pt-[5.5cqw] pb-[1.6cqw]">
-          <div
-            className="w-[12cqw] h-[12cqw] flex-shrink-0 rounded-full overflow-hidden bg-white flex items-center justify-center text-[6cqw]"
-            style={{ boxShadow: `0 0 0 2px #fff, 0 0 0 3px ${ring}` }}
-          >
+        <div className="flex items-start gap-[3cqw] pl-[5.5cqw] pr-[11cqw] pt-[5.5cqw] pb-[2cqw]">
+          <div className="w-[13cqw] h-[13cqw] flex-shrink-0 rounded-xl overflow-hidden bg-[#f5f5f5] flex items-center justify-center text-[6cqw]">
             {listing.photoUrl ? (
               <img src={listing.photoUrl} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -124,76 +111,74 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <span
-              className="inline-flex max-w-full items-center gap-[1.6cqw] text-[3.1cqw] font-black uppercase tracking-wide text-[#1a1a1a] rounded-full pl-[2.2cqw] pr-[2.8cqw] py-[1cqw]"
-              style={{ backgroundColor: ring }}
-            >
-              <span className="text-[3.6cqw] leading-none flex-shrink-0">{icon}</span>
-              <span className="truncate">{listing.category}</span>
-            </span>
-            <h3 className="text-[5cqw] font-black text-[#1a1a1a] leading-snug mt-[1.6cqw] line-clamp-2 break-words">
+            <div className="flex flex-wrap items-center gap-[1.4cqw]">
+              <span className="inline-flex max-w-full items-center text-[2.9cqw] font-black uppercase tracking-wide text-[#2563eb] bg-[#eaf2ff] rounded-full px-[2.6cqw] py-[1cqw] truncate">
+                {listing.category}
+              </span>
+              {listing.verified && (
+                <span className="inline-flex items-center text-[2.9cqw] font-bold text-[#16a34a] bg-[#dcfce7] rounded-full px-[2.6cqw] py-[1cqw] whitespace-nowrap">
+                  Verified
+                </span>
+              )}
+            </div>
+            <h3 className="text-[4.8cqw] font-black text-[#1a1a1a] leading-snug mt-[1.6cqw] line-clamp-1 break-words">
               {listing.title}
             </h3>
+            {listing.description && (
+              <p className="text-[3.6cqw] text-[#999] leading-snug line-clamp-1 mt-[0.6cqw]">
+                {listing.description}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Card body */}
-        <div className="flex flex-col gap-[2.2cqw] px-[5.5cqw] flex-1">
+        {/* Meta rows + stat rows — flex-1 so the footer stays pinned to the
+            bottom of the card regardless of how much content is above it. */}
+        <div className="flex flex-col gap-[1.8cqw] px-[5.5cqw] flex-1">
+          {listing.area && (
+            <div className="flex items-center gap-[2cqw] text-[3.8cqw] font-semibold text-[#555]">
+              <span className="text-[3.8cqw] flex-shrink-0">📍</span>
+              <span className="truncate">{listing.area}</span>
+            </div>
+          )}
+          {listing.availability && (
+            <div className="flex items-center gap-[2cqw] text-[3.8cqw] font-semibold text-[#555]">
+              <span className="text-[3.8cqw] flex-shrink-0">🕐</span>
+              <span className="truncate">{listing.availability}</span>
+            </div>
+          )}
+          {listing.rating != null && (
+            <div className="flex items-center gap-[1.6cqw] text-[3.8cqw] font-bold text-[#1a1a1a]">
+              <span className="text-[3.8cqw]">⭐</span>
+              {listing.rating}
+              {listing.reviewCount != null && (
+                <span className="text-[3.4cqw] font-semibold text-[#999]">({listing.reviewCount} reviews)</span>
+              )}
+            </div>
+          )}
+
+          {hasMetaRow && hasStatRow && <div className="border-t border-[#eee]" />}
+
           {listing.price && (
-            <div className="flex items-baseline gap-[2cqw]">
-              <span className="text-[6.6cqw] font-black text-[#1a1a1a] leading-none">
-                ₹{listing.price}
-              </span>
-              <span className="text-[3.2cqw] font-bold text-[#999] uppercase tracking-wide leading-none">
-                {priceLabel(listing.priceType)}
+            <div className="flex items-center justify-between gap-[2cqw]">
+              <span className="text-[3.4cqw] font-semibold text-[#999]">Starting from</span>
+              <span className="text-[4.4cqw] font-black text-[#1a1a1a] whitespace-nowrap">
+                ₹{listing.price}{priceUnitShort(listing.priceType)}
               </span>
             </div>
           )}
-          {listing.description && (
-            <p className="text-[4.6cqw] text-[#888] leading-snug line-clamp-2">
-              {listing.description}
-            </p>
+          {listing.experience && (
+            <div className="flex items-center justify-between gap-[2cqw]">
+              <span className="text-[3.4cqw] font-semibold text-[#999]">Experience</span>
+              <span className="text-[3.8cqw] font-bold text-[#1a1a1a] whitespace-nowrap">
+                {listing.experience} years
+              </span>
+            </div>
           )}
-
-          <div className="flex flex-wrap gap-[2.2cqw]">
-            {listing.area && (
-              <span className="inline-flex items-center gap-[2.2cqw] text-[4.2cqw] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-[3.3cqw] py-[1.1cqw]">
-                <span className="text-[4cqw]">📍</span>
-                {listing.area}
-              </span>
-            )}
-            {listing.availability && (
-              <span className="inline-flex items-center gap-[2.2cqw] text-[4.2cqw] font-bold text-[#555] bg-[#f4f4f4] rounded-full px-[3.3cqw] py-[1.1cqw]">
-                <span className="text-[4cqw]">🕐</span>
-                {listing.availability}
-              </span>
-            )}
-          </div>
-
-          <div className="relative flex-1 min-h-[2px]">
-            {listing.experience && (
-              <div
-                className="absolute right-0 bottom-0 w-[13cqw] h-[13cqw] rounded-full border flex flex-col items-center justify-center opacity-85"
-                style={{ borderColor: ring, transform: "rotate(-9deg)" }}
-              >
-                <span className="text-[4.4cqw] font-black text-[#1a1a1a] opacity-55 leading-none">
-                  {listing.experience}
-                  <sup className="text-[3cqw]">y</sup>
-                </span>
-                <span className="text-[2.3cqw] font-bold uppercase tracking-widest text-[#1a1a1a] opacity-40 mt-[1cqw]">
-                  Exp
-                </span>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Seam */}
-        <div className="relative mt-[3cqw]">
-          <span className="absolute top-1/2 -left-px -translate-y-1/2 w-[5cqw] h-[5cqw] rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
-          <span className="absolute top-1/2 -right-px -translate-y-1/2 w-[5cqw] h-[5cqw] rounded-full bg-[#f5f5f7] border border-[#ebebeb]" />
-          <div className="border-t border-dashed border-[#dcd8cf] mx-[6cqw]" />
-        </div>
+        {/* Divider */}
+        <div className="border-t border-[#eee] mx-[5.5cqw] mt-[2.5cqw]" />
 
         {/* Footer
             NOTE: font sizes/padding here use clamp(min, Ncqw, max) instead of
@@ -220,9 +205,9 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
               <>
                 <button
                   onClick={() => onEdit(listing)}
-                  className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#ff2d55]/25 text-[#ff2d55] bg-[#fff0f3] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+                  className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#555] bg-white hover:border-[#999] hover:text-[#1a1a1a] transition-colors"
                 >
-                  Edit
+                  <span className="text-[clamp(9px,1.6cqw,12px)]">✏️</span> Edit
                 </button>
 
                 {deleteConfirm === index ? (
@@ -243,9 +228,9 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
                 ) : (
                   <button
                     onClick={() => onDeleteRequest(index)}
-                    className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                    className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
                   >
-                    Remove
+                    <span className="text-[clamp(9px,1.6cqw,12px)]">🗑️</span> Remove
                   </button>
                 )}
               </>
