@@ -182,7 +182,9 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   };
 
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
-  const verified = !!(currentUser?.phone);
+  // Verified now requires BOTH a phone number and a profile photo — the photo
+  // is captured/saved by VerifiedSection.jsx via the same PUT /api/me call.
+  const verified = !!(currentUser?.phone && currentUser?.photo_url);
 
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
@@ -196,9 +198,15 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
       <h2 className={`text-xl font-bold mb-5 ${dark ? "text-white" : "text-[#111]"}`}>Manage account</h2>
 
       <div className="flex items-center gap-3.5 mb-6">
-        <span className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 border ${
+        <span className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 border overflow-hidden ${
           dark ? "bg-black text-white border-white" : "bg-[#fff0f3] text-[#ff2d55] border-transparent"
-        }`}>{initial}</span>
+        }`}>
+          {currentUser?.photo_url ? (
+            <img src={currentUser.photo_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            initial
+          )}
+        </span>
         <div>
           <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>{currentUser?.full_name || "User"}</p>
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 mt-1 border ${
@@ -206,7 +214,11 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
               ? dark ? "bg-black text-white border-white" : "bg-[#e3fbe8] text-[#1a9e4a] border-transparent"
               : dark ? "bg-black text-white border-white" : "bg-[#fff3cd] text-[#856404] border-transparent"
           }`}>
-            {verified ? "✅ Verified member" : "⚠️ Not verified — add a phone"}
+            {verified
+              ? "✅ Verified member"
+              : !currentUser?.photo_url
+                ? "⚠️ Not verified — add a photo"
+                : "⚠️ Not verified — add a phone"}
           </span>
         </div>
       </div>
@@ -405,7 +417,7 @@ const FAQS = [
   },
   {
     q: "How are members verified?",
-    a: "Members who add a phone number to their profile receive a Verified badge. This gives you an extra layer of trust — you can see at a glance whether your helper is verified.",
+    a: "Members who add a phone number and a profile photo receive a Verified badge. This gives you an extra layer of trust — you can see at a glance whether your helper is verified.",
   },
   {
     q: "My task hasn't been accepted yet — what do I do?",
@@ -580,6 +592,7 @@ export default function App() {
         showToast={showToast}
         onRequireLogin={() => setLoginOpen(true)}
         onOpenManage={() => setManageOpen(true)}
+        onUpdate={setCurrentUser}
         dark={darkMode}
       />
       <HowItWorks dark={darkMode} />
