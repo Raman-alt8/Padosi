@@ -6,6 +6,7 @@ import ServiceListingsPage from "./ServiceListingsPage";
 import PostServicePage from "./PostServicePage";
 import ServiceListingsAllPage from "./ServiceListingsAllPage";
 import RentVehiclePage from "./RentVehiclePage";
+import PostVehiclePage from "./PostVehiclePage";
 
 // ─── Listings Grid ──
 function ListingsGrid({ showToast, dark }) {
@@ -128,7 +129,10 @@ export default function PadosiListings({ showToast, currentUser, onSelectCategor
     <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
     <PostServicePage dark={dark} onSubmit={() => fetchListings()} />
     <ServiceListingsAllPage dark={dark} listings={listings} onDelete={handleDeleteListing} />
+
     <RentVehiclePage dark={dark} />
+    <PostVehiclePage dark={dark} />
+
     <BuyTicketPage showToast={showToast} dark={dark} user={currentUser} />
     <RideSharePage currentUser={currentUser} showToast={showToast} dark={dark} />
   </>
