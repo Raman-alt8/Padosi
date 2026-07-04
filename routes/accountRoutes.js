@@ -1,17 +1,40 @@
 // routes/accountRoutes.js
-const express     = require('express');
+const express   = require('express');
+const bcrypt    = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 
 const db          = require('../db');
 const requireAuth = require('../middleware/requireAuth');
 
 const router = express.Router();
+const isDev  = process.env.NODE_ENV !== 'production';
+
+// Limits password/confirmation guesses on account deletion to 5 attempts per
+// 15 minutes per IP.
+const deleteAccountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' },
+});
 
 // GET /api/me — return current session user
 router.get('/me', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ user: null });
-  const { id, full_name, email, avatar_url, phone, username } = req.user;
-  res.json({ user: { id, full_name, email, avatar_url, phone: phone || null, username: username || null } });
+  const { id, full_name, email, avatar_url, phone, username, password_hash } = req.user;
+  res.json({
+    user: {
+      id,
+      full_name,
+      email,
+      avatar_url,
+      phone: phone || null,
+      username: username || null,
+      has_password: !!password_hash,
+    },
+  });
 });
 
 // POST /api/me/phone — save phone number for the current user
@@ -121,8 +144,18 @@ router.put(
         req.user.username = username;
       }
 
-      const { id, full_name: fn, email: em, avatar_url: av, phone: ph, username: un } = req.user;
-      res.json({ user: { id, full_name: fn, email: em, avatar_url: av, phone: ph || null, username: un || null } });
+      const { id, full_name: fn, email: em, avatar_url: av, phone: ph, username: un, password_hash } = req.user;
+      res.json({
+        user: {
+          id,
+          full_name: fn,
+          email: em,
+          avatar_url: av,
+          phone: ph || null,
+          username: un || null,
+          has_password: !!password_hash,
+        },
+      });
     } catch (err) {
       if (err.message && err.message.includes('UNIQUE constraint failed') && err.message.includes('username')) {
         return res.status(409).json({ error: 'That username is already taken.' });
@@ -132,5 +165,75 @@ router.put(
     }
   }
 );
+
+// DELETE /api/me — permanently delete the current user's account and every
+// record tied to it (tasks, tickets, ride routes/responses, vehicle & service
+// listings, dismissals). Requires re-authentication:
+//   - Local accounts (have a password_hash): req.body.password must match
+//   - Google-only accounts (no password_hash): req.body.confirmation must be "DELETE"
+// Rate-limited to 5 attempts / 15 min per IP to prevent brute-forcing the password.
+router.delete('/me', requireAuth, deleteAccountLimiter, async (req, res) => {
+  const userId = req.user.id;
+  const { password, confirmation } = req.body;
+
+  try {
+    const user = await db.getAsync('SELECT * FROM users WHERE id = ?', [userId]);
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+
+    // ── Re-authentication gate ──────────────────────────
+    if (user.password_hash) {
+      if (!password) {
+        return res.status(400).json({ error: 'Please enter your password to confirm.' });
+      }
+      const match = await bcrypt.compare(password, user.password_hash);
+      if (!match) {
+        return res.status(401).json({ error: 'Incorrect password.' });
+      }
+    } else if (confirmation !== 'DELETE') {
+      return res.status(400).json({ error: 'Please type DELETE to confirm.' });
+    }
+
+    // ── Delete everything atomically ────────────────────
+    await db.runAsync('BEGIN TRANSACTION');
+    try {
+      // No ON DELETE CASCADE on these — with foreign_keys=ON, they must be
+      // cleared before the user row or the user delete itself will fail.
+      await db.runAsync('DELETE FROM vehicles   WHERE user_id = ?', [userId]);
+      await db.runAsync('DELETE FROM services   WHERE user_id = ?', [userId]);
+      await db.runAsync('DELETE FROM dismissals WHERE user_id = ?', [userId]);
+
+      // dismissals.task_id isn't a declared FK, so cascading tasks won't
+      // clean these up automatically — do it explicitly to avoid orphans.
+      await db.runAsync(
+        'DELETE FROM dismissals WHERE task_id IN (SELECT id FROM tasks WHERE user_id = ?)',
+        [userId]
+      );
+
+      // Deleting the user cascades to: tasks, tickets, ride_routes,
+      // ride_route_responses (all declared ON DELETE CASCADE in db.js).
+      await db.runAsync('DELETE FROM users WHERE id = ?', [userId]);
+
+      await db.runAsync('COMMIT');
+    } catch (err) {
+      await db.runAsync('ROLLBACK');
+      throw err;
+    }
+
+    // ── Kill the session ─────────────────────────────────
+    req.logout(() => {
+      req.session.destroy(() => {
+        res.clearCookie('connect.sid', {
+          httpOnly: true,
+          secure:   !isDev,
+          sameSite: isDev ? 'lax' : 'none',
+        });
+        res.json({ success: true });
+      });
+    });
+  } catch (err) {
+    console.error('Delete account error:', err);
+    res.status(500).json({ error: 'Could not delete account. Please try again.' });
+  }
+});
 
 module.exports = router;

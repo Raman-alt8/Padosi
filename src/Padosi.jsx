@@ -77,14 +77,11 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
   }`;
 
   const GoogleButton = () => (
-    <a
-      href="/auth/google"
-      className={`flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 text-sm font-semibold transition-all no-underline ${
-        dark
-          ? "border-white bg-black text-white hover:bg-[#1a1a1a]"
-          : "border-[#ddd] bg-white text-[#333] hover:border-[#bbb] hover:shadow-md"
-      }`}
-    >
+    <a href="/auth/google" className={`flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 text-sm font-semibold transition-all no-underline ${
+      dark
+        ? "border-white bg-black text-white hover:bg-[#1a1a1a]"
+        : "border-[#ddd] bg-white text-[#333] hover:border-[#bbb] hover:shadow-md"
+    }`}>
       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 flex-shrink-0" alt="Google" />
       <span>Continue with Google</span>
     </a>
@@ -153,7 +150,7 @@ function AuthModals({ loginOpen, signupOpen, onClose, onLogin, onSignup, showToa
 }
 
 // ─── Manage Account Modal ──
-function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, dark }) {
+function ManageAccountModal({ open, onClose, currentUser, onUpdate, onDeleteAccount, showToast, dark }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -193,9 +190,6 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   };
 
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
-  // Verified now requires a photo, email, username, AND phone number — the
-  // photo/email/username/phone are all captured via VerifiedSection.jsx's
-  // step wizard (or here) using the same PUT /api/me call.
   const verified = !!(currentUser?.phone && currentUser?.avatar_url && currentUser?.username && currentUser?.email);
   const missingLabel = !currentUser?.avatar_url ? "add a photo"
     : !currentUser?.email ? "add an email"
@@ -293,6 +287,99 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
         dark ? "bg-white text-black hover:opacity-80" : "bg-[#ff2d55] text-white hover:opacity-90"
       }`}>
         {loading ? "Saving…" : "Save changes"}
+      </button>
+
+      <div className={`mt-6 pt-5 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>
+        <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${dark ? "text-[#888]" : "text-[#999]"}`}>
+          Danger zone
+        </p>
+        <button
+          onClick={onDeleteAccount}
+          className={`w-full py-3 rounded-xl font-semibold text-sm cursor-pointer border transition-colors ${
+            dark
+              ? "border-[#ff2d55] text-[#ff2d55] bg-transparent hover:bg-[#ff2d55]/10"
+              : "border-[#ffd6dd] text-[#ff2d55] bg-[#fff5f7] hover:bg-[#ffe5ea]"
+          }`}
+        >
+          Delete account
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Delete Account Modal ──────────────────────────────────────────────────
+function DeleteAccountModal({ open, onClose, currentUser, onDeleted, showToast, dark }) {
+  const [password, setPassword] = useState("");
+  const [confirmText, setConfirmText] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const requiresPassword = !!currentUser?.has_password;
+
+  useEffect(() => {
+    if (open) { setPassword(""); setConfirmText(""); setError(""); }
+  }, [open]);
+
+  const canSubmit = confirmText === "DELETE" && (!requiresPassword || password.length > 0);
+
+  const handleDelete = async () => {
+    if (confirmText !== "DELETE") { setError('Please type "DELETE" to confirm.'); return; }
+    if (requiresPassword && !password) { setError("Please enter your password."); return; }
+
+    setLoading(true); setError("");
+    try {
+      await api("DELETE", "/api/me", { password, confirmation: confirmText });
+      showToast("👋 Account deleted. We're sorry to see you go.");
+      onDeleted();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
+    dark
+      ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
+      : "bg-white border-[#ddd] text-[#111] placeholder:text-[#aaa] focus:border-[#ff2d55]"
+  }`;
+
+  return (
+    <Modal open={open} onClose={onClose} dark={dark}>
+      <ModalTag dark={dark}>Danger zone</ModalTag>
+      <h2 className={`text-xl font-bold mb-2 ${dark ? "text-white" : "text-[#111]"}`}>Delete your account</h2>
+      <p className={`text-sm leading-relaxed mb-5 ${dark ? "text-[#aaa]" : "text-[#555]"}`}>
+        This permanently deletes your profile, tasks, tickets, ride routes, and listings —
+        including your linked Gmail account and phone number. <strong>This cannot be undone.</strong>
+      </p>
+
+      {requiresPassword && (
+        <div className="mb-4">
+          <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dark ? "text-[#888]" : "text-[#999]"}`}>
+            Current password
+          </label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                 className={inputCls} placeholder="Enter your password" />
+        </div>
+      )}
+
+      <div className="mb-5">
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dark ? "text-[#888]" : "text-[#999]"}`}>
+          Type DELETE to confirm
+        </label>
+        <input value={confirmText} onChange={e => setConfirmText(e.target.value)}
+               className={inputCls} placeholder="DELETE" />
+      </div>
+
+      {error && <p className="text-[#ff2d55] text-xs mb-3">{error}</p>}
+
+      <button
+        onClick={handleDelete}
+        disabled={loading || !canSubmit}
+        className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer border-none transition-opacity disabled:opacity-50 bg-[#ff2d55] text-white hover:opacity-90"
+      >
+        {loading ? "Deleting…" : "Permanently delete my account"}
       </button>
     </Modal>
   );
@@ -519,10 +606,7 @@ function HelpModal({ open, onClose, dark }) {
         <p className={`text-xs mb-1 ${dark ? "text-[#888]" : "text-[#777]"}`}>
           We're happy to assist — reach us at
         </p>
-        <a
-          href="mailto:support@padosi.in"
-          className={`text-xs font-bold underline ${dark ? "text-white" : "text-[#ff2d55]"}`}
-        >
+        <a href="mailto:support@padosi.in" className={`text-xs font-bold underline ${dark ? "text-white" : "text-[#ff2d55]"}`}>
           support@padosi.in
         </a>
       </div>
@@ -539,6 +623,7 @@ export default function App() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -583,6 +668,13 @@ export default function App() {
     setTasks([]);
     setNearbyTasks([]);
     showToast("👋 Signed out successfully");
+  };
+
+  const handleAccountDeleted = () => {
+    setCurrentUser(null);
+    setTasks([]);
+    setNearbyTasks([]);
+    setDeleteAccountOpen(false);
   };
 
   return (
@@ -635,6 +727,15 @@ export default function App() {
         onClose={() => setManageOpen(false)}
         currentUser={currentUser}
         onUpdate={setCurrentUser}
+        onDeleteAccount={() => { setManageOpen(false); setDeleteAccountOpen(true); }}
+        showToast={showToast}
+        dark={darkMode}
+      />
+      <DeleteAccountModal
+        open={deleteAccountOpen}
+        onClose={() => setDeleteAccountOpen(false)}
+        currentUser={currentUser}
+        onDeleted={handleAccountDeleted}
         showToast={showToast}
         dark={darkMode}
       />
