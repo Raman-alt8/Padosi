@@ -54,23 +54,35 @@ function runMigrations(db) {
     if (err) console.error('Could not create vehicles table:', err);
   });
 
-  db.run(`ALTER TABLE users ADD COLUMN username TEXT`, err => {
-  if (err && !err.message.includes('duplicate column')) {
-    console.error('Could not add username column:', err);
-  }
-});
-
-// Run after the ALTER above — SQLite allows multiple NULL usernames in a
-// unique index (NULLs are never considered equal), so users without one yet
-// won't conflict with each other.
-db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)`, err => {
-  if (err) console.error('Could not create username unique index:', err);
-});
+  db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add phone column:', err);
+    }
+  });
 
   db.run(`ALTER TABLE tickets ADD COLUMN image_url TEXT DEFAULT ''`, err => {
     if (err && !err.message.includes('duplicate column')) {
       console.error('Could not add image_url column:', err);
     }
+  });
+
+  // IMPORTANT: node's sqlite3 driver does not guarantee that queued db.run()
+  // calls execute in the order they were fired unless the connection is
+  // serialized. The index creation below depends on the ALTER TABLE having
+  // actually finished, so it must be nested inside that callback rather than
+  // fired as a sibling call — otherwise it can run first and fail with
+  // "no such column: username" (which is what was happening before this fix).
+  db.run(`ALTER TABLE users ADD COLUMN username TEXT`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add username column:', err);
+      return; // bail — creating the index would fail anyway without the column
+    }
+
+    // SQLite allows multiple NULL usernames in a unique index (NULLs are
+    // never considered equal), so users without one yet won't conflict.
+    db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)`, err2 => {
+      if (err2) console.error('Could not create username unique index:', err2);
+    });
   });
 }
 
