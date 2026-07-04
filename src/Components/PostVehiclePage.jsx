@@ -1,17 +1,14 @@
 // PostVehiclePage.jsx
 import { useState, useEffect } from "react";
-import { VEHICLE_CATEGORIES } from "./RentVehiclePage";
 
-const PRICE_TYPES = ["Per Hour", "Per Day", "Per Week"];
+const PRICE_TYPES = ["Per Hour", "Per Day"];
 
 const emptyForm = {
-  category: VEHICLE_CATEGORIES[0].label,
   title: "",
   description: "",
   price: "",
   priceType: "Per Day",
   area: "",
-  availability: "",
   phone: "",
   photoUrl: "",
 };
@@ -23,15 +20,17 @@ const emptyForm = {
 // Passing { detail: { vehicle } } on the open event switches this into edit
 // mode — same convention ServiceListingsAllPage's Edit button uses today.
 //
-// ASSUMPTIONS (flag if these don't match your backend):
-//   - REST endpoints: POST /api/vehicles (create), PUT /api/vehicles/:id (edit)
-//   - Vehicle photo is stored as a data URL client-side (no upload endpoint)
+// Photo uploads happen in two steps, same as the rest of the app's upload flow:
+// picking a file immediately POSTs it to /api/upload (field name "image"),
+// which stores it on Cloudinary and returns a hosted URL; that URL is what
+// gets saved as photo_url when the vehicle form itself is submitted.
 export default function PostVehiclePage({ dark, onSubmit }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const handler = (e) => {
@@ -41,13 +40,11 @@ export default function PostVehiclePage({ dark, onSubmit }) {
       if (vehicle) {
         setEditingId(vehicle.id ?? null);
         setForm({
-          category: vehicle.category || emptyForm.category,
           title: vehicle.title || "",
           description: vehicle.description || "",
           price: vehicle.price != null ? String(vehicle.price) : "",
           priceType: vehicle.priceType || "Per Day",
           area: vehicle.area || "",
-          availability: vehicle.availability || "",
           phone: vehicle.phone || "",
           photoUrl: vehicle.photoUrl || "",
         });
@@ -62,12 +59,27 @@ export default function PostVehiclePage({ dark, onSubmit }) {
 
   const update = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm((prev) => ({ ...prev, photoUrl: reader.result }));
-    reader.readAsDataURL(file);
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not upload photo.");
+      setForm((prev) => ({ ...prev, photoUrl: data.url }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const close = () => {
@@ -78,25 +90,23 @@ export default function PostVehiclePage({ dark, onSubmit }) {
   const handleSubmit = async () => {
     const title = form.title.trim();
     const p = Number(form.price);
-    const phone = form.phone.trim();
+    const phone = form.phone.replace(/\D/g, "");
 
     if (!title) { setError("Give the vehicle a name, e.g. \"Honda Activa 6G\"."); return; }
     if (!p || p <= 0) { setError("Please enter a valid rental price."); return; }
-    if (!phone) { setError("A contact number is required so renters can reach you."); return; }
+    if (!/^\d{10}$/.test(phone)) { setError("Phone number must be exactly 10 digits."); return; }
 
     setError("");
     setLoading(true);
     try {
       const body = {
-        category: form.category,
         title,
         description: form.description.trim(),
         price: p,
         priceType: form.priceType,
         area: form.area.trim(),
-        availability: form.availability.trim(),
         phone,
-        photoUrl: form.photoUrl,
+        photo_url: form.photoUrl,
       };
 
       const url = editingId ? `/api/vehicles/${editingId}` : "/api/vehicles";
@@ -169,20 +179,21 @@ export default function PostVehiclePage({ dark, onSubmit }) {
             <div className={`w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center text-3xl border ${
               dark ? "border-white bg-black" : "border-[#eee] bg-[#fafafa]"
             }`}>
-              {form.photoUrl
-                ? <img src={form.photoUrl} alt="" className="w-full h-full object-cover" />
-                : <span>🚗</span>
-              }
+              {form.photoUrl && (
+                <img src={form.photoUrl} alt="" className="w-full h-full object-cover" />
+              )}
             </div>
-            <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
+            <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold border transition-colors ${
+              uploading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+            } ${
               dark
                 ? "bg-black border-white text-white hover:bg-white hover:text-black"
                 : "bg-[#f3f3f3] border-transparent text-[#555] hover:bg-[#ffe0e6] hover:text-[#ff2d55]"
             }`}>
-              Upload photo
-              <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+              {uploading ? "Uploading…" : "Upload photo"}
+              <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploading} className="hidden" />
             </label>
-            {form.photoUrl && (
+            {form.photoUrl && !uploading && (
               <button
                 onClick={() => setForm((prev) => ({ ...prev, photoUrl: "" }))}
                 className={`text-xs font-bold underline underline-offset-2 cursor-pointer ${dark ? "text-[#aaa]" : "text-[#999]"}`}
@@ -191,14 +202,6 @@ export default function PostVehiclePage({ dark, onSubmit }) {
               </button>
             )}
           </div>
-
-          {/* Category */}
-          <label className={labelCls}>Vehicle type</label>
-          <select value={form.category} onChange={update("category")} className={`${inputCls} mb-5 cursor-pointer`}>
-            {VEHICLE_CATEGORIES.map((cat) => (
-              <option key={cat.label} value={cat.label}>{cat.icon} {cat.label}</option>
-            ))}
-          </select>
 
           {/* Title */}
           <label className={labelCls}>Vehicle name</label>
@@ -241,29 +244,15 @@ export default function PostVehiclePage({ dark, onSubmit }) {
             </div>
           </div>
 
-          {/* Area + availability */}
-          <div className="grid grid-cols-2 gap-4 mb-5">
-            <div>
-              <label className={labelCls}>Pickup area</label>
-              <input
-                type="text"
-                value={form.area}
-                onChange={update("area")}
-                placeholder="e.g. Sector 14"
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Availability</label>
-              <input
-                type="text"
-                value={form.availability}
-                onChange={update("availability")}
-                placeholder="e.g. Mon-Sun, 7am-9pm"
-                className={inputCls}
-              />
-            </div>
-          </div>
+          {/* Area */}
+          <label className={labelCls}>Pickup area</label>
+          <input
+            type="text"
+            value={form.area}
+            onChange={update("area")}
+            placeholder="e.g. Sector 14"
+            className={`${inputCls} mb-5`}
+          />
 
           {/* Phone */}
           <label className={labelCls}>Contact number</label>
@@ -271,7 +260,7 @@ export default function PostVehiclePage({ dark, onSubmit }) {
             type="tel"
             value={form.phone}
             onChange={update("phone")}
-            placeholder="+91 98765 43210"
+            placeholder="9876543210"
             className={`${inputCls} mb-2`}
           />
 
@@ -280,7 +269,7 @@ export default function PostVehiclePage({ dark, onSubmit }) {
           <div className="flex items-center gap-2 mt-6">
             <button
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || uploading}
               className="px-7 py-3.5 rounded-xl bg-[#ff2d55] text-white font-semibold text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all disabled:opacity-60 disabled:translate-y-0 cursor-pointer border-none"
             >
               {loading ? "Saving…" : editingId ? "Save Changes" : "List Vehicle"}

@@ -20,6 +20,7 @@ const taskRoutes        = require('./routes/taskRoutes');
 const rideRouteRoutes   = require('./routes/rideRouteRoutes');
 const ticketRoutes      = require('./routes/ticketRoutes');
 const serviceRoutes     = require('./routes/serviceRoutes');
+const vehicleRoutes     = require('./routes/vehicleRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -67,7 +68,7 @@ runMigrations(db);
 // ─── API routes ───────────────────────────────────────────────────────────────
 // Same URL prefixes as before the split: /api/upload, /api/me*, /api/signup,
 // /api/login, /api/logout, /auth/google*, /api/tasks*, /api/ride-routes*,
-// /api/tickets*, /api/services*.
+// /api/tickets*, /api/services*, /api/vehicles*.
 
 app.use('/api', uploadRoutes);
 app.use('/api', accountRoutes);
@@ -77,6 +78,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/ride-routes', rideRouteRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
 

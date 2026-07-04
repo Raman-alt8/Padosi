@@ -35,6 +35,25 @@ function runMigrations(db) {
     if (err) console.error('Could not create services table:', err);
   });
 
+  // Vehicles table — every posted rental listing lives here, visible to all users.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS vehicles (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id      INTEGER NOT NULL,
+      title        TEXT    NOT NULL,
+      description  TEXT    DEFAULT '',
+      price_type   TEXT    DEFAULT 'Per Day',
+      price        REAL    NOT NULL,
+      phone        TEXT    NOT NULL,
+      area         TEXT    DEFAULT '',
+      photo_url    TEXT    DEFAULT '',
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `, err => {
+    if (err) console.error('Could not create vehicles table:', err);
+  });
+
   db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
     if (err && !err.message.includes('duplicate column')) {
       console.error('Could not add phone column:', err);
