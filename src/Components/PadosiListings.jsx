@@ -5,15 +5,16 @@ import BuyTicketPage from "./BuyTicketPage";
 import ServiceListingsPage from "./ServiceListingsPage";
 import PostServicePage from "./PostServicePage";
 import ServiceListingsAllPage from "./ServiceListingsAllPage";
+import RentVehiclePage from "./RentVehiclePage";
 
 // ─── Listings Grid ──
 function ListingsGrid({ showToast, dark }) {
   const tiles = [
-    { icon: "🚗", label: "Rent a Vehicle",   action: () => showToast("🚗 Rent a Vehicle — coming soon!") },
-    { icon: "🎟️", label: "Buy Ticket",       action: () => window.dispatchEvent(new Event("padosi:openTickets")) },
-    { icon: "🔧", label: "Service Listings", action: () => window.dispatchEvent(new Event("padosi:openServices")) },
-    { icon: "🛣️", label: "Ride Share",       action: () => window.dispatchEvent(new Event("padosi:openRide")) },
-  ];
+  { icon: "🚗", label: "Rent a Vehicle",   action: () => window.dispatchEvent(new Event("padosi:openRentVehicle")) },
+  { icon: "🎟️", label: "Buy Ticket",       action: () => window.dispatchEvent(new Event("padosi:openTickets")) },
+  { icon: "🔧", label: "Service Listings", action: () => window.dispatchEvent(new Event("padosi:openServices")) },
+  { icon: "🛣️", label: "Ride Share",       action: () => window.dispatchEvent(new Event("padosi:openRide")) },
+];
 
   return (
     <div className={`rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] p-6 border ${
@@ -122,21 +123,14 @@ export default function PadosiListings({ showToast, currentUser, onSelectCategor
   };
 
   return (
-    <>
-      <ListingsGrid showToast={showToast} dark={dark} />
-      <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
-      {/* PostServicePage saves directly to the backend and fires "padosi:allListings"
-          on success, which triggers fetchListings() above to refresh everyone's view.
-          It also doubles as the edit screen: ServiceListingsAllPage's Edit button
-          dispatches the same "padosi:postService" event with a listing attached. */}
-      <PostServicePage dark={dark} onSubmit={() => fetchListings()} />
-      <ServiceListingsAllPage
-        dark={dark}
-        listings={listings}
-        onDelete={handleDeleteListing}
-      />
-      <BuyTicketPage showToast={showToast} dark={dark} user={currentUser} />
-      <RideSharePage currentUser={currentUser} showToast={showToast} dark={dark} />
-    </>
-  );
+  <>
+    <ListingsGrid showToast={showToast} dark={dark} />
+    <ServiceListingsPage onSelectCategory={onSelectCategory} dark={dark} />
+    <PostServicePage dark={dark} onSubmit={() => fetchListings()} />
+    <ServiceListingsAllPage dark={dark} listings={listings} onDelete={handleDeleteListing} />
+    <RentVehiclePage dark={dark} />
+    <BuyTicketPage showToast={showToast} dark={dark} user={currentUser} />
+    <RideSharePage currentUser={currentUser} showToast={showToast} dark={dark} />
+  </>
+);
 }
