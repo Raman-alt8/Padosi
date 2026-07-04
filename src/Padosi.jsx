@@ -184,7 +184,7 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
   // Verified now requires BOTH a phone number and a profile photo — the photo
   // is captured/saved by VerifiedSection.jsx via the same PUT /api/me call.
-  const verified = !!(currentUser?.phone && currentUser?.photo_url);
+  const verified = !!(currentUser?.phone && currentUser?.avatar_url);
 
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
@@ -201,8 +201,8 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
         <span className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 border overflow-hidden ${
           dark ? "bg-black text-white border-white" : "bg-[#fff0f3] text-[#ff2d55] border-transparent"
         }`}>
-          {currentUser?.photo_url ? (
-            <img src={currentUser.photo_url} alt="" className="w-full h-full object-cover" />
+          {currentUser?.avatar_url ? (
+            <img src={currentUser.avatar_url} alt="" className="w-full h-full object-cover" />
           ) : (
             initial
           )}
@@ -216,7 +216,7 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
           }`}>
             {verified
               ? "✅ Verified member"
-              : !currentUser?.photo_url
+              : !currentUser?.avatar_url
                 ? "⚠️ Not verified — add a photo"
                 : "⚠️ Not verified — add a phone"}
           </span>

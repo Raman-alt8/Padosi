@@ -46,7 +46,10 @@ router.post(
   }
 );
 
-// PUT /api/me — update profile fields (full name and/or phone)
+// PUT /api/me — update profile fields (full name, phone, and/or avatar_url).
+// Every field is optional and only touched if present in the body, so a
+// caller can update just one field (e.g. VerifiedSection.jsx sending only
+// avatar_url) without needing to resend the others.
 router.put(
   '/me',
   requireAuth,
@@ -61,6 +64,11 @@ router.put(
       .trim()
       .matches(/^\d{10}$/)
       .withMessage('Phone number must be exactly 10 digits with no spaces or symbols.'),
+    body('avatar_url')
+      .optional({ checkFalsy: true })
+      .trim()
+      .isURL()
+      .withMessage('Avatar URL must be a valid URL.'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -68,9 +76,9 @@ router.put(
       return res.status(400).json({ error: errors.array()[0].msg });
     }
 
-    const { full_name, phone } = req.body;
+    const { full_name, phone, avatar_url } = req.body;
 
-    if (full_name === undefined && phone === undefined) {
+    if (full_name === undefined && phone === undefined && avatar_url === undefined) {
       return res.status(400).json({ error: 'Nothing to update.' });
     }
 
@@ -83,9 +91,13 @@ router.put(
         await db.runAsync('UPDATE users SET phone = ? WHERE id = ?', [phone, req.user.id]);
         req.user.phone = phone;
       }
+      if (avatar_url !== undefined) {
+        await db.runAsync('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar_url, req.user.id]);
+        req.user.avatar_url = avatar_url;
+      }
 
-      const { id, full_name: fn, email, avatar_url, phone: ph } = req.user;
-      res.json({ user: { id, full_name: fn, email, avatar_url, phone: ph || null } });
+      const { id, full_name: fn, email, avatar_url: av, phone: ph } = req.user;
+      res.json({ user: { id, full_name: fn, email, avatar_url: av, phone: ph || null } });
     } catch (err) {
       console.error('Update profile error:', err);
       res.status(500).json({ error: 'Could not update account.' });

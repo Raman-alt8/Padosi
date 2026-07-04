@@ -13,10 +13,10 @@ import { api } from "../utils";
 // to onOpenManage() so they can add one, same as the flow already did before
 // this photo step existed.
 //
-// ASSUMPTION (please confirm against the real routes/accountRoutes.js):
-// PUT /api/me accepts a partial body — { photo_url } alone here, without
-// resending full_name/phone — and returns the updated { user }. If the real
-// route requires the full object on every call, this needs adjusting.
+// Confirmed against the real routes/accountRoutes.js: the users table column
+// is avatar_url (not photo_url), and PUT /api/me does a genuine partial
+// update — sending { avatar_url } alone here is safe and won't touch
+// full_name or phone.
 export default function VerifiedSection({ currentUser, showToast, onRequireLogin, onOpenManage, onUpdate, dark }) {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoUrl, setPhotoUrl] = useState("");
@@ -24,7 +24,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  if (currentUser?.phone && currentUser?.photo_url) return null;
+  if (currentUser?.phone && currentUser?.avatar_url) return null;
 
   const handleGetVerified = () => {
     if (!currentUser) {
@@ -70,7 +70,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
     setSaving(true);
     setError("");
     try {
-      const { user } = await api("PUT", "/api/me", { photo_url: photoUrl });
+      const { user } = await api("PUT", "/api/me", { avatar_url: photoUrl });
       onUpdate?.(user);
       setShowPhotoModal(false);
       if (user?.phone) {

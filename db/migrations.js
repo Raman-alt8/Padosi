@@ -60,12 +60,6 @@ function runMigrations(db) {
     }
   });
 
-  db.run(`ALTER TABLE users ADD COLUMN photo_url TEXT DEFAULT ''`, err => {
-    if (err && !err.message.includes('duplicate column')) {
-      console.error('Could not add photo_url column:', err);
-    }
-  });
-
   db.run(`ALTER TABLE tickets ADD COLUMN image_url TEXT DEFAULT ''`, err => {
     if (err && !err.message.includes('duplicate column')) {
       console.error('Could not add image_url column:', err);
