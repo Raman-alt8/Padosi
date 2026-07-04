@@ -1,27 +1,174 @@
 // RentVehiclePage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-export const VEHICLE_CATEGORIES = [
-  { icon: "🚲", label: "Bicycle" },
-  { icon: "🛵", label: "Scooter" },
-  { icon: "🏍️", label: "Bike" },
-  { icon: "🚗", label: "Hatchback" },
-  { icon: "🚙", label: "Sedan" },
-  { icon: "🚐", label: "SUV / MUV" },
-  { icon: "🛺", label: "Auto Rickshaw" },
-  { icon: "🚚", label: "Mini Truck / Tempo" },
-  { icon: "🏎️", label: "Luxury Car" },
-  { icon: "🔵", label: "Other" },
-];
+// Pulls whichever id field is present on the logged-in user object — same
+// helper PadosiListings.jsx uses for services, kept consistent here so
+// ownership checks work the same way regardless of how auth wires up the id.
+function currentUserId(currentUser) {
+  const raw = currentUser?.id ?? currentUser?._id ?? currentUser?.userId;
+  return raw != null ? String(raw) : null;
+}
 
-export default function RentVehiclePage({ onSelectCategory, onPostVehicle, dark }) {
+function priceUnitShort(priceType) {
+  if (priceType === "Per Hour") return "/hour";
+  if (priceType === "Per Day") return "/day";
+  return priceType ? ` (${priceType})` : "";
+}
+
+// ─── Vehicle Card ───────────────────────────────────────────────────────────
+function VehicleCard({ vehicle, deleteConfirm, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, dark }) {
+  return (
+    <div className={`rounded-2xl border overflow-hidden flex flex-col ${
+      dark ? "bg-black border-white" : "bg-white border-[#ebebeb] shadow-[0_4px_16px_rgba(0,0,0,0.05)]"
+    }`}>
+      <div className={`w-full aspect-[4/3] flex items-center justify-center overflow-hidden ${
+        dark ? "bg-[#111]" : "bg-[#f6f7fb]"
+      }`}>
+        {vehicle.photoUrl ? (
+          <img src={vehicle.photoUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-4xl opacity-30">🚗</span>
+        )}
+      </div>
+
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className={`text-base font-extrabold leading-snug line-clamp-1 ${dark ? "text-white" : "text-[#111]"}`}>
+          {vehicle.title}
+        </h3>
+        {vehicle.description && (
+          <p className={`text-xs mt-1 leading-snug line-clamp-2 ${dark ? "text-[#999]" : "text-[#888]"}`}>
+            {vehicle.description}
+          </p>
+        )}
+
+        {vehicle.area && (
+          <span className={`inline-flex items-center gap-1 mt-2.5 self-start rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+            dark ? "bg-[#111] text-[#aaa]" : "bg-gray-100 text-[#555]"
+          }`}>
+            📍 {vehicle.area}
+          </span>
+        )}
+
+        <div className="flex items-end justify-between mt-3">
+          <div>
+            <p className={`text-[11px] font-semibold ${dark ? "text-[#888]" : "text-gray-500"}`}>Rent</p>
+            <div className="flex items-end gap-1">
+              <span className="text-lg font-black text-[#ff2d55] leading-none">₹{vehicle.price}</span>
+              <span className={`text-xs leading-none ${dark ? "text-[#888]" : "text-gray-500"}`}>
+                {priceUnitShort(vehicle.priceType)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className={`flex items-center gap-2 mt-4 pt-3 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
+          {vehicle.phone && (
+            <a
+              href={`tel:${vehicle.phone}`}
+              className={`min-w-0 flex-1 text-sm font-semibold truncate flex items-center gap-1.5 transition-colors ${
+                dark ? "text-white hover:text-[#ff2d55]" : "text-[#111] hover:text-[#ff2d55]"
+              }`}
+            >
+              📞 {vehicle.phone}
+            </a>
+          )}
+
+          {vehicle.isOwner && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => onEdit(vehicle)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                  dark
+                    ? "border-white text-white hover:bg-white hover:text-black"
+                    : "border-[#e0e0e0] text-[#555] hover:border-[#999] hover:text-[#1a1a1a]"
+                }`}
+              >
+                ✏️ Edit
+              </button>
+              {deleteConfirm === vehicle.id ? (
+                <>
+                  <button
+                    onClick={() => onDeleteConfirm(vehicle.id)}
+                    className="px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors border-none"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={onDeleteCancel}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                      dark ? "border-white text-[#aaa] hover:bg-[#1a1a1a]" : "border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333]"
+                    }`}
+                  >
+                    No
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => onDeleteRequest(vehicle.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                    dark
+                      ? "border-white text-[#aaa] hover:bg-red-950"
+                      : "border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500"
+                  }`}
+                >
+                  🗑️ Remove
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
+// Was previously a category-picker (mirroring ServiceListingsPage). Now
+// simplified per request: it opens straight into the listing grid, pulling
+// from GET /api/vehicles and refreshing whenever a vehicle is posted, edited,
+// or deleted — same "padosi:allVehicles" event PostVehiclePage already fires
+// on save, so no changes are needed there.
+export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
   const [open, setOpen] = useState(false);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const fetchVehicles = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/vehicles", { credentials: "include" });
+      const data = await res.json();
+      if (res.ok) {
+        const myId = currentUserId(currentUser);
+        const withOwnership = (data.vehicles || []).map((v) => ({
+          ...v,
+          isOwner: myId != null && String(v.user_id) === myId,
+        }));
+        setVehicles(withOwnership);
+      }
+    } catch (err) {
+      console.error("Could not load vehicle listings:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
-    const handler = () => setOpen(true);
+    const handler = () => {
+      setOpen(true);
+      fetchVehicles();
+    };
     window.addEventListener("padosi:openRentVehicle", handler);
     return () => window.removeEventListener("padosi:openRentVehicle", handler);
-  }, []);
+  }, [fetchVehicles]);
+
+  useEffect(() => {
+    // Refresh whenever a listing is created/edited elsewhere (PostVehiclePage
+    // fires this on successful save), so the grid never shows stale data.
+    window.addEventListener("padosi:allVehicles", fetchVehicles);
+    return () => window.removeEventListener("padosi:allVehicles", fetchVehicles);
+  }, [fetchVehicles]);
 
   const handlePostVehicle = () => {
     if (onPostVehicle) {
@@ -31,21 +178,22 @@ export default function RentVehiclePage({ onSelectCategory, onPostVehicle, dark 
     }
   };
 
-  const handleOpenAllVehicles = () => {
-    window.dispatchEvent(new Event("padosi:allVehicles"));
+  const handleEdit = (vehicle) => {
+    setOpen(false);
+    window.dispatchEvent(new CustomEvent("padosi:postVehicle", { detail: { vehicle } }));
   };
 
-  const handleSelectCategory = (cat) => {
-    setOpen(false);
-    // Jump straight to the All Vehicles page, pre-filtered to this category.
-    // NOTE: deliberately does NOT call onSelectCategory(cat) here — that was
-    // the exact bug fixed in ServiceListingsPage, where a category tile also
-    // fired a side effect on an unrelated hero search box. A vehicle category
-    // tile should only ever filter the listings it opens, nothing else. The
-    // onSelectCategory prop is still exposed for a caller that explicitly
-    // wants to know which category was picked, but nothing here calls it
-    // automatically.
-    window.dispatchEvent(new CustomEvent("padosi:allVehicles", { detail: { category: cat.label } }));
+  const handleDeleteConfirm = async (id) => {
+    try {
+      const res = await fetch(`/api/vehicles/${id}`, { method: "DELETE", credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not delete listing.");
+      setVehicles((prev) => prev.filter((v) => v.id !== id));
+    } catch (err) {
+      console.error("Delete vehicle error:", err);
+    } finally {
+      setDeleteConfirm(null);
+    }
   };
 
   return (
@@ -85,65 +233,32 @@ export default function RentVehiclePage({ onSelectCategory, onPostVehicle, dark 
         </button>
       </div>
 
-      {/* Hero */}
-      <div className={`py-14 px-6 text-center ${
-        dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"
-      }`}>
-        <button
-          onClick={handleOpenAllVehicles}
-          className={`
-            group relative inline-block
-            text-5xl font-black cursor-pointer
-            bg-transparent border-none p-0
-            transition-all duration-150
-            ${dark ? "text-black" : "text-white"}
-          `}
-        >
-          All Vehicles
-          <span className={`
-            absolute left-0 -bottom-1 h-[3px] w-0 rounded-full
-            transition-all duration-200 group-hover:w-full
-            ${dark ? "bg-black" : "bg-white"}
-          `} />
-        </button>
-
-        <p className={`mt-2.5 text-sm max-w-md mx-auto ${dark ? "opacity-70" : "opacity-90"}`}>
-          Pick a vehicle type — we'll show what's available to rent from neighbours nearby.
-        </p>
-      </div>
-
-      {/* Category grid */}
-      <div className="flex justify-center px-6 pb-16">
-        <div className="w-full max-w-[1100px] -mt-9">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {VEHICLE_CATEGORIES.map((cat, i) => (
-              <button
-                key={i}
-                onClick={() => handleSelectCategory(cat)}
-                className={`rounded-2xl py-5 px-3 flex flex-col items-center gap-3 cursor-pointer transition-all hover:-translate-y-1 group border ${
-                  dark
-                    ? "bg-black border-white shadow-[0_10px_30px_rgba(0,0,0,0.6)] hover:bg-white hover:shadow-[0_15px_35px_rgba(255,255,255,0.15)]"
-                    : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:bg-[#ff2d55] hover:border-[#ff2d55] hover:shadow-[0_12px_28px_rgba(255,45,85,0.18)]"
-                }`}
-              >
-                <span className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl border transition-colors ${
-                  dark
-                    ? "border-white text-white group-hover:border-black group-hover:text-black"
-                    : "border-[#ddd] text-[#555] group-hover:border-white group-hover:text-white"
-                }`}>
-                  {cat.icon}
-                </span>
-                <span className={`text-xs font-bold text-center leading-tight transition-colors ${
-                  dark
-                    ? "text-white group-hover:text-black"
-                    : "text-[#333] group-hover:text-white"
-                }`}>
-                  {cat.label}
-                </span>
-              </button>
+      {/* Listing grid */}
+      <div className="flex-1 px-6 py-8">
+        {loading ? (
+          <p className={`text-center text-sm mt-16 ${dark ? "text-[#888]" : "text-[#999]"}`}>Loading vehicles…</p>
+        ) : vehicles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 mt-16 text-center">
+            <span className="text-4xl">🚗</span>
+            <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#333]"}`}>No vehicles listed yet</p>
+            <p className={`text-xs ${dark ? "text-[#888]" : "text-[#999]"}`}>Be the first to list one for your neighbours.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1400px] mx-auto">
+            {vehicles.map((vehicle) => (
+              <VehicleCard
+                key={vehicle.id}
+                vehicle={vehicle}
+                deleteConfirm={deleteConfirm}
+                onEdit={handleEdit}
+                onDeleteRequest={(id) => setDeleteConfirm(id)}
+                onDeleteConfirm={handleDeleteConfirm}
+                onDeleteCancel={() => setDeleteConfirm(null)}
+                dark={dark}
+              />
             ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
