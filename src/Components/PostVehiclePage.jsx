@@ -3,6 +3,19 @@ import { useState, useEffect } from "react";
 
 const PRICE_TYPES = ["Per Hour", "Per Day"];
 
+// Character limits per field. Enforced two ways: maxLength stops typing past
+// the limit (so there's never a need for a running counter), and a small red
+// note appears under a field only while it's sitting exactly at its limit —
+// it disappears the moment a character is deleted, since the length check
+// stops matching.
+const LIMITS = {
+  title: 30,
+  description: 100,
+  price: 8,
+  area: 60,
+  phone: 10,
+};
+
 const emptyForm = {
   title: "",
   description: "",
@@ -12,6 +25,17 @@ const emptyForm = {
   phone: "",
   photoUrl: "",
 };
+
+// Small red "you've hit the limit" note. Only rendered by the caller when
+// the field's current length has reached its cap, so no state or timers are
+// needed for it to disappear — it just stops being rendered.
+function LimitNote({ dark }) {
+  return (
+    <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
+      Character limit reached.
+    </p>
+  );
+}
 
 // ─── Post / Edit a Vehicle ─────────────────────────────────────────────────────
 // Mirrors PostServicePage's role for the Services flow: a full-page form that
@@ -176,13 +200,50 @@ export default function PostVehiclePage({ dark, onSubmit }) {
           {/* Photo */}
           <label className={labelCls}>Photo</label>
           <div className="flex items-center gap-4 mb-6">
-            <div className={`w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center text-3xl border ${
+            <label className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center border transition-colors ${
               dark ? "border-white bg-black" : "border-[#eee] bg-[#fafafa]"
-            }`}>
+            } ${uploading ? "cursor-not-allowed" : "cursor-pointer"}`}>
               {form.photoUrl && (
-                <img src={form.photoUrl} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={form.photoUrl}
+                  alt=""
+                  className={`w-full h-full object-cover transition-opacity ${uploading ? "opacity-40" : ""}`}
+                />
               )}
-            </div>
+
+              {/* Centered plus icon — only shown when there's no photo yet */}
+              {!form.photoUrl && !uploading && (
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`w-7 h-7 ${dark ? "text-white/30" : "text-[#ccc]"}`}
+                  fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              )}
+
+              {/* Small uploading indicator, replaces both states while the request is in flight */}
+              {uploading && (
+                <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold ${
+                  dark ? "text-white" : "text-[#555]"
+                }`}>
+                  …
+                </span>
+              )}
+
+              {/* Corner plus badge — shown once a photo exists, signalling the frame is still clickable to replace it */}
+              {form.photoUrl && !uploading && (
+                <span className={`absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 ${
+                  dark ? "bg-white border-black text-black" : "bg-[#ff2d55] border-white text-white"
+                }`}>
+                  <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              )}
+
+              <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploading} className="hidden" />
+            </label>
             <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold border transition-colors ${
               uploading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
             } ${
@@ -209,19 +270,25 @@ export default function PostVehiclePage({ dark, onSubmit }) {
             type="text"
             value={form.title}
             onChange={update("title")}
+            maxLength={LIMITS.title}
             placeholder="e.g. Honda Activa 6G"
-            className={`${inputCls} mb-5`}
+            className={inputCls}
           />
+          {form.title.length >= LIMITS.title && <LimitNote dark={dark} />}
+          <div className="mb-5" />
 
           {/* Description */}
           <label className={labelCls}>Description</label>
           <textarea
             value={form.description}
             onChange={update("description")}
+            maxLength={LIMITS.description}
             placeholder="Condition, mileage, any pickup instructions…"
             rows={3}
-            className={`${inputCls} mb-5 resize-none`}
+            className={`${inputCls} resize-none`}
           />
+          {form.description.length >= LIMITS.description && <LimitNote dark={dark} />}
+          <div className="mb-5" />
 
           {/* Price row */}
           <div className="grid grid-cols-2 gap-4 mb-5">
@@ -232,9 +299,11 @@ export default function PostVehiclePage({ dark, onSubmit }) {
                 inputMode="numeric"
                 value={form.price}
                 onChange={update("price")}
+                maxLength={LIMITS.price}
                 placeholder="500"
                 className={inputCls}
               />
+              {form.price.length >= LIMITS.price && <LimitNote dark={dark} />}
             </div>
             <div>
               <label className={labelCls}>Billed</label>
@@ -250,9 +319,12 @@ export default function PostVehiclePage({ dark, onSubmit }) {
             type="text"
             value={form.area}
             onChange={update("area")}
+            maxLength={LIMITS.area}
             placeholder="e.g. Sector 14"
-            className={`${inputCls} mb-5`}
+            className={inputCls}
           />
+          {form.area.length >= LIMITS.area && <LimitNote dark={dark} />}
+          <div className="mb-5" />
 
           {/* Phone */}
           <label className={labelCls}>Contact number</label>
@@ -260,9 +332,11 @@ export default function PostVehiclePage({ dark, onSubmit }) {
             type="tel"
             value={form.phone}
             onChange={update("phone")}
+            maxLength={LIMITS.phone}
             placeholder="9876543210"
-            className={`${inputCls} mb-2`}
+            className={inputCls}
           />
+          {form.phone.length >= LIMITS.phone && <LimitNote dark={dark} />}
 
           {error && <p className="text-[#ff2d55] text-xs mt-3 font-medium">⚠️ {error}</p>}
 
