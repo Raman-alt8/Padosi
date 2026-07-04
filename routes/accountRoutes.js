@@ -10,8 +10,8 @@ const router = express.Router();
 // GET /api/me — return current session user
 router.get('/me', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ user: null });
-  const { id, full_name, email, avatar_url, phone } = req.user;
-  res.json({ user: { id, full_name, email, avatar_url, phone: phone || null } });
+  const { id, full_name, email, avatar_url, phone, username } = req.user;
+  res.json({ user: { id, full_name, email, avatar_url, phone: phone || null, username: username || null } });
 });
 
 // POST /api/me/phone — save phone number for the current user
@@ -46,10 +46,10 @@ router.post(
   }
 );
 
-// PUT /api/me — update profile fields (full name, phone, and/or avatar_url).
-// Every field is optional and only touched if present in the body, so a
-// caller can update just one field (e.g. VerifiedSection.jsx sending only
-// avatar_url) without needing to resend the others.
+// PUT /api/me — update profile fields (full name, phone, avatar_url, email, username).
+// Every field is optional and only touched if present in the body, so a caller
+// can update just one field (e.g. VerifiedSection.jsx's step wizard sending a
+// single field per step) without needing to resend the others.
 router.put(
   '/me',
   requireAuth,
@@ -69,6 +69,17 @@ router.put(
       .trim()
       .isURL()
       .withMessage('Avatar URL must be a valid URL.'),
+    body('email')
+      .optional({ checkFalsy: true })
+      .trim()
+      .isEmail()
+      .withMessage('Please enter a valid email address.'),
+    body('username')
+      .optional({ checkFalsy: true })
+      .trim()
+      .customSanitizer(v => v.toLowerCase())
+      .matches(/^[a-z0-9_]{3,20}$/)
+      .withMessage('Username must be 3-20 characters — letters, numbers, and underscores only.'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -76,10 +87,16 @@ router.put(
       return res.status(400).json({ error: errors.array()[0].msg });
     }
 
-    const { full_name, phone, avatar_url } = req.body;
+    const { full_name, phone, avatar_url, username } = req.body;
+    const email = req.body.email !== undefined ? req.body.email.toLowerCase() : undefined;
 
-    if (full_name === undefined && phone === undefined && avatar_url === undefined) {
+    if (full_name === undefined && phone === undefined && avatar_url === undefined && email === undefined && username === undefined) {
       return res.status(400).json({ error: 'Nothing to update.' });
+    }
+
+    // Email can only be set once — an existing email can't be overwritten here.
+    if (email !== undefined && req.user.email) {
+      return res.status(400).json({ error: 'Your email can only be set once and is already on file.' });
     }
 
     try {
@@ -95,10 +112,21 @@ router.put(
         await db.runAsync('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar_url, req.user.id]);
         req.user.avatar_url = avatar_url;
       }
+      if (email !== undefined) {
+        await db.runAsync('UPDATE users SET email = ? WHERE id = ?', [email, req.user.id]);
+        req.user.email = email;
+      }
+      if (username !== undefined) {
+        await db.runAsync('UPDATE users SET username = ? WHERE id = ?', [username, req.user.id]);
+        req.user.username = username;
+      }
 
-      const { id, full_name: fn, email, avatar_url: av, phone: ph } = req.user;
-      res.json({ user: { id, full_name: fn, email, avatar_url: av, phone: ph || null } });
+      const { id, full_name: fn, email: em, avatar_url: av, phone: ph, username: un } = req.user;
+      res.json({ user: { id, full_name: fn, email: em, avatar_url: av, phone: ph || null, username: un || null } });
     } catch (err) {
+      if (err.message && err.message.includes('UNIQUE constraint failed') && err.message.includes('username')) {
+        return res.status(409).json({ error: 'That username is already taken.' });
+      }
       console.error('Update profile error:', err);
       res.status(500).json({ error: 'Could not update account.' });
     }

@@ -157,6 +157,8 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -164,16 +166,25 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
     if (open && currentUser) {
       setName(currentUser.full_name || "");
       setPhone(currentUser.phone || "");
-      setError(""); setPhoneError("");
+      setUsername(currentUser.username || "");
+      setError(""); setPhoneError(""); setUsernameError("");
     }
   }, [open, currentUser]);
 
   const handleSave = async () => {
     if (!name.trim()) { setError("Full name cannot be empty."); return; }
     if (phone && phone.length !== 10) { setPhoneError("Phone number must be exactly 10 digits."); return; }
+    if (username && !/^[a-z0-9_]{3,20}$/.test(username)) {
+      setUsernameError("Username must be 3-20 characters — letters, numbers, and underscores only.");
+      return;
+    }
     setLoading(true); setError("");
     try {
-      const { user } = await api("PUT", "/api/me", { full_name: name.trim(), phone: phone || undefined });
+      const { user } = await api("PUT", "/api/me", {
+        full_name: name.trim(),
+        phone: phone || undefined,
+        username: username || undefined,
+      });
       onUpdate(user);
       onClose();
       showToast("✅ Account updated");
@@ -182,9 +193,14 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
   };
 
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
-  // Verified now requires BOTH a phone number and a profile photo — the photo
-  // is captured/saved by VerifiedSection.jsx via the same PUT /api/me call.
-  const verified = !!(currentUser?.phone && currentUser?.avatar_url);
+  // Verified now requires a photo, email, username, AND phone number — the
+  // photo/email/username/phone are all captured via VerifiedSection.jsx's
+  // step wizard (or here) using the same PUT /api/me call.
+  const verified = !!(currentUser?.phone && currentUser?.avatar_url && currentUser?.username && currentUser?.email);
+  const missingLabel = !currentUser?.avatar_url ? "add a photo"
+    : !currentUser?.email ? "add an email"
+    : !currentUser?.username ? "add a username"
+    : "add a phone";
 
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
@@ -214,11 +230,7 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
               ? dark ? "bg-black text-white border-white" : "bg-[#e3fbe8] text-[#1a9e4a] border-transparent"
               : dark ? "bg-black text-white border-white" : "bg-[#fff3cd] text-[#856404] border-transparent"
           }`}>
-            {verified
-              ? "✅ Verified member"
-              : !currentUser?.avatar_url
-                ? "⚠️ Not verified — add a photo"
-                : "⚠️ Not verified — add a phone"}
+            {verified ? "✅ Verified member" : `⚠️ Not verified — ${missingLabel}`}
           </span>
         </div>
       </div>
@@ -240,6 +252,19 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, showToast, d
           }`}
         />
         <span className={`text-xs mt-1 block ${dark ? "text-[#666]" : "text-[#bbb]"}`}>Your email can't be changed yet.</span>
+      </div>
+
+      <div className="mb-4">
+        <label className={`text-xs font-bold uppercase tracking-wider mb-1.5 block ${dark ? "text-[#888]" : "text-[#999]"}`}>Username</label>
+        <input
+          value={username}
+          onChange={e => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setUsernameError(""); }}
+          onKeyPress={e => e.key === "Enter" && handleSave()}
+          placeholder="e.g. rahul_23"
+          maxLength={20}
+          className={inputCls}
+        />
+        {usernameError && <p className="text-[#ff2d55] text-xs mt-1">{usernameError}</p>}
       </div>
 
       <div className="mb-5">
@@ -417,7 +442,7 @@ const FAQS = [
   },
   {
     q: "How are members verified?",
-    a: "Members who add a phone number and a profile photo receive a Verified badge. This gives you an extra layer of trust — you can see at a glance whether your helper is verified.",
+    a: "Members who add a profile photo, email, username, and phone number receive a Verified badge. This gives you an extra layer of trust — you can see at a glance whether your helper is verified.",
   },
   {
     q: "My task hasn't been accepted yet — what do I do?",
@@ -591,7 +616,6 @@ export default function App() {
         currentUser={currentUser}
         showToast={showToast}
         onRequireLogin={() => setLoginOpen(true)}
-        onOpenManage={() => setManageOpen(true)}
         onUpdate={setCurrentUser}
         dark={darkMode}
       />

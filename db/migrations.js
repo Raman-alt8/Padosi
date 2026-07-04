@@ -54,11 +54,18 @@ function runMigrations(db) {
     if (err) console.error('Could not create vehicles table:', err);
   });
 
-  db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
-    if (err && !err.message.includes('duplicate column')) {
-      console.error('Could not add phone column:', err);
-    }
-  });
+  db.run(`ALTER TABLE users ADD COLUMN username TEXT`, err => {
+  if (err && !err.message.includes('duplicate column')) {
+    console.error('Could not add username column:', err);
+  }
+});
+
+// Run after the ALTER above — SQLite allows multiple NULL usernames in a
+// unique index (NULLs are never considered equal), so users without one yet
+// won't conflict with each other.
+db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)`, err => {
+  if (err) console.error('Could not create username unique index:', err);
+});
 
   db.run(`ALTER TABLE tickets ADD COLUMN image_url TEXT DEFAULT ''`, err => {
     if (err && !err.message.includes('duplicate column')) {
