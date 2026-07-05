@@ -292,10 +292,14 @@ export function SettingsPage({
           <Row field="name" label="Full name" displayValue={name || "Not set"}>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.slice(0, 50))}
+              maxLength={50}
               className={inputCls}
               autoFocus
             />
+            <p className={`text-xs mt-1 text-right ${rowValueCls}`}>
+              {name.length}/50
+            </p>
             {nameError && (
               <p className="text-[#ff2d55] text-xs mt-2">{nameError}</p>
             )}
@@ -333,6 +337,9 @@ export function SettingsPage({
               className={inputCls}
               autoFocus
             />
+            <p className={`text-xs mt-1 text-right ${rowValueCls}`}>
+              {username.length}/20
+            </p>
             {usernameError && (
               <p className="text-[#ff2d55] text-xs mt-2">{usernameError}</p>
             )}
@@ -361,11 +368,15 @@ export function SettingsPage({
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value.slice(0, 100))}
               placeholder="you@gmail.com"
+              maxLength={100}
               className={inputCls}
               autoFocus
             />
+            <p className={`text-xs mt-1 text-right ${rowValueCls}`}>
+              {email.length}/100
+            </p>
             {emailError && (
               <p className="text-[#ff2d55] text-xs mt-2">{emailError}</p>
             )}
@@ -413,6 +424,9 @@ export function SettingsPage({
                 autoFocus
               />
             </div>
+            <p className={`text-xs mt-1 text-right ${rowValueCls}`}>
+              {phone.length}/10
+            </p>
             {phoneError && (
               <p className="text-[#ff2d55] text-xs mt-2">{phoneError}</p>
             )}
@@ -442,7 +456,7 @@ export function SettingsPage({
             onClick={onDeleteAccount}
             className="w-full flex items-center justify-between gap-4 py-4 text-left cursor-pointer bg-transparent border-none"
           >
-            <p className={rowLabelCls}>Delete account</p>
+            <p className={`${rowLabelCls} text-[#ff2d55]`}>Delete account</p>
             <Chevron open={false} dark={dark} />
           </button>
         </div>
