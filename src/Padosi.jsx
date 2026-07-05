@@ -421,7 +421,7 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         currentUser={currentUser}
         onUpdate={setCurrentUser}
-        onDeleteAccount={() => { setSettingsOpen(false); setDeleteAccountOpen(true); }}
+        onDeleteAccount={() => setDeleteAccountOpen(true)}
         showToast={showToast}
         dark={darkMode}
       />
