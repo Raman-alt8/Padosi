@@ -323,19 +323,14 @@ export function SettingsPage({ open, onClose, currentUser, onUpdate, onDeleteAcc
             </div>
 
             {/* Danger zone */}
-            <h2 className={`${sectionHeadCls} text-[#ff2d55]`}>Danger zone</h2>
-            <div className={`border-t ${rowBorderCls}`}>
+            <h2 className={sectionHeadCls}>Danger zone</h2>
+            <div>
               <button
                 type="button"
                 onClick={onDeleteAccount}
                 className="w-full flex items-center justify-between gap-4 py-4 text-left cursor-pointer bg-transparent border-none"
               >
-                <div>
-                  <p className="text-[15px] font-medium text-[#ff2d55]">Delete account</p>
-                  <p className={`text-xs mt-0.5 ${rowValueCls}`}>
-                    Permanently removes your profile, tasks, tickets, ride routes, and listings.
-                  </p>
-                </div>
+                <p className={rowLabelCls}>Delete account</p>
                 <Chevron open={false} dark={dark} />
               </button>
             </div>
