@@ -10,6 +10,13 @@ import { api } from "../utils";
 // email from signup, so that step is simply skipped for them. Each step
 // saves immediately via PUT /api/me (partial update, same pattern as
 // before) so progress isn't lost if the user closes the modal partway.
+//
+// Note on the photo step: it sends `avatar_url`, not `photo_verified`.
+// The backend (accountRoutes.js PUT /me) automatically sets
+// photo_verified = 1 whenever avatar_url is updated through this route —
+// that's what separates an in-app verified photo from the avatar_url
+// Google OAuth sets automatically at signup (auth.js), which never touches
+// photo_verified.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
@@ -29,7 +36,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
 
   const fullyVerified = !!(
     currentUser?.phone &&
-    currentUser?.photo_verified &&   // was: currentUser?.avatar_url
+    currentUser?.photo_verified &&
     currentUser?.username &&
     currentUser?.email
   );
@@ -38,7 +45,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
 
   const buildSteps = (user) => {
     const list = [];
-    if (!user?.photo_verified) list.push("photo");   // was: if (!user?.avatar_url)
+    if (!user?.photo_verified) list.push("photo");
     if (!user?.email) list.push("email");
     if (!user?.username) list.push("username");
     if (!user?.phone) list.push("phone");
@@ -111,7 +118,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
       if (!photoUrl) { setError("Please upload a photo to continue."); return; }
       setSaving(true);
       try {
-        const { user } = await api("PUT", "/api/me", { photo_verified: true });
+        const { user } = await api("PUT", "/api/me", { avatar_url: photoUrl });
         advance(user);
       } catch (err) { setError(err.message); }
       finally { setSaving(false); }
