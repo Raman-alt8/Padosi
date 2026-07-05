@@ -16,7 +16,10 @@ import { api } from "../utils";
 // photo_verified = 1 whenever avatar_url is updated through this route —
 // that's what separates an in-app verified photo from the avatar_url
 // Google OAuth sets automatically at signup (auth.js), which never touches
-// photo_verified.
+// photo_verified. Users with an existing Google avatar can also just resend
+// that same URL through this route via "Use my Google photo instead" —
+// hitting PUT /me at all is treated as the user's explicit confirmation,
+// so it gets marked verified too, no separate upload required.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
@@ -107,6 +110,19 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
     } else {
       setShowModal(false);
       showToast("🎉 You're now a verified member!");
+    }
+  };
+
+  const handleUseGmailPhoto = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const { user } = await api("PUT", "/api/me", { avatar_url: currentUser.avatar_url });
+      advance(user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -266,6 +282,28 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
             <p className={`text-center text-xs font-semibold mb-2 ${dark ? "text-[#666]" : "text-[#aaa]"}`}>
               {uploading ? "Uploading…" : photoUrl ? "Tap photo to change it" : "Tap to upload"}
             </p>
+
+            {currentUser?.avatar_url && (
+              <>
+                <div className="flex items-center gap-3 my-4">
+                  <span className={`flex-1 h-px ${dark ? "bg-[#333]" : "bg-[#eee]"}`} />
+                  <span className={`text-xs font-semibold ${dark ? "text-[#666]" : "text-[#aaa]"}`}>or</span>
+                  <span className={`flex-1 h-px ${dark ? "bg-[#333]" : "bg-[#eee]"}`} />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUseGmailPhoto}
+                  disabled={saving || uploading}
+                  className={`w-full py-2.5 rounded-xl font-semibold text-sm cursor-pointer border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    dark
+                      ? "border-white text-white bg-transparent hover:bg-white/10"
+                      : "border-[#ddd] text-[#111] bg-white hover:bg-[#fafafa]"
+                  }`}
+                >
+                  {saving ? "Saving…" : "Use my Google photo instead"}
+                </button>
+              </>
+            )}
           </>
         )}
 
