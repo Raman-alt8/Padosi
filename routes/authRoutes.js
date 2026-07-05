@@ -44,8 +44,14 @@ router.post(
         req.login(user, err => (err ? reject(err) : resolve()))
       );
 
-      const { id, avatar_url, password_hash } = user;
-      res.json({ user: { id, full_name, email, avatar_url, has_password: !!password_hash } });
+      const { id, avatar_url, password_hash, photo_verified } = user;
+      res.json({
+        user: {
+          id, full_name, email, avatar_url,
+          has_password: !!password_hash,
+          photo_verified: !!photo_verified,
+        },
+      });
     } catch (err) {
       console.error('Signup error:', err);
       res.status(500).json({ error: 'Server error. Please try again.' });
@@ -61,8 +67,14 @@ router.post('/login', (req, res, next) => {
 
     req.login(user, loginErr => {
       if (loginErr) return next(loginErr);
-      const { id, full_name, email, avatar_url, password_hash } = user;
-      res.json({ user: { id, full_name, email, avatar_url, has_password: !!password_hash } });
+      const { id, full_name, email, avatar_url, password_hash, photo_verified } = user;
+      res.json({
+        user: {
+          id, full_name, email, avatar_url,
+          has_password: !!password_hash,
+          photo_verified: !!photo_verified,
+        },
+      });
     });
   })(req, res, next);
 });

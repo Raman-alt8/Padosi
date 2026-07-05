@@ -10,8 +10,6 @@ const requireAuth = require('../middleware/requireAuth');
 const router = express.Router();
 const isDev  = process.env.NODE_ENV !== 'production';
 
-// Limits password/confirmation guesses on account deletion to 5 attempts per
-// 15 minutes per IP.
 const deleteAccountLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
@@ -23,7 +21,7 @@ const deleteAccountLimiter = rateLimit({
 // GET /api/me — return current session user
 router.get('/me', (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ user: null });
-  const { id, full_name, email, avatar_url, phone, username, password_hash } = req.user;
+  const { id, full_name, email, avatar_url, phone, username, password_hash, photo_verified } = req.user;
   res.json({
     user: {
       id,
@@ -33,6 +31,7 @@ router.get('/me', (req, res) => {
       phone: phone || null,
       username: username || null,
       has_password: !!password_hash,
+      photo_verified: !!photo_verified,
     },
   });
 });
@@ -70,9 +69,10 @@ router.post(
 );
 
 // PUT /api/me — update profile fields (full name, phone, avatar_url, email, username).
-// Every field is optional and only touched if present in the body, so a caller
-// can update just one field (e.g. VerifiedSection.jsx's step wizard sending a
-// single field per step) without needing to resend the others.
+// Setting avatar_url through this route always marks photo_verified = 1, since
+// reaching this route means the user actually completed the upload step in
+// VerifiedSection.jsx — as opposed to Google OAuth, which sets avatar_url
+// directly in auth.js without ever touching photo_verified.
 router.put(
   '/me',
   requireAuth,
@@ -117,7 +117,6 @@ router.put(
       return res.status(400).json({ error: 'Nothing to update.' });
     }
 
-    // Email can only be set once — an existing email can't be overwritten here.
     if (email !== undefined && req.user.email) {
       return res.status(400).json({ error: 'Your email can only be set once and is already on file.' });
     }
@@ -132,8 +131,9 @@ router.put(
         req.user.phone = phone;
       }
       if (avatar_url !== undefined) {
-        await db.runAsync('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar_url, req.user.id]);
+        await db.runAsync('UPDATE users SET avatar_url = ?, photo_verified = 1 WHERE id = ?', [avatar_url, req.user.id]);
         req.user.avatar_url = avatar_url;
+        req.user.photo_verified = 1;
       }
       if (email !== undefined) {
         await db.runAsync('UPDATE users SET email = ? WHERE id = ?', [email, req.user.id]);
@@ -144,7 +144,7 @@ router.put(
         req.user.username = username;
       }
 
-      const { id, full_name: fn, email: em, avatar_url: av, phone: ph, username: un, password_hash } = req.user;
+      const { id, full_name: fn, email: em, avatar_url: av, phone: ph, username: un, password_hash, photo_verified } = req.user;
       res.json({
         user: {
           id,
@@ -154,6 +154,7 @@ router.put(
           phone: ph || null,
           username: un || null,
           has_password: !!password_hash,
+          photo_verified: !!photo_verified,
         },
       });
     } catch (err) {
@@ -167,11 +168,9 @@ router.put(
 );
 
 // DELETE /api/me — permanently delete the current user's account and every
-// record tied to it (tasks, tickets, ride routes/responses, vehicle & service
-// listings, dismissals). Requires re-authentication:
-//   - Local accounts (have a password_hash): req.body.password must match
-//   - Google-only accounts (no password_hash): req.body.confirmation must be "DELETE"
-// Rate-limited to 5 attempts / 15 min per IP to prevent brute-forcing the password.
+// record tied to it. Requires re-authentication:
+//   - Local accounts: req.body.password must match
+//   - Google-only accounts: req.body.confirmation must be "DELETE"
 router.delete('/me', requireAuth, deleteAccountLimiter, async (req, res) => {
   const userId = req.user.id;
   const { password, confirmation } = req.body;
@@ -180,7 +179,6 @@ router.delete('/me', requireAuth, deleteAccountLimiter, async (req, res) => {
     const user = await db.getAsync('SELECT * FROM users WHERE id = ?', [userId]);
     if (!user) return res.status(404).json({ error: 'Account not found.' });
 
-    // ── Re-authentication gate ──────────────────────────
     if (user.password_hash) {
       if (!password) {
         return res.status(400).json({ error: 'Please enter your password to confirm.' });
@@ -193,33 +191,22 @@ router.delete('/me', requireAuth, deleteAccountLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Please type DELETE to confirm.' });
     }
 
-    // ── Delete everything atomically ────────────────────
     await db.runAsync('BEGIN TRANSACTION');
     try {
-      // No ON DELETE CASCADE on these — with foreign_keys=ON, they must be
-      // cleared before the user row or the user delete itself will fail.
       await db.runAsync('DELETE FROM vehicles   WHERE user_id = ?', [userId]);
       await db.runAsync('DELETE FROM services   WHERE user_id = ?', [userId]);
       await db.runAsync('DELETE FROM dismissals WHERE user_id = ?', [userId]);
-
-      // dismissals.task_id isn't a declared FK, so cascading tasks won't
-      // clean these up automatically — do it explicitly to avoid orphans.
       await db.runAsync(
         'DELETE FROM dismissals WHERE task_id IN (SELECT id FROM tasks WHERE user_id = ?)',
         [userId]
       );
-
-      // Deleting the user cascades to: tasks, tickets, ride_routes,
-      // ride_route_responses (all declared ON DELETE CASCADE in db.js).
       await db.runAsync('DELETE FROM users WHERE id = ?', [userId]);
-
       await db.runAsync('COMMIT');
     } catch (err) {
       await db.runAsync('ROLLBACK');
       throw err;
     }
 
-    // ── Kill the session ─────────────────────────────────
     req.logout(() => {
       req.session.destroy(() => {
         res.clearCookie('connect.sid', {

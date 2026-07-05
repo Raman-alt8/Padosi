@@ -190,12 +190,12 @@ function ManageAccountModal({ open, onClose, currentUser, onUpdate, onDeleteAcco
   };
 
   const initial = (currentUser?.full_name || "U").charAt(0).toUpperCase();
-  const verified = !!(currentUser?.phone && currentUser?.avatar_url && currentUser?.username && currentUser?.email);
-  const missingLabel = !currentUser?.avatar_url ? "add a photo"
+  const verified = !!(currentUser?.phone && currentUser?.photo_verified && currentUser?.username && currentUser?.email);
+  const missingLabel = !currentUser?.photo_verified ? "add a photo"
     : !currentUser?.email ? "add an email"
     : !currentUser?.username ? "add a username"
     : "add a phone";
-
+    
   const inputCls = `w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
     dark
       ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"

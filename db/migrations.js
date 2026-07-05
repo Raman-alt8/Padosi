@@ -60,6 +60,17 @@ function runMigrations(db) {
     }
   });
 
+  // Tracks whether the user has actually completed the in-app photo upload
+  // step in VerifiedSection.jsx — separate from `avatar_url`, which Google
+  // OAuth also populates automatically from the person's Google profile
+  // photo (auth.js). Without this flag, a Google sign-in would appear
+  // "photo verified" without ever going through the upload step.
+  db.run(`ALTER TABLE users ADD COLUMN photo_verified INTEGER DEFAULT 0`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add photo_verified column:', err);
+    }
+  });
+
   db.run(`ALTER TABLE tickets ADD COLUMN image_url TEXT DEFAULT ''`, err => {
     if (err && !err.message.includes('duplicate column')) {
       console.error('Could not add image_url column:', err);

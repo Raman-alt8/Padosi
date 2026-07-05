@@ -29,7 +29,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
 
   const fullyVerified = !!(
     currentUser?.phone &&
-    currentUser?.avatar_url &&
+    currentUser?.photo_verified &&   // was: currentUser?.avatar_url
     currentUser?.username &&
     currentUser?.email
   );
@@ -38,7 +38,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
 
   const buildSteps = (user) => {
     const list = [];
-    if (!user?.avatar_url) list.push("photo");
+    if (!user?.photo_verified) list.push("photo");   // was: if (!user?.avatar_url)
     if (!user?.email) list.push("email");
     if (!user?.username) list.push("username");
     if (!user?.phone) list.push("phone");
@@ -111,7 +111,7 @@ export default function VerifiedSection({ currentUser, showToast, onRequireLogin
       if (!photoUrl) { setError("Please upload a photo to continue."); return; }
       setSaving(true);
       try {
-        const { user } = await api("PUT", "/api/me", { avatar_url: photoUrl });
+        const { user } = await api("PUT", "/api/me", { photo_verified: true });
         advance(user);
       } catch (err) { setError(err.message); }
       finally { setSaving(false); }
