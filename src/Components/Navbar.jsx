@@ -20,6 +20,7 @@ export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onMa
   const name = (currentUser?.full_name || "User").trim();
   const first = name.split(" ")[0];
   const initial = name.charAt(0).toUpperCase();
+  const avatarUrl = currentUser?.avatar_url;
 
   return (
     <nav className="h-[70px] flex justify-center sticky top-0 z-[1000] bg-white border-b border-gray-100">
@@ -52,8 +53,12 @@ export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onMa
                 onClick={() => { setDropOpen(o => !o); setThemeOpen(false); }}
                 className="inline-flex items-center gap-2 bg-gray-900 text-white rounded-full pl-2 pr-4 py-2 text-sm font-semibold hover:bg-gray-700 transition-colors border-none cursor-pointer"
               >
-                <span className="w-7 h-7 rounded-full bg-gray-500 flex items-center justify-center text-xs font-bold text-white">
-                  {initial}
+                <span className="w-7 h-7 rounded-full bg-gray-500 flex items-center justify-center text-xs font-bold text-white overflow-hidden flex-shrink-0">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    initial
+                  )}
                 </span>
                 {first}
                 <span className={`text-[11px] transition-transform ${dropOpen ? "rotate-180" : ""}`}>▾</span>
@@ -63,8 +68,12 @@ export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onMa
                 <div className="absolute top-14 right-0 bg-white rounded-2xl shadow-2xl w-80 p-6 z-[1500] border border-gray-100">
                   <div className="flex justify-between items-center mb-5">
                     <h3 className="text-lg font-bold text-gray-900">{name}</h3>
-                    <span className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-xl text-gray-400 font-bold">
-                      {initial}
+                    <span className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-xl text-gray-400 font-bold overflow-hidden flex-shrink-0">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        initial
+                      )}
                     </span>
                   </div>
 
