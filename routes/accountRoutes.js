@@ -69,10 +69,14 @@ router.post(
 );
 
 // PUT /api/me — update profile fields (full name, phone, avatar_url, email, username).
+// Every field is optional and only touched if present in the body. Email can now
+// be changed at any time (no longer locked after first set) — this endpoint
+// re-validates format and relies on the DB's UNIQUE constraint on users.email
+// to reject an email already used by another account.
 // Setting avatar_url through this route always marks photo_verified = 1, since
-// reaching this route means the user actually completed the upload step in
-// VerifiedSection.jsx — as opposed to Google OAuth, which sets avatar_url
-// directly in auth.js without ever touching photo_verified.
+// reaching this route means the user completed the upload step in
+// VerifiedSection.jsx or SettingsPage.jsx — as opposed to Google OAuth, which
+// sets avatar_url directly in auth.js without ever touching photo_verified.
 router.put(
   '/me',
   requireAuth,
@@ -117,10 +121,6 @@ router.put(
       return res.status(400).json({ error: 'Nothing to update.' });
     }
 
-    if (email !== undefined && req.user.email) {
-      return res.status(400).json({ error: 'Your email can only be set once and is already on file.' });
-    }
-
     try {
       if (full_name !== undefined) {
         await db.runAsync('UPDATE users SET full_name = ? WHERE id = ?', [full_name, req.user.id]);
@@ -158,8 +158,13 @@ router.put(
         },
       });
     } catch (err) {
-      if (err.message && err.message.includes('UNIQUE constraint failed') && err.message.includes('username')) {
-        return res.status(409).json({ error: 'That username is already taken.' });
+      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        if (err.message.includes('users.username')) {
+          return res.status(409).json({ error: 'That username is already taken.' });
+        }
+        if (err.message.includes('users.email')) {
+          return res.status(409).json({ error: 'That email is already associated with another account.' });
+        }
       }
       console.error('Update profile error:', err);
       res.status(500).json({ error: 'Could not update account.' });

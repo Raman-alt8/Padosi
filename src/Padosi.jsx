@@ -4,7 +4,8 @@ import HowItWorks from "./Components/HowItWorks";
 import HeroSection from "./Components/HeroSection";
 import VerifiedSection from "./Components/VerifiedSection";
 import { Modal, ModalTag } from "./Components/Modal";
-import { ManageAccountModal, DeleteAccountModal, ActivityModal, HistoryModal } from "./Components/AccountModals";
+import { DeleteAccountModal, ActivityModal, HistoryModal } from "./Components/AccountModals";
+import { SettingsPage } from "./Components/SettingsPage";
 import { api } from "./utils";
 
 // ─── Toast ───────────────────────────────────────────────────
@@ -313,7 +314,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("padosi-theme") === "dark");
   const [loginOpen, setLoginOpen] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
-  const [manageOpen, setManageOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -366,6 +367,7 @@ export default function App() {
     setTasks([]);
     setNearbyTasks([]);
     setDeleteAccountOpen(false);
+    setSettingsOpen(false);
   };
 
   return (
@@ -375,7 +377,7 @@ export default function App() {
         onLogin={() => setLoginOpen(true)}
         onSignup={() => setSignupOpen(true)}
         onSignout={handleSignout}
-        onManageAccount={() => setManageOpen(true)}
+        onManageAccount={() => setSettingsOpen(true)}
         onMyTasks={() => setHistoryOpen(true)}
         onActivity={() => setActivityOpen(true)}
         showToast={showToast}
@@ -413,12 +415,13 @@ export default function App() {
         showToast={showToast}
         dark={darkMode}
       />
-      <ManageAccountModal
-        open={manageOpen}
-        onClose={() => setManageOpen(false)}
+
+      <SettingsPage
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
         currentUser={currentUser}
         onUpdate={setCurrentUser}
-        onDeleteAccount={() => { setManageOpen(false); setDeleteAccountOpen(true); }}
+        onDeleteAccount={() => { setSettingsOpen(false); setDeleteAccountOpen(true); }}
         showToast={showToast}
         dark={darkMode}
       />
