@@ -36,13 +36,19 @@ const SORT_OPTIONS = [
 const CARDS_PER_PAGE = 6;
 
 // ── Temporary showcase listings ──────────────────────────────────────────────
-// Hardcoded, non-interactive example cards so the grid never looks empty
-// while real listings are still trickling in. They're tagged `isDemo: true`
-// and given negative sentinel `originalIndex` values (-1, -2, ...) so they
-// can never collide with a real array index and never reach onDelete /
-// onAccept / onDecline / the parent at all. To remove this showcase content
-// later: delete this array, and the two `isDemo` branches below (one in
-// `visibleListings`, one in `ServiceCard`'s footer) can go with it.
+// Hardcoded example cards so the grid never looks empty while real listings
+// are still trickling in. They're tagged `isDemo: true` and given negative
+// sentinel `originalIndex` values (-1, -2, ...) so they can never collide
+// with a real array index and never reach onDelete / onAccept / onDecline /
+// the parent's real state at all — see handleAccept/handleDecline below,
+// which update local UI state for these cards but never forward the fake
+// index to onAccept/onDecline/onChat props.
+//
+// They behave exactly like a real "someone else posted this" card: no
+// isOwner flag, so they fall into the normal Accept/Decline footer, and
+// accepting one flips it to show phone + chat like any other accepted card.
+// To remove this showcase content later: delete this array, and the single
+// `isDemo` badge usage in ServiceCard's identity row can go with it.
 const DEMO_LISTINGS = [
   {
     isDemo: true,
@@ -55,6 +61,7 @@ const DEMO_LISTINGS = [
     area: "Sample area",
     availability: "Mon-Sat",
     verified: true,
+    phone: "+91 90000 00001",
   },
   {
     isDemo: true,
@@ -66,6 +73,7 @@ const DEMO_LISTINGS = [
     experience: 3,
     area: "Sample area",
     availability: "Tue, Thu, Sat",
+    phone: "+91 90000 00002",
   },
 ];
 
@@ -111,6 +119,11 @@ function HeartIcon({ filled }) {
 // `listing.verified`, `listing.rating`, and `listing.reviewCount` are all
 // optional — each row only renders when the field is present, nothing is
 // invented.
+//
+// `isDemo` only affects the "Sample" badge in the identity row. The footer
+// below is driven purely by `isOwner` / `isAccepted`, same as any real
+// listing — demo cards have neither `isOwner`, so they naturally get the
+// Accept/Decline treatment like a post from someone else.
 function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onChat, onToggleWishlist }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
   const isOwner = listing.isOwner;
@@ -233,13 +246,14 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             bare cqw. Bare cqw scaled with the *card's* width, and on wide
             (3-per-row desktop) cards that pushed the phone number + buttons
             past the available width, cutting the number off. clamp() keeps
-            the same fluid feel on small cards but caps growth on large ones. */}
+            the same fluid feel on small cards but caps growth on large ones.
+
+            No `isDemo` branching here anymore — demo listings have no
+            `isOwner` flag, so they fall straight into the "other user's
+            post" branch below (phone number left, Accept/Decline right),
+            exactly like a real listing from someone else. */}
         <div className="px-[4.5cqw] py-[2.6cqw] flex items-center gap-[clamp(6px,2cqw,14px)]">
-          {isDemo ? (
-            <span className="text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#aaa] italic truncate">
-              Sample listing — post yours to replace this
-            </span>
-          ) : isOwner || !isAccepted ? (
+          {isOwner || !isAccepted ? (
             listing.phone ? (
               <a
                 href={`tel:${listing.phone}`}
@@ -251,84 +265,82 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             ) : <span />
           ) : <span />}
 
-          {!isDemo && (
-            <div className="flex items-center gap-[clamp(4px,1cqw,8px)] flex-shrink-0">
-              {isOwner ? (
-                /* ── Owner: Edit + Remove ── */
-                <>
-                  <button
-                    onClick={() => onEdit(listing)}
-                    className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#555] bg-white hover:border-[#999] hover:text-[#1a1a1a] transition-colors"
-                  >
-                    <span className="text-[clamp(9px,1.6cqw,12px)]">✏️</span> Edit
-                  </button>
+          <div className="flex items-center gap-[clamp(4px,1cqw,8px)] flex-shrink-0">
+            {isOwner ? (
+              /* ── Owner: Edit + Remove ── */
+              <>
+                <button
+                  onClick={() => onEdit(listing)}
+                  className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#555] bg-white hover:border-[#999] hover:text-[#1a1a1a] transition-colors"
+                >
+                  <span className="text-[clamp(9px,1.6cqw,12px)]">✏️</span> Edit
+                </button>
 
-                  {deleteConfirm === index ? (
-                    <>
-                      <button
-                        onClick={() => onDeleteConfirm(index)}
-                        className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap bg-red-500 text-white hover:bg-red-600 transition-colors"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={onDeleteCancel}
-                        className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
-                      >
-                        No
-                      </button>
-                    </>
-                  ) : (
+                {deleteConfirm === index ? (
+                  <>
                     <button
-                      onClick={() => onDeleteRequest(index)}
-                      className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                      onClick={() => onDeleteConfirm(index)}
+                      className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap bg-red-500 text-white hover:bg-red-600 transition-colors"
                     >
-                      <span className="text-[clamp(9px,1.6cqw,12px)]">🗑️</span> Remove
+                      Confirm
                     </button>
-                  )}
-                </>
-              ) : isAccepted ? (
-                /* ── Accepted: poster's phone number + chat icon ── */
-                <div className="flex items-center gap-[clamp(6px,1.6cqw,12px)] w-full justify-between">
-                  {listing.phone ? (
-                    <a
-                      href={`tel:${listing.phone}`}
-                      className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#111] hover:text-[#ff2d55] transition-colors flex items-center gap-[clamp(3px,0.8cqw,6px)]"
+                    <button
+                      onClick={onDeleteCancel}
+                      className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
                     >
-                      <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
-                      <span className="truncate">{listing.phone}</span>
-                    </a>
-                  ) : (
-                    <span className="text-[clamp(11px,2.1cqw,13px)] font-bold text-[#999]">No number</span>
-                  )}
+                      No
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={() => onChat?.(index)}
-                    aria-label="Chat"
-                    title="Chat"
-                    className="w-[clamp(26px,6cqw,34px)] h-[clamp(26px,6cqw,34px)] flex-shrink-0 rounded-full flex items-center justify-center text-[clamp(12px,2.6cqw,16px)] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+                    onClick={() => onDeleteRequest(index)}
+                    className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
                   >
-                    💬
+                    <span className="text-[clamp(9px,1.6cqw,12px)]">🗑️</span> Remove
                   </button>
-                </div>
-              ) : (
-                /* ── Other user: Accept + Decline ── */
-                <>
-                  <button
-                    onClick={() => onAccept?.(index)}
-                    className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
+                )}
+              </>
+            ) : isAccepted ? (
+              /* ── Accepted: poster's phone number + chat icon ── */
+              <div className="flex items-center gap-[clamp(6px,1.6cqw,12px)] w-full justify-between">
+                {listing.phone ? (
+                  <a
+                    href={`tel:${listing.phone}`}
+                    className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#111] hover:text-[#ff2d55] transition-colors flex items-center gap-[clamp(3px,0.8cqw,6px)]"
                   >
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => onDecline?.(index)}
-                    className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
-                  >
-                    Decline
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+                    <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
+                    <span className="truncate">{listing.phone}</span>
+                  </a>
+                ) : (
+                  <span className="text-[clamp(11px,2.1cqw,13px)] font-bold text-[#999]">No number</span>
+                )}
+                <button
+                  onClick={() => onChat?.(index)}
+                  aria-label="Chat"
+                  title="Chat"
+                  className="w-[clamp(26px,6cqw,34px)] h-[clamp(26px,6cqw,34px)] flex-shrink-0 rounded-full flex items-center justify-center text-[clamp(12px,2.6cqw,16px)] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
+                >
+                  💬
+                </button>
+              </div>
+            ) : (
+              /* ── Other user: Accept + Decline ── */
+              <>
+                <button
+                  onClick={() => onAccept?.(index)}
+                  className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => onDecline?.(index)}
+                  className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  Decline
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -344,7 +356,10 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
 
   // Locally-scoped, "this account only" state. Declining hides a card just for
   // this viewer without touching the underlying listing; accepting flips that
-  // card's footer to show contact details instead of Accept/Decline.
+  // card's footer to show contact details instead of Accept/Decline. This
+  // applies to demo cards too (negative originalIndex) — their local UI state
+  // updates the same way, we just never forward a negative index up to the
+  // parent via onAccept/onDecline/onChat, since there's no real listing behind it.
   const [declinedIndexes, setDeclinedIndexes] = useState(() => new Set());
   const [acceptedIndexes, setAcceptedIndexes] = useState(() => new Set());
 
@@ -381,16 +396,25 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
   };
 
   const handleAccept = (index) => {
-    if (index < 0) return; // demo card — not a real request
+    // Update local UI state for every card, real or demo, so the footer
+    // flips to phone+chat either way. Only notify the parent app when
+    // there's an actual listing behind the index.
     setAcceptedIndexes((prev) => new Set(prev).add(index));
-    onAccept?.(index);
+    if (index >= 0) onAccept?.(index);
   };
 
   const handleDecline = (index) => {
-    if (index < 0) return; // demo card — nothing to decline
-    // Remove from this viewer's list only — the listing itself is untouched.
+    // Same idea as handleAccept: remove the card from this viewer's list
+    // locally regardless of whether it's real or demo, but only tell the
+    // parent about real listings.
     setDeclinedIndexes((prev) => new Set(prev).add(index));
-    onDecline?.(index);
+    if (index >= 0) onDecline?.(index);
+  };
+
+  const handleChat = (index) => {
+    // Guard against forwarding a demo card's negative sentinel index to the
+    // real app's chat handler.
+    if (index >= 0) onChat?.(index);
   };
 
   const visibleListings = useMemo(() => {
@@ -399,8 +423,11 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
       .filter(({ originalIndex }) => !declinedIndexes.has(originalIndex));
 
     // Demo cards get negative sentinel indices (-1, -2, ...) so they can
-    // never collide with a real listing's array position.
-    const demo = DEMO_LISTINGS.map((listing, i) => ({ listing, originalIndex: -(i + 1) }));
+    // never collide with a real listing's array position. They're filtered
+    // by declinedIndexes too, so declining one actually removes it from view.
+    const demo = DEMO_LISTINGS
+      .map((listing, i) => ({ listing, originalIndex: -(i + 1) }))
+      .filter(({ originalIndex }) => !declinedIndexes.has(originalIndex));
 
     const indexed = [...real, ...demo];
 
@@ -582,7 +609,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                   onDeleteCancel={() => setDeleteConfirm(null)}
                   onAccept={handleAccept}
                   onDecline={handleDecline}
-                  onChat={onChat}
+                  onChat={handleChat}
                 />
               ))}
             </div>

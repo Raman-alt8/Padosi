@@ -43,11 +43,12 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
     window.dispatchEvent(new Event("padosi:allListings"));
   };
 
-  const handleSelectCategory = (cat) => {
-    setOpen(false);
-    // Jump straight to the All Listings page, pre-filtered to this category
-    window.dispatchEvent(new CustomEvent("padosi:allListings", { detail: { category: cat.label } }));
-  };
+ const handleSelectCategory = (cat) => {
+  // Jump straight to the All Listings page, pre-filtered to this category.
+  // Don't close this page — leave it open underneath so "Back" on the
+  // All Listings page returns here, same as the "All Listings" hero button.
+  window.dispatchEvent(new CustomEvent("padosi:allListings", { detail: { category: cat.label } }));
+};
 
   return (
     <div className={`fixed inset-0 z-[5000] flex flex-col overflow-y-auto transition-opacity duration-300 ${
