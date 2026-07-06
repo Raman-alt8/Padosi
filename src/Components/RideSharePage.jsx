@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import RidePostFormPage from "./RidePostFormPage";
 
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -6,6 +7,53 @@ const API_BASE = import.meta.env.VITE_API_URL || "";
 function initials(name = "") {
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
+
+// ── Temporary showcase routes ────────────────────────────────────────────────
+// Hardcoded example cards so the grid never looks empty while real routes are
+// still trickling in. Same pattern as ServiceListingsAllPage's DEMO_LISTINGS:
+// negative sentinel `id`s (-1, -2, ...) so they can never collide with a real
+// route id from the server, `poster_id: "__demo__"` so they never match
+// currentUser.id (even when logged out and currentUser.id is undefined),
+// and `isDemo: true` purely for the "Sample" badge.
+//
+// They behave exactly like a real "someone else posted this" card: no
+// isOwner match, so they fall into the normal Accept/Decline footer, and
+// accepting one reveals poster contact info exactly like a real accepted
+// route — except the accept/decline never reaches the server, since
+// handleAccept/handleDecline short-circuit on negative ids below.
+//
+// To remove this showcase content later: delete this array, the demoAccepted/
+// demoDeclined state, and the `demo` half of the `visibleRoutes` useMemo.
+const DEMO_ROUTES = [
+  {
+    id: -1,
+    isDemo: true,
+    poster_id: "__demo__",
+    poster_name: "Demo Rider",
+    from_place: "Vaishali Nagar",
+    to_place: "MI Road",
+    freq: "5",
+    depart_time: "08:30",
+    seats: 3,
+    price: 40,
+    description: "Sample ride — post your own route to replace this.",
+    poster_contact: { name: "Demo Rider", email: "demo1@example.com", phone: "+91 90000 00003" },
+  },
+  {
+    id: -2,
+    isDemo: true,
+    poster_id: "__demo__",
+    poster_name: "Demo Rider Two",
+    from_place: "Malviya Nagar",
+    to_place: "Sindhi Camp",
+    freq: "7",
+    depart_time: "18:00",
+    seats: 2,
+    price: 0,
+    description: "Another sample route so you can see how ride cards look.",
+    poster_contact: { name: "Demo Rider Two", email: "demo2@example.com", phone: "+91 90000 00004" },
+  },
+];
 
 // ─── Ride Share Page ──────
 // Opens when the window event "padosi:openRide" is dispatched.
@@ -16,25 +64,17 @@ function initials(name = "") {
 export default function RideSharePage({ currentUser, showToast, dark }) {
   const [open, setOpen]           = useState(false);
   const [formOpen, setFormOpen]   = useState(false);
+  const [editingRoute, setEditingRoute] = useState(null);
   const [routes, setRoutes]       = useState([]);
   const [loading, setLoading]     = useState(false);
   const [search, setSearch]       = useState("");
-  const [editingRoute, setEditingRoute] = useState(null);
 
-  // Form fields
-  const [seats, setSeats]         = useState(1);
-  const [freq, setFreq]           = useState("");
-  const [from, setFrom]           = useState("");
-  const [to, setTo]               = useState("");
-  const [deptTime, setDeptTime]   = useState("");
-  const [priceVal, setPriceVal]   = useState("");
-  const [desc, setDesc]           = useState("");
-  const [formError, setFormError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  // Map
-  const [mapSrc, setMapSrc]       = useState("");
-  const [mapHidden, setMapHidden] = useState(true);
+  // Locally-scoped, "this account only" state for demo cards — mirrors
+  // ServiceListingsAllPage's declinedIndexes/acceptedIndexes. Declining a
+  // demo card hides it just for this viewer; accepting one flips its footer
+  // to show the (fake) poster contact info. Neither ever calls the API.
+  const [demoDeclined, setDemoDeclined] = useState(() => new Set());
+  const [demoAccepted, setDemoAccepted] = useState(() => new Set());
 
   // ── Open / close ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -68,7 +108,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   }, [open, fetchRoutes]);
 
   // If any routes come back with my_response='accepted' but no contact info yet,
-  // re-fetch the contact so the panel shows correctly on reload.
+  // re-fetch the contact so the panel shows correctly on reload. Demo routes
+  // never enter `routes`, so they're untouched by this effect.
   useEffect(() => {
     routes.forEach(r => {
       if (r.my_response === "accepted" && !r.poster_contact) {
@@ -89,89 +130,31 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     });
   }, [routes.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Form helpers ─────────────────────────────────────────────────────────────
-  const resetForm = () => {
-    setFrom(""); setTo(""); setFreq(""); setDeptTime(""); setPriceVal("");
-    setDesc(""); setSeats(1); setFormError(""); setMapSrc(""); setMapHidden(true);
-    setEditingRoute(null);
-  };
-
   const openForm = (route = null) => {
-    if (route) {
-      setEditingRoute(route);
-      setFrom(route.from_place);
-      setTo(route.to_place);
-      setFreq(route.freq);
-      setDeptTime(route.depart_time);
-      setPriceVal(String(route.price ?? ""));
-      setDesc(route.description);
-      setSeats(route.seats);
-      const q = encodeURIComponent(`${route.from_place} to ${route.to_place} India`);
-      setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
-      setMapHidden(false);
-    } else {
-      resetForm();
-    }
+    setEditingRoute(route);
     setFormOpen(true);
   };
 
-  // ── Submit (create or edit) ─────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    if (!from)     { setFormError("⚠️ Please enter a starting point.");          return; }
-    if (!to)       { setFormError("⚠️ Please enter a destination.");             return; }
-    if (!freq)     { setFormError("⚠️ Please select how many times a week.");    return; }
-    if (!deptTime) { setFormError("⚠️ Please enter your usual departure time."); return; }
-    if (!desc)     { setFormError("⚠️ Please add a short description.");         return; }
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingRoute(null);
+  };
 
-    setSubmitting(true);
-    setFormError("");
-
-    const payload = {
-      from_place:  from,
-      to_place:    to,
-      freq,
-      depart_time: deptTime,
-      seats,
-      price:       Number(priceVal) || 0,
-      description: desc,
-    };
-
-    try {
-      const url    = editingRoute
-        ? `${API_BASE}/api/ride-routes/${editingRoute.id}`
-        : `${API_BASE}/api/ride-routes`;
-      const method = editingRoute ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) { setFormError(data.error || "Something went wrong."); return; }
-
-      if (editingRoute) {
-        setRoutes(prev => prev.map(r => r.id === editingRoute.id ? data.route : r));
-        showToast("✏️ Route updated");
-      } else {
-        setRoutes(prev => [data.route, ...prev]);
-        showToast("🚗 Route posted!");
-      }
-
-      setFormOpen(false);
-      resetForm();
-    } catch (err) {
-      console.error(err);
-      setFormError("⚠️ Network error. Please try again.");
-    } finally {
-      setSubmitting(false);
+  const handleFormSaved = (route, isEdit) => {
+    if (isEdit) {
+      setRoutes(prev => prev.map(r => (r.id === route.id ? route : r)));
+    } else {
+      setRoutes(prev => [route, ...prev]);
     }
   };
 
   // ── Accept ──────────────────────────────────────────────────────────────────
   const handleAccept = async (routeId) => {
+    // Demo card — flip local state only, never touch the API.
+    if (routeId < 0) {
+      setDemoAccepted(prev => new Set(prev).add(routeId));
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/accept`, {
         method: "POST",
@@ -192,6 +175,11 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
   // ── Decline ─────────────────────────────────────────────────────────────────
   const handleDecline = async (routeId) => {
+    // Demo card — hide locally only, never touch the API.
+    if (routeId < 0) {
+      setDemoDeclined(prev => new Set(prev).add(routeId));
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/decline`, {
         method: "POST",
@@ -207,11 +195,16 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
   // ── Hide an accepted route from this user's screen (local only) ─────────────
   const handleHideAccepted = (routeId) => {
+    if (routeId < 0) {
+      setDemoDeclined(prev => new Set(prev).add(routeId));
+      return;
+    }
     setRoutes(prev => prev.filter(r => r.id !== routeId));
   };
 
   // ── Delete ──────────────────────────────────────────────────────────────────
   const handleDelete = async (routeId) => {
+    if (routeId < 0) return; // demo card — nothing to delete
     try {
       const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}`, {
         method: "DELETE",
@@ -230,21 +223,26 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   };
 
+  // ── Merge real + demo routes ─────────────────────────────────────────────────
+  const visibleRoutes = useMemo(() => {
+    const demo = DEMO_ROUTES
+      .filter(d => !demoDeclined.has(d.id))
+      .map(d => ({
+        ...d,
+        my_response: demoAccepted.has(d.id) ? "accepted" : undefined,
+      }));
+    // Demo cards pinned to the end so they never crowd out real routes.
+    return [...routes, ...demo];
+  }, [routes, demoDeclined, demoAccepted]);
+
   // ── Filtering ────────────────────────────────────────────────────────────────
-  const filtered = routes.filter(r => {
+  const filtered = visibleRoutes.filter(r => {
     const q = search.toLowerCase();
     return !q
       || r.from_place.toLowerCase().includes(q)
       || r.to_place.toLowerCase().includes(q)
       || r.description.toLowerCase().includes(q);
   });
-
-  // ── Shared input class ───────────────────────────────────────────────────────
-  const inputCls = `w-full px-3.5 py-3 rounded-xl border text-sm focus:outline-none transition-colors ${
-    dark
-      ? "bg-black border-white text-white placeholder-white/30 focus:ring-1 focus:ring-white"
-      : "bg-white border-[#ddd] text-[#111] placeholder-[#aaa] focus:border-[#ff2d55]"
-  }`;
 
   if (!open) return null;
 
@@ -372,6 +370,11 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                           : "border-[#ff2d55] text-[#ff2d55] bg-[#fff0f3]"
                       }`}>
                         Your route
+                      </span>
+                    )}
+                    {r.isDemo && (
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 border border-purple-300 text-purple-600 bg-purple-50">
+                        Sample
                       </span>
                     )}
                   </div>
@@ -511,206 +514,16 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         )}
       </div>
 
-      {/* ── Post / Edit form ── */}
+      {/* ── Post / Edit form (separate component) ── */}
       {formOpen && (
-        <div className={`absolute inset-0 z-10 flex flex-col ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
-
-          {/* Form header */}
-          <div className={`h-[70px] flex items-center justify-between px-6 flex-shrink-0 border-b ${
-            dark ? "bg-black border-white" : "bg-white border-[#eee]"
-          }`}>
-            <button
-              onClick={() => { setFormOpen(false); resetForm(); }}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
-                dark
-                  ? "bg-black border-white text-white hover:bg-white hover:text-black"
-                  : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-              }`}
-            >
-              ← Back
-            </button>
-            <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
-              {editingRoute ? "Edit " : "Post a "}
-              <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
-                Route
-              </span>
-            </p>
-            <div className="w-20" />
-          </div>
-
-          <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-
-            {/* Map pane */}
-            <div className={`flex-1 relative min-h-[200px] ${dark ? "bg-black" : "bg-[#f0f1f5]"}`}>
-              {mapSrc && (
-                <iframe src={mapSrc} className="w-full h-full border-none" allowFullScreen loading="lazy" />
-              )}
-              {mapHidden && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <span className={`text-5xl ${dark ? "text-white/20" : "text-[#ccc]"}`}>🗺️</span>
-                  <p className={`text-sm text-center max-w-[180px] leading-snug ${dark ? "text-white/30" : "text-[#bbb]"}`}>
-                    Enter your route to preview it on the map
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Form pane */}
-            <div className={`w-full md:w-[400px] flex-shrink-0 overflow-y-auto p-7 border-l ${
-              dark ? "bg-black border-white" : "bg-white border-[#eee]"
-            }`}>
-              <h2 className={`text-xl font-black mb-1 ${dark ? "text-white" : "text-[#111]"}`}>
-                {editingRoute ? "Edit your route" : "Your route details"}
-              </h2>
-              <p className={`text-xs mb-6 ${dark ? "text-white/40" : "text-[#999]"}`}>
-                Share your regular trip so neighbours can ride along.
-              </p>
-
-              {/* From / To */}
-              {[
-                { label: "🟢 From", val: from, set: setFrom, placeholder: "Starting point, e.g. Vaishali Nagar" },
-                { label: "📍 To",   val: to,   set: setTo,   placeholder: "Destination, e.g. MI Road" },
-              ].map(({ label, val, set, placeholder }) => (
-                <div key={label} className="mb-4">
-                  <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>{label}</label>
-                  <input
-                    value={val}
-                    onChange={e => set(e.target.value)}
-                    placeholder={placeholder}
-                    className={inputCls}
-                  />
-                </div>
-              ))}
-
-              {/* Map preview trigger */}
-              <button
-                onClick={() => {
-                  if (!from || !to) { showToast("⚠️ Enter both a starting point and destination first."); return; }
-                  const q = encodeURIComponent(`${from} to ${to} India`);
-                  setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
-                  setMapHidden(false);
-                }}
-                className={`w-full py-3 rounded-xl border text-sm font-bold cursor-pointer transition-colors mb-5 ${
-                  dark
-                    ? "border-white bg-black text-white hover:bg-white hover:text-black"
-                    : "border-[#ddd] bg-white text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                }`}
-              >
-                🗺️ Preview on Map
-              </button>
-
-              <hr className={`my-5 ${dark ? "border-white/20" : "border-[#eee]"}`} />
-
-              {/* Frequency */}
-              <div className="mb-4">
-                <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>📅 Times per week</label>
-                <div className="flex gap-2 flex-wrap">
-                  {["1","2","3","4","5","6","7"].map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setFreq(v)}
-                      className={`px-3 py-2 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
-                        freq === v
-                          ? dark
-                            ? "bg-white border-white text-black"
-                            : "bg-[#ff2d55] border-[#ff2d55] text-white"
-                          : dark
-                            ? "border-white/40 bg-black text-white/60 hover:border-white hover:text-white"
-                            : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                      }`}
-                    >
-                      {v === "7" ? "Daily" : `${v}×`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Departure time + seats */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>🕐 Departs at</label>
-                  <input
-                    type="time"
-                    value={deptTime}
-                    onChange={e => setDeptTime(e.target.value)}
-                    style={{ colorScheme: dark ? "dark" : "light" }}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>👥 Seats available</label>
-                  <div className="flex items-center gap-3 mt-1">
-                    <button
-                      onClick={() => setSeats(s => Math.max(1, s - 1))}
-                      className={`w-8 h-8 rounded-full border text-lg font-bold flex items-center justify-center cursor-pointer transition-colors ${
-                        dark
-                          ? "border-white bg-black text-white hover:bg-white hover:text-black"
-                          : "border-[#ddd] bg-white text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                      }`}
-                    >−</button>
-                    <span className={`text-xl font-black min-w-[20px] text-center ${dark ? "text-white" : "text-[#111]"}`}>{seats}</span>
-                    <button
-                      onClick={() => setSeats(s => Math.min(8, s + 1))}
-                      className={`w-8 h-8 rounded-full border text-lg font-bold flex items-center justify-center cursor-pointer transition-colors ${
-                        dark
-                          ? "border-white bg-black text-white hover:bg-white hover:text-black"
-                          : "border-[#ddd] bg-white text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                      }`}
-                    >+</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Price */}
-              <div className="mb-4">
-                <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>₹ Price per seat</label>
-                <input
-                  type="number"
-                  value={priceVal}
-                  onChange={e => setPriceVal(e.target.value)}
-                  placeholder="e.g. 50  (leave blank for free)"
-                  min="0"
-                  className={inputCls}
-                />
-              </div>
-
-              {/* Description */}
-              <div className="mb-4">
-                <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>📝 Description</label>
-                <textarea
-                  value={desc}
-                  onChange={e => setDesc(e.target.value.slice(0, 400))}
-                  placeholder="e.g. I drive to Malviya Nagar every morning around 8 AM, AC car, non-smoker, happy to drop anyone along the route."
-                  rows={4}
-                  className={`${inputCls} resize-y leading-relaxed`}
-                />
-                <p className={`text-xs text-right mt-1 ${dark ? "text-white/30" : "text-[#ccc]"}`}>{desc.length} / 400</p>
-              </div>
-
-              {formError && (
-                <p className={`text-sm font-semibold mb-3 rounded-xl px-3 py-2 border ${
-                  dark
-                    ? "text-white border-white/40 bg-white/5"
-                    : "text-[#ff2d55] border-[#ff2d55]/30 bg-[#fff0f3]"
-                }`}>{formError}</p>
-              )}
-
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className={`w-full py-4 rounded-2xl text-sm font-bold cursor-pointer border transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 ${
-                  dark
-                    ? "bg-white text-black border-white hover:shadow-[0_8px_24px_rgba(255,255,255,0.2)]"
-                    : "bg-[#ff2d55] text-white border-[#ff2d55] hover:shadow-[0_8px_24px_rgba(255,45,85,0.25)] hover:bg-[#e0002b]"
-                }`}
-              >
-                {submitting
-                  ? "Saving…"
-                  : editingRoute ? "💾 Save Changes" : "🚗 Post Route"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <RidePostFormPage
+          open={formOpen}
+          editingRoute={editingRoute}
+          dark={dark}
+          showToast={showToast}
+          onClose={closeForm}
+          onSaved={handleFormSaved}
+        />
       )}
     </div>
   );
