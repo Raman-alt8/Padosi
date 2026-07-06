@@ -35,6 +35,40 @@ const SORT_OPTIONS = [
 // 3 columns × 2 rows on wider screens, 2 columns × 3 rows on narrow ones.
 const CARDS_PER_PAGE = 6;
 
+// ── Temporary showcase listings ──────────────────────────────────────────────
+// Hardcoded, non-interactive example cards so the grid never looks empty
+// while real listings are still trickling in. They're tagged `isDemo: true`
+// and given negative sentinel `originalIndex` values (-1, -2, ...) so they
+// can never collide with a real array index and never reach onDelete /
+// onAccept / onDecline / the parent at all. To remove this showcase content
+// later: delete this array, and the two `isDemo` branches below (one in
+// `visibleListings`, one in `ServiceCard`'s footer) can go with it.
+const DEMO_LISTINGS = [
+  {
+    isDemo: true,
+    category: "Plumber",
+    title: "Example: Quick Leak & Tap Repairs",
+    description: "This is a sample card so you can see how a listing looks — post your own to replace it.",
+    price: 300,
+    priceType: "Per visit",
+    experience: 5,
+    area: "Sample area",
+    availability: "Mon-Sat",
+    verified: true,
+  },
+  {
+    isDemo: true,
+    category: "House Cleaning",
+    title: "Example: Home Deep Cleaning",
+    description: "Another sample listing for demo purposes — real neighbours' posts will look just like this.",
+    price: 800,
+    priceType: "Monthly",
+    experience: 3,
+    area: "Sample area",
+    availability: "Tue, Thu, Sat",
+  },
+];
+
 // Human-readable, compact price suffix — falls back to a parenthesised raw
 // value so unrecognised priceType strings still render something sane.
 function priceUnitShort(priceType) {
@@ -80,6 +114,7 @@ function HeartIcon({ filled }) {
 function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onChat, onToggleWishlist }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
   const isOwner = listing.isOwner;
+  const isDemo = listing.isDemo;
   const hasMetaRow = listing.area || listing.availability || listing.rating != null;
   const hasStatRow = listing.price || listing.experience;
 
@@ -118,6 +153,11 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
               {listing.verified && (
                 <span className="inline-flex items-center text-[2.3cqw] font-bold text-[#16a34a] bg-[#dcfce7] rounded-full px-[2cqw] py-[0.8cqw] whitespace-nowrap">
                   Verified
+                </span>
+              )}
+              {isDemo && (
+                <span className="inline-flex items-center text-[2.3cqw] font-bold text-[#7c3aed] bg-[#f3e8ff] rounded-full px-[2cqw] py-[0.8cqw] whitespace-nowrap">
+                  Sample
                 </span>
               )}
             </div>
@@ -195,7 +235,11 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             past the available width, cutting the number off. clamp() keeps
             the same fluid feel on small cards but caps growth on large ones. */}
         <div className="px-[4.5cqw] py-[2.6cqw] flex items-center gap-[clamp(6px,2cqw,14px)]">
-          {isOwner || !isAccepted ? (
+          {isDemo ? (
+            <span className="text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#aaa] italic truncate">
+              Sample listing — post yours to replace this
+            </span>
+          ) : isOwner || !isAccepted ? (
             listing.phone ? (
               <a
                 href={`tel:${listing.phone}`}
@@ -207,82 +251,84 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             ) : <span />
           ) : <span />}
 
-          <div className="flex items-center gap-[clamp(4px,1cqw,8px)] flex-shrink-0">
-            {isOwner ? (
-              /* ── Owner: Edit + Remove ── */
-              <>
-                <button
-                  onClick={() => onEdit(listing)}
-                  className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#555] bg-white hover:border-[#999] hover:text-[#1a1a1a] transition-colors"
-                >
-                  <span className="text-[clamp(9px,1.6cqw,12px)]">✏️</span> Edit
-                </button>
-
-                {deleteConfirm === index ? (
-                  <>
-                    <button
-                      onClick={() => onDeleteConfirm(index)}
-                      className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap bg-red-500 text-white hover:bg-red-600 transition-colors"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={onDeleteCancel}
-                      className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
-                    >
-                      No
-                    </button>
-                  </>
-                ) : (
+          {!isDemo && (
+            <div className="flex items-center gap-[clamp(4px,1cqw,8px)] flex-shrink-0">
+              {isOwner ? (
+                /* ── Owner: Edit + Remove ── */
+                <>
                   <button
-                    onClick={() => onDeleteRequest(index)}
-                    className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                    onClick={() => onEdit(listing)}
+                    className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#555] bg-white hover:border-[#999] hover:text-[#1a1a1a] transition-colors"
                   >
-                    <span className="text-[clamp(9px,1.6cqw,12px)]">🗑️</span> Remove
+                    <span className="text-[clamp(9px,1.6cqw,12px)]">✏️</span> Edit
                   </button>
-                )}
-              </>
-            ) : isAccepted ? (
-              /* ── Accepted: poster's phone number + chat icon ── */
-              <div className="flex items-center gap-[clamp(6px,1.6cqw,12px)] w-full justify-between">
-                {listing.phone ? (
-                  <a
-                    href={`tel:${listing.phone}`}
-                    className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#111] hover:text-[#ff2d55] transition-colors flex items-center gap-[clamp(3px,0.8cqw,6px)]"
+
+                  {deleteConfirm === index ? (
+                    <>
+                      <button
+                        onClick={() => onDeleteConfirm(index)}
+                        className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap bg-red-500 text-white hover:bg-red-600 transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={onDeleteCancel}
+                        className="px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333] transition-colors"
+                      >
+                        No
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => onDeleteRequest(index)}
+                      className="inline-flex items-center gap-[clamp(3px,0.8cqw,6px)] px-[clamp(8px,1.8cqw,14px)] py-[clamp(4px,0.9cqw,7px)] rounded-full text-[clamp(10.5px,1.9cqw,13px)] font-bold cursor-pointer whitespace-nowrap border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                    >
+                      <span className="text-[clamp(9px,1.6cqw,12px)]">🗑️</span> Remove
+                    </button>
+                  )}
+                </>
+              ) : isAccepted ? (
+                /* ── Accepted: poster's phone number + chat icon ── */
+                <div className="flex items-center gap-[clamp(6px,1.6cqw,12px)] w-full justify-between">
+                  {listing.phone ? (
+                    <a
+                      href={`tel:${listing.phone}`}
+                      className="min-w-0 flex-1 text-[clamp(11px,2.3cqw,14px)] font-semibold text-[#111] hover:text-[#ff2d55] transition-colors flex items-center gap-[clamp(3px,0.8cqw,6px)]"
+                    >
+                      <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
+                      <span className="truncate">{listing.phone}</span>
+                    </a>
+                  ) : (
+                    <span className="text-[clamp(11px,2.1cqw,13px)] font-bold text-[#999]">No number</span>
+                  )}
+                  <button
+                    onClick={() => onChat?.(index)}
+                    aria-label="Chat"
+                    title="Chat"
+                    className="w-[clamp(26px,6cqw,34px)] h-[clamp(26px,6cqw,34px)] flex-shrink-0 rounded-full flex items-center justify-center text-[clamp(12px,2.6cqw,16px)] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
                   >
-                    <span className="text-[clamp(11px,2.1cqw,13px)] flex-shrink-0">📞</span>
-                    <span className="truncate">{listing.phone}</span>
-                  </a>
-                ) : (
-                  <span className="text-[clamp(11px,2.1cqw,13px)] font-bold text-[#999]">No number</span>
-                )}
-                <button
-                  onClick={() => onChat?.(index)}
-                  aria-label="Chat"
-                  title="Chat"
-                  className="w-[clamp(26px,6cqw,34px)] h-[clamp(26px,6cqw,34px)] flex-shrink-0 rounded-full flex items-center justify-center text-[clamp(12px,2.6cqw,16px)] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
-                >
-                  💬
-                </button>
-              </div>
-            ) : (
-              /* ── Other user: Accept + Decline ── */
-              <>
-                <button
-                  onClick={() => onAccept?.(index)}
-                  className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
-                >
-                  Accept
-                </button>
-                <button
-                  onClick={() => onDecline?.(index)}
-                  className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
-                >
-                  Decline
-                </button>
-              </>
-            )}
-          </div>
+                    💬
+                  </button>
+                </div>
+              ) : (
+                /* ── Other user: Accept + Decline ── */
+                <>
+                  <button
+                    onClick={() => onAccept?.(index)}
+                    className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => onDecline?.(index)}
+                    className="px-[3cqw] py-[1.1cqw] rounded-full text-[3.2cqw] font-bold cursor-pointer border border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors"
+                  >
+                    Decline
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -329,25 +375,34 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
   };
 
   const handleDelete = (index) => {
+    if (index < 0) return; // demo card — nothing to delete
     onDelete?.(index);
     setDeleteConfirm(null);
   };
 
   const handleAccept = (index) => {
+    if (index < 0) return; // demo card — not a real request
     setAcceptedIndexes((prev) => new Set(prev).add(index));
     onAccept?.(index);
   };
 
   const handleDecline = (index) => {
+    if (index < 0) return; // demo card — nothing to decline
     // Remove from this viewer's list only — the listing itself is untouched.
     setDeclinedIndexes((prev) => new Set(prev).add(index));
     onDecline?.(index);
   };
 
   const visibleListings = useMemo(() => {
-    const indexed = listings
+    const real = listings
       .map((listing, originalIndex) => ({ listing, originalIndex }))
       .filter(({ originalIndex }) => !declinedIndexes.has(originalIndex));
+
+    // Demo cards get negative sentinel indices (-1, -2, ...) so they can
+    // never collide with a real listing's array position.
+    const demo = DEMO_LISTINGS.map((listing, i) => ({ listing, originalIndex: -(i + 1) }));
+
+    const indexed = [...real, ...demo];
 
     const filtered = categoryFilter === "All"
       ? indexed
@@ -363,6 +418,10 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
           return (Number(b.listing.experience) || 0) - (Number(a.listing.experience) || 0);
         case "newest":
         default:
+          // Keep demo cards pinned to the end under "Newest first" so they
+          // never crowd out real, newer listings.
+          if (a.originalIndex < 0 && b.originalIndex >= 0) return 1;
+          if (b.originalIndex < 0 && a.originalIndex >= 0) return -1;
           return b.originalIndex - a.originalIndex;
       }
     });
@@ -431,114 +490,104 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
 
       <div className="flex-1 min-h-0 w-full px-6 py-6 flex flex-col gap-4 overflow-hidden">
 
-        {listings.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#ddd] bg-white p-16 flex flex-col items-center gap-3 text-center">
-            <span className="text-4xl">🏘️</span>
-            <p className="text-[15px] font-black text-[#111]">Nothing here yet</p>
-            <p className="text-sm text-[#888]">Post the first service — neighbours are waiting.</p>
+        <div className="h-9 flex-shrink-0 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className={selectClass}
+            >
+              <option value="All">All categories</option>
+              {POST_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{CATEGORY_ICONS[cat]} {cat}</option>
+              ))}
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className={selectClass}
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
-        ) : (
-          <>
-            <div className="h-9 flex-shrink-0 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className={selectClass}
-                >
-                  <option value="All">All categories</option>
-                  {POST_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{CATEGORY_ICONS[cat]} {cat}</option>
-                  ))}
-                </select>
 
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className={selectClass}
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap ${metaCol}`}>
+              {rangeStart}–{rangeEnd} of {visibleListings.length}
+            </span>
 
-              <div className="flex items-center gap-3">
-                <span className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap ${metaCol}`}>
-                  {rangeStart}–{rangeEnd} of {visibleListings.length}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  aria-label="Previous page"
+                  className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold border transition-colors ${
+                    page === 1
+                      ? "opacity-30 cursor-not-allowed border-[#e0e0e0] text-[#999]"
+                      : "cursor-pointer border-[#e0e0e0] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                  } ${dark ? "border-white/15 text-white/60" : ""}`}
+                >
+                  ‹
+                </button>
+                <span className={`text-[11px] font-bold whitespace-nowrap ${dark ? "text-white/60" : "text-[#555]"}`}>
+                  {page} / {totalPages}
                 </span>
-
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      aria-label="Previous page"
-                      className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold border transition-colors ${
-                        page === 1
-                          ? "opacity-30 cursor-not-allowed border-[#e0e0e0] text-[#999]"
-                          : "cursor-pointer border-[#e0e0e0] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                      } ${dark ? "border-white/15 text-white/60" : ""}`}
-                    >
-                      ‹
-                    </button>
-                    <span className={`text-[11px] font-bold whitespace-nowrap ${dark ? "text-white/60" : "text-[#555]"}`}>
-                      {page} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
-                      aria-label="Next page"
-                      className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold border transition-colors ${
-                        page === totalPages
-                          ? "opacity-30 cursor-not-allowed border-[#e0e0e0] text-[#999]"
-                          : "cursor-pointer border-[#e0e0e0] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                      } ${dark ? "border-white/15 text-white/60" : ""}`}
-                    >
-                      ›
-                    </button>
-                  </div>
-                )}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  aria-label="Next page"
+                  className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold border transition-colors ${
+                    page === totalPages
+                      ? "opacity-30 cursor-not-allowed border-[#e0e0e0] text-[#999]"
+                      : "cursor-pointer border-[#e0e0e0] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                  } ${dark ? "border-white/15 text-white/60" : ""}`}
+                >
+                  ›
+                </button>
               </div>
-            </div>
+            )}
+          </div>
+        </div>
 
-            <div className="flex-1 min-h-0 overflow-hidden">
-              {visibleListings.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
-                  <span className="text-3xl">🔍</span>
-                  <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#333]"}`}>
-                    No listings in {categoryFilter}
-                  </p>
-                  <button
-                    onClick={() => setCategoryFilter("All")}
-                    className="text-[11px] font-bold text-[#ff2d55] underline underline-offset-2 cursor-pointer"
-                  >
-                    Clear filter
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 grid-rows-3 md:grid-cols-3 md:grid-rows-2 gap-4 h-full w-full">
-                  {pagedListings.map(({ listing, originalIndex }) => (
-                    <ServiceCard
-                      key={originalIndex}
-                      listing={listing}
-                      index={originalIndex}
-                      deleteConfirm={deleteConfirm}
-                      isAccepted={acceptedIndexes.has(originalIndex)}
-                      onEdit={handleEdit}
-                      onDeleteRequest={(idx) => setDeleteConfirm(idx)}
-                      onDeleteConfirm={handleDelete}
-                      onDeleteCancel={() => setDeleteConfirm(null)}
-                      onAccept={handleAccept}
-                      onDecline={handleDecline}
-                      onChat={onChat}
-                    />
-                  ))}
-                </div>
-              )}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {visibleListings.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
+              <span className="text-3xl">🔍</span>
+              <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#333]"}`}>
+                No listings in {categoryFilter}
+              </p>
+              <button
+                onClick={() => setCategoryFilter("All")}
+                className="text-[11px] font-bold text-[#ff2d55] underline underline-offset-2 cursor-pointer"
+              >
+                Clear filter
+              </button>
             </div>
-          </>
-        )}
+          ) : (
+            <div className="grid grid-cols-2 grid-rows-3 md:grid-cols-3 md:grid-rows-2 gap-4 h-full w-full">
+              {pagedListings.map(({ listing, originalIndex }) => (
+                <ServiceCard
+                  key={originalIndex}
+                  listing={listing}
+                  index={originalIndex}
+                  deleteConfirm={deleteConfirm}
+                  isAccepted={acceptedIndexes.has(originalIndex)}
+                  onEdit={handleEdit}
+                  onDeleteRequest={(idx) => setDeleteConfirm(idx)}
+                  onDeleteConfirm={handleDelete}
+                  onDeleteCancel={() => setDeleteConfirm(null)}
+                  onAccept={handleAccept}
+                  onDecline={handleDecline}
+                  onChat={onChat}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
