@@ -253,7 +253,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
             post" branch below (phone number left, Accept/Decline right),
             exactly like a real listing from someone else. */}
         <div className="px-[4.5cqw] py-[2.6cqw] flex items-center gap-[clamp(6px,2cqw,14px)]">
-          {isOwner || !isAccepted ? (
+          {isOwner ? (
             listing.phone ? (
               <a
                 href={`tel:${listing.phone}`}
