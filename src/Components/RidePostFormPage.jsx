@@ -3,28 +3,26 @@ import { useState, useEffect } from "react";
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
-// Word limits (not character limits) — counts whitespace-separated words.
-const PLACE_WORD_LIMIT = 30;
-const DESC_WORD_LIMIT = 250;
+// Character limits per field. Enforced two ways: maxLength stops typing past
+// the limit (so there's never a need for a running counter), and a small red
+// note appears under a field only while it's sitting exactly at its limit —
+// it disappears the moment a character is deleted, since the length check
+// stops matching.
+const LIMITS = {
+  place: 30,
+  description: 250,
+  price: 7,
+};
 
-// How long the "word limit reached" warning stays visible before fading out.
-const WARNING_VISIBLE_MS = 1400;
-
-// Counts words in a string (empty/whitespace-only string = 0 words).
-function wordCount(text = "") {
-  const trimmed = text.trim();
-  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
-}
-
-// Caps a string at `maxWords` words. Once the limit is hit, the browser
-// simply refuses to add any further words — existing words + a trailing
-// space (so the user can keep finishing the word they're mid-typing) are
-// preserved, but no new word can start.
-function limitWords(text, maxWords) {
-  if (wordCount(text) <= maxWords) return text;
-  const words = text.trim().split(/\s+/).slice(0, maxWords);
-  const endsWithSpace = /\s$/.test(text);
-  return words.join(" ") + (endsWithSpace ? " " : "");
+// Small red "you've hit the limit" note. Only rendered by the caller when
+// the field's current length has reached its cap, so no state or timers are
+// needed for it to disappear — it just stops being rendered.
+function LimitNote() {
+  return (
+    <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
+      Character limit reached.
+    </p>
+  );
 }
 
 // ─── Ride Post / Edit Form ──────
@@ -55,32 +53,6 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
 
   const [mapSrc, setMapSrc]         = useState("");
   const [mapHidden, setMapHidden]   = useState(true);
-
-  // Word-limit warnings — set true the instant a field would be typed past
-  // its limit, then auto-fade back to false a moment later. The <p> below
-  // each field stays mounted the whole time so the opacity transition can
-  // actually animate instead of popping in/out.
-  const [fromWarn, setFromWarn] = useState(false);
-  const [toWarn, setToWarn]     = useState(false);
-  const [descWarn, setDescWarn] = useState(false);
-
-  useEffect(() => {
-    if (!fromWarn) return;
-    const t = setTimeout(() => setFromWarn(false), WARNING_VISIBLE_MS);
-    return () => clearTimeout(t);
-  }, [fromWarn]);
-
-  useEffect(() => {
-    if (!toWarn) return;
-    const t = setTimeout(() => setToWarn(false), WARNING_VISIBLE_MS);
-    return () => clearTimeout(t);
-  }, [toWarn]);
-
-  useEffect(() => {
-    if (!descWarn) return;
-    const t = setTimeout(() => setDescWarn(false), WARNING_VISIBLE_MS);
-    return () => clearTimeout(t);
-  }, [descWarn]);
 
   // Initialize fields whenever the form opens — either prefilled from
   // editingRoute, or blank for a fresh post.
@@ -214,26 +186,22 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
             Share your regular trip so neighbours can ride along.
           </p>
 
-          {/* From / To — word-limited so place names stay short */}
+          {/* From / To — character-limited, maxLength stops the browser from
+              registering any keystroke past the cap */}
           {[
-            { label: "🟢 From", val: from, set: setFrom, placeholder: "Starting point, e.g. Vaishali Nagar", warn: fromWarn, setWarn: setFromWarn },
-            { label: "📍 To",   val: to,   set: setTo,   placeholder: "Destination, e.g. MI Road", warn: toWarn, setWarn: setToWarn },
-          ].map(({ label, val, set, placeholder, warn, setWarn }) => (
+            { label: "🟢 From", val: from, set: setFrom, placeholder: "Starting point, e.g. Vaishali Nagar" },
+            { label: "📍 To",   val: to,   set: setTo,   placeholder: "Destination, e.g. MI Road" },
+          ].map(({ label, val, set, placeholder }) => (
             <div key={label} className="mb-4">
               <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>{label}</label>
               <input
                 value={val}
-                onChange={e => {
-                  const raw = e.target.value;
-                  if (wordCount(raw) > PLACE_WORD_LIMIT) setWarn(true);
-                  set(limitWords(raw, PLACE_WORD_LIMIT));
-                }}
+                onChange={e => set(e.target.value)}
+                maxLength={LIMITS.place}
                 placeholder={placeholder}
                 className={inputCls}
               />
-              <p className={`text-[11px] font-semibold text-red-500 mt-1 transition-opacity duration-500 ${warn ? "opacity-100" : "opacity-0"}`}>
-                Word limit reached ({PLACE_WORD_LIMIT} words)
-              </p>
+              {val.length >= LIMITS.place && <LimitNote />}
             </div>
           ))}
 
@@ -320,32 +288,30 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
           <div className="mb-4">
             <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>₹ Price per seat</label>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               value={priceVal}
               onChange={e => setPriceVal(e.target.value)}
+              maxLength={LIMITS.price}
               placeholder="e.g. 50  (leave blank for free)"
-              min="0"
               className={inputCls}
             />
+            {priceVal.length >= LIMITS.price && <LimitNote />}
           </div>
 
-          {/* Description — word-limited instead of character-limited */}
+          {/* Description — character-limited, maxLength stops the browser
+              from registering any keystroke past the cap */}
           <div className="mb-4">
             <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>📝 Description</label>
             <textarea
               value={desc}
-              onChange={e => {
-                const raw = e.target.value;
-                if (wordCount(raw) > DESC_WORD_LIMIT) setDescWarn(true);
-                setDesc(limitWords(raw, DESC_WORD_LIMIT));
-              }}
+              onChange={e => setDesc(e.target.value)}
+              maxLength={LIMITS.description}
               placeholder="e.g. I drive to Malviya Nagar every morning around 8 AM, AC car, non-smoker, happy to drop anyone along the route."
               rows={4}
               className={`${inputCls} resize-y leading-relaxed`}
             />
-            <p className={`text-[11px] font-semibold text-red-500 mt-1 transition-opacity duration-500 ${descWarn ? "opacity-100" : "opacity-0"}`}>
-              Word limit reached ({DESC_WORD_LIMIT} words)
-            </p>
+            {desc.length >= LIMITS.description && <LimitNote />}
           </div>
 
           {formError && (
