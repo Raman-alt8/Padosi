@@ -291,7 +291,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
               type="text"
               inputMode="numeric"
               value={priceVal}
-              onChange={e => setPriceVal(e.target.value)}
+              onChange={e => setPriceVal(e.target.value.replace(/\D/g, ""))}
               maxLength={LIMITS.price}
               placeholder="e.g. 50  (leave blank for free)"
               className={inputCls}
