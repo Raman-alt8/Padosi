@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EVENT_CATEGORIES, todayISO, ImageUploadField, LIMITS, LimitNote } from "./ticketShared";
+import { EVENT_CATEGORIES, todayISO, ImageUploadField, LIMITS, LimitNote, CountryCodeSelect } from "./ticketShared";
 
 // ─── PostPanel ────────────────────────────────────────────────────────────────
 // "Post a Ticket" tab — lets a user create a new ticket listing.
@@ -7,7 +7,7 @@ import { EVENT_CATEGORIES, todayISO, ImageUploadField, LIMITS, LimitNote } from 
 export default function PostPanel({ dark, showToast }) {
   const [form, setForm] = useState({
     title: "", category: "", date: "", venue: "",
-    price: "", qty: "1", description: "", contact: "",
+    price: "", qty: "1", description: "", contact: "", countryCode: "91",
   });
   const [submitted, setSubmitted] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -47,12 +47,23 @@ export default function PostPanel({ dark, showToast }) {
     const required = ["title", "category", "date", "venue", "price", "contact"];
     if (required.some((k) => !form[k])) { showToast("⚠️ Please fill in all required fields."); return; }
     if (form.date < todayISO())          { showToast("⚠️ Event date cannot be in the past.");   return; }
+    if (form.contact.length < LIMITS.contactMin || form.contact.length > LIMITS.contact) {
+      showToast(`⚠️ Contact number must be ${LIMITS.contactMin}–${LIMITS.contact} digits.`);
+      return;
+    }
     try {
+      const { countryCode, contact, ...rest } = form;
       const res  = await fetch("/api/tickets", {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, price: Number(form.price), qty: Number(form.qty) || 1, image_url: imageUrl ?? "" }),
+        body: JSON.stringify({
+          ...rest,
+          price:     Number(form.price),
+          qty:       Number(form.qty) || 1,
+          image_url: imageUrl ?? "",
+          contact:   `+${countryCode} ${contact}`,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { showToast(`⚠️ ${data.error || "Could not post ticket."}`); return; }
@@ -71,7 +82,7 @@ export default function PostPanel({ dark, showToast }) {
         </p>
         <button
           onClick={() => {
-            setForm({ title: "", category: "", date: "", venue: "", price: "", qty: "1", description: "", contact: "" });
+            setForm({ title: "", category: "", date: "", venue: "", price: "", qty: "1", description: "", contact: "", countryCode: "91" });
             setImageUrl(null); setPreview(null); setSubmitted(false);
           }}
           className={`mt-2 px-6 py-2.5 rounded-xl text-sm font-bold border cursor-pointer transition-all ${
@@ -129,7 +140,19 @@ export default function PostPanel({ dark, showToast }) {
       </div>
       <div>
         <label className={labelBase}>Your contact (phone / WhatsApp) *</label>
-        <input className={inputBase} placeholder="9876543210" value={form.contact} onChange={setDigits("contact")} maxLength={LIMITS.contact} inputMode="numeric" />
+        <div className="flex gap-2">
+          <CountryCodeSelect
+            dark={dark}
+            value={form.countryCode}
+            onChange={(code) => setForm((prev) => ({ ...prev, countryCode: code }))}
+          />
+          <input className={inputBase} placeholder="9876543210" value={form.contact} onChange={setDigits("contact")} maxLength={LIMITS.contact} inputMode="numeric" />
+        </div>
+        {form.contact.length > 0 && form.contact.length < LIMITS.contactMin && (
+          <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
+            Enter at least {LIMITS.contactMin} digits.
+          </p>
+        )}
         {form.contact.length >= LIMITS.contact && <LimitNote />}
       </div>
 

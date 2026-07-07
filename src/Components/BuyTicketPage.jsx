@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { EVENT_CATEGORIES, ImageUploadField, LIMITS, LimitNote } from "./ticketShared";
+import { EVENT_CATEGORIES, ImageUploadField, LIMITS, LimitNote, CountryCodeSelect, parseContact } from "./ticketShared";
 import PostPanel from "./PostTicketPanel";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -76,9 +76,9 @@ function RevealModal({ data, dark, onClose }) {
             {data.contact}
           </p>
           {/* WhatsApp deep-link if it looks like a phone number */}
-          {/\d{10}/.test(data.contact) && (
+          {/\d{8,}/.test(data.contact) && (
             <a
-              href={`https://wa.me/91${data.contact.replace(/\D/g, "").slice(-10)}`}
+              href={`https://wa.me/${data.contact.replace(/\D/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
               className={`mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
@@ -168,7 +168,7 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
     price:       String(listing.price),
     qty:         String(listing.qty),
     description: listing.description ?? "",
-    contact:     listing.contact ?? "",
+    ...parseContact(listing.contact),
   });
   const [saving, setSaving]       = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -212,12 +212,18 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
     const required = ["title", "category", "date", "venue", "price", "contact"];
     if (required.some((k) => !form[k])) { alert("Please fill in all required fields."); return; }
     if (form.date < todayISO())          { alert("Event date cannot be in the past.");   return; }
+    if (form.contact.length < LIMITS.contactMin || form.contact.length > LIMITS.contact) {
+      alert(`Contact number must be ${LIMITS.contactMin}–${LIMITS.contact} digits.`);
+      return;
+    }
     setSaving(true);
+    const { countryCode, contact, ...rest } = form;
     await onSave(listing.id, {
-      ...form,
+      ...rest,
       price:     Number(form.price),
       qty:       Number(form.qty) || 1,
       image_url: imageUrl ?? "",
+      contact:   `+${countryCode} ${contact}`,
     });
     setSaving(false);
   };
@@ -267,7 +273,19 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
       </div>
       <div>
         <label className={labelBase}>Contact *</label>
-        <input className={inputBase} placeholder="9876543210" value={form.contact} onChange={setDigits("contact")} maxLength={LIMITS.contact} inputMode="numeric" />
+        <div className="flex gap-2">
+          <CountryCodeSelect
+            dark={dark}
+            value={form.countryCode}
+            onChange={(code) => setForm((prev) => ({ ...prev, countryCode: code }))}
+          />
+          <input className={inputBase} placeholder="9876543210" value={form.contact} onChange={setDigits("contact")} maxLength={LIMITS.contact} inputMode="numeric" />
+        </div>
+        {form.contact.length > 0 && form.contact.length < LIMITS.contactMin && (
+          <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
+            Enter at least {LIMITS.contactMin} digits.
+          </p>
+        )}
         {form.contact.length >= LIMITS.contact && <LimitNote />}
       </div>
 
@@ -430,7 +448,7 @@ const DEMO_LISTINGS = [
     seller:      "Rohan M.",
     badge:       "Hot",
     description: "Silver category, aisle seats. Selling as I can't travel that weekend.",
-    contact:     "9876543210",
+    contact:     "+91 9876543210",
     image_url:   null,
   },
   {
@@ -446,7 +464,7 @@ const DEMO_LISTINGS = [
     seller:      "Priya S.",
     badge:       "Last one",
     description: "Upper stand, great view of the pitch. Splitting from a pair.",
-    contact:     "9123456780",
+    contact:     "+91 9123456780",
     image_url:   null,
   },
 ];
