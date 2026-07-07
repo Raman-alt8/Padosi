@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EVENT_CATEGORIES, todayISO, ImageUploadField } from "./ticketShared";
+import { EVENT_CATEGORIES, todayISO, ImageUploadField, LIMITS, LimitNote } from "./ticketShared";
 
 // ─── PostPanel ────────────────────────────────────────────────────────────────
 // "Post a Ticket" tab — lets a user create a new ticket listing.
@@ -83,7 +83,8 @@ export default function PostPanel({ dark, showToast }) {
     <div className="flex flex-col gap-5 pb-10">
       <div>
         <label className={labelBase}>Event name *</label>
-        <input className={inputBase} placeholder="e.g. Arijit Singh Live" value={form.title} onChange={set("title")} />
+        <input className={inputBase} placeholder="e.g. Arijit Singh Live" value={form.title} onChange={set("title")} maxLength={LIMITS.title} />
+        {form.title.length >= LIMITS.title && <LimitNote />}
       </div>
       <div>
         <label className={labelBase}>Category *</label>
@@ -101,13 +102,15 @@ export default function PostPanel({ dark, showToast }) {
         </div>
         <div>
           <label className={labelBase}>Venue *</label>
-          <input className={inputBase} placeholder="Stadium or location name" value={form.venue} onChange={set("venue")} />
+          <input className={inputBase} placeholder="Stadium or location name" value={form.venue} onChange={set("venue")} maxLength={LIMITS.venue} />
+          {form.venue.length >= LIMITS.venue && <LimitNote />}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelBase}>Price per ticket (₹) *</label>
-          <input type="number" min="0" className={inputBase} placeholder="e.g. 1200" value={form.price} onChange={set("price")} />
+          <input type="text" inputMode="numeric" className={inputBase} placeholder="e.g. 1200" value={form.price} onChange={set("price")} maxLength={LIMITS.price} />
+          {form.price.length >= LIMITS.price && <LimitNote />}
         </div>
         <div>
           <label className={labelBase}>Tickets available</label>
@@ -116,11 +119,13 @@ export default function PostPanel({ dark, showToast }) {
       </div>
       <div>
         <label className={labelBase}>Additional details</label>
-        <textarea rows={3} className={`${inputBase} resize-none`} placeholder="Seat details, row, category, reason for selling…" value={form.description} onChange={set("description")} />
+        <textarea rows={3} className={`${inputBase} resize-none`} placeholder="Seat details, row, category, reason for selling…" value={form.description} onChange={set("description")} maxLength={LIMITS.description} />
+        {form.description.length >= LIMITS.description && <LimitNote />}
       </div>
       <div>
         <label className={labelBase}>Your contact (phone / WhatsApp) *</label>
-        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} />
+        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} maxLength={LIMITS.contact} />
+        {form.contact.length >= LIMITS.contact && <LimitNote />}
       </div>
 
       {/* Ticket image upload */}

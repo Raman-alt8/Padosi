@@ -17,6 +17,31 @@ export const EVENT_CATEGORIES = [
   { icon: "🎰", label: "Other" },
 ];
 
+// ─── Character Limits ────────────────────────────────────────────────────────
+// Enforced two ways: maxLength stops typing past the limit (so there's never
+// a need for a running counter), and a small red note appears under a field
+// only while it's sitting exactly at its limit — it disappears the moment a
+// character is deleted, since the length check stops matching.
+
+export const LIMITS = {
+  title:       60,
+  description: 150,
+  price:       8,
+  venue:       60,
+  contact:     20,
+};
+
+// Small red "you've hit the limit" note. Only rendered by the caller when the
+// field's current length has reached its cap, so no state or timers are
+// needed for it to disappear — it just stops being rendered.
+export function LimitNote() {
+  return (
+    <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
+      Character limit reached.
+    </p>
+  );
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function todayISO() {

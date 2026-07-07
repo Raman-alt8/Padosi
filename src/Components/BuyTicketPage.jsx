@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { EVENT_CATEGORIES, ImageUploadField } from "./ticketShared";
+import { EVENT_CATEGORIES, ImageUploadField, LIMITS, LimitNote } from "./ticketShared";
 import PostPanel from "./PostTicketPanel";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -221,7 +221,8 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
     <div className="flex flex-col gap-3 pt-1">
       <div>
         <label className={labelBase}>Event name *</label>
-        <input className={inputBase} value={form.title} onChange={set("title")} />
+        <input className={inputBase} value={form.title} onChange={set("title")} maxLength={LIMITS.title} />
+        {form.title.length >= LIMITS.title && <LimitNote />}
       </div>
       <div>
         <label className={labelBase}>Category *</label>
@@ -239,13 +240,15 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
         </div>
         <div>
           <label className={labelBase}>Venue *</label>
-          <input className={inputBase} placeholder="Venue name" value={form.venue} onChange={set("venue")} />
+          <input className={inputBase} placeholder="Venue name" value={form.venue} onChange={set("venue")} maxLength={LIMITS.venue} />
+          {form.venue.length >= LIMITS.venue && <LimitNote />}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelBase}>Price (₹) *</label>
-          <input type="number" min="0" className={inputBase} value={form.price} onChange={set("price")} />
+          <input type="text" inputMode="numeric" className={inputBase} value={form.price} onChange={set("price")} maxLength={LIMITS.price} />
+          {form.price.length >= LIMITS.price && <LimitNote />}
         </div>
         <div>
           <label className={labelBase}>Qty</label>
@@ -254,11 +257,13 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
       </div>
       <div>
         <label className={labelBase}>Details</label>
-        <textarea rows={2} className={`${inputBase} resize-none`} placeholder="Seat details, reason for selling…" value={form.description} onChange={set("description")} />
+        <textarea rows={2} className={`${inputBase} resize-none`} placeholder="Seat details, reason for selling…" value={form.description} onChange={set("description")} maxLength={LIMITS.description} />
+        {form.description.length >= LIMITS.description && <LimitNote />}
       </div>
       <div>
         <label className={labelBase}>Contact *</label>
-        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} />
+        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} maxLength={LIMITS.contact} />
+        {form.contact.length >= LIMITS.contact && <LimitNote />}
       </div>
 
       {/* Image upload in edit mode */}
