@@ -178,6 +178,11 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
   const set = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
+  // Price and contact should only ever contain digits — filter out
+  // anything else as the person types rather than validating after the fact.
+  const setDigits = (key) => (e) =>
+    setForm((prev) => ({ ...prev, [key]: e.target.value.replace(/\D/g, "") }));
+
   const inputBase = `w-full rounded-xl px-3 py-2 text-sm border outline-none transition-colors ${
     dark
       ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
@@ -247,7 +252,7 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelBase}>Price (₹) *</label>
-          <input type="text" inputMode="numeric" className={inputBase} value={form.price} onChange={set("price")} maxLength={LIMITS.price} />
+          <input type="text" inputMode="numeric" className={inputBase} value={form.price} onChange={setDigits("price")} maxLength={LIMITS.price} />
           {form.price.length >= LIMITS.price && <LimitNote />}
         </div>
         <div>
@@ -262,7 +267,7 @@ function InlineEditForm({ listing, dark, onSave, onCancel }) {
       </div>
       <div>
         <label className={labelBase}>Contact *</label>
-        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} maxLength={LIMITS.contact} />
+        <input className={inputBase} placeholder="9876543210" value={form.contact} onChange={setDigits("contact")} maxLength={LIMITS.contact} inputMode="numeric" />
         {form.contact.length >= LIMITS.contact && <LimitNote />}
       </div>
 
@@ -405,12 +410,53 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
   );
 }
 
+// ─── Demo listings ────────────────────────────────────────────────────────────
+// Two placeholder cards shown as if posted by other neighbours, so the Buy
+// tab never looks empty. They carry a userId that will never match the
+// signed-in user, so they always render with a "Buy" button, never
+// Edit/Remove. Their ids are prefixed "demo-" so handleBuy can short-circuit
+// past the real /reveal API and just show the local data.
+const DEMO_LISTINGS = [
+  {
+    id:          "demo-1",
+    userId:      "demo-user-1",
+    title:       "Coldplay: Music of the Spheres",
+    category:    "Concert",
+    icon:        "🎵",
+    date:        "2026-09-12",
+    venue:       "DY Patil Stadium, Navi Mumbai",
+    price:       4500,
+    qty:         2,
+    seller:      "Rohan M.",
+    badge:       "Hot",
+    description: "Silver category, aisle seats. Selling as I can't travel that weekend.",
+    contact:     "9876543210",
+    image_url:   null,
+  },
+  {
+    id:          "demo-2",
+    userId:      "demo-user-2",
+    title:       "India vs Australia — T20I",
+    category:    "Cricket",
+    icon:        "🏏",
+    date:        "2026-08-03",
+    venue:       "Wankhede Stadium, Mumbai",
+    price:       1800,
+    qty:         1,
+    seller:      "Priya S.",
+    badge:       "Last one",
+    description: "Upper stand, great view of the pitch. Splitting from a pair.",
+    contact:     "9123456780",
+    image_url:   null,
+  },
+];
+
 // ─── BuyPanel ─────────────────────────────────────────────────────────────────
 
 function BuyPanel({ dark, showToast, user }) {
   const [search, setSearch]               = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [listings, setListings]           = useState([]);
+  const [listings, setListings]           = useState(DEMO_LISTINGS);
   const [loading, setLoading]             = useState(true);
   const [reveal, setReveal]               = useState(null);   // data for RevealModal
   const [revealing, setRevealing]         = useState(null);   // id currently loading
@@ -436,16 +482,21 @@ function BuyPanel({ dark, showToast, user }) {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     fetch("/api/tickets", { credentials: "include" })
       .then((r) => r.json())
-      .then((data) => setListings((data.tickets ?? []).map(toCard)))
+      .then((data) => setListings((prev) => [...prev, ...(data.tickets ?? []).map(toCard)]))
       .catch(() => showToast("⚠️ Could not load tickets."))
       .finally(() => setLoading(false));
   }, [user]);
 
   // ── Buy → reveal ticket image + contact ──────────────────────────────────
   const handleBuy = async (listing) => {
+    // Demo cards aren't backed by the API — reveal their local data directly.
+    if (String(listing.id).startsWith("demo-")) {
+      setReveal({ contact: listing.contact, image_url: listing.image_url });
+      return;
+    }
     setRevealing(listing.id);
     try {
       const res  = await fetch(`/api/tickets/${listing.id}/reveal`, { credentials: "include" });
@@ -505,17 +556,21 @@ function BuyPanel({ dark, showToast, user }) {
       <RevealModal data={reveal} dark={dark} onClose={() => setReveal(null)} />
 
       <div className="flex flex-col gap-5">
-        <input
-          type="text"
-          placeholder="Search events, venues…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={`w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
-            dark
-              ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/60"
-              : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
-          }`}
-        />
+        <div>
+          <input
+            type="text"
+            placeholder="Search events, venues…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            maxLength={LIMITS.search}
+            className={`w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
+              dark
+                ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white/60"
+                : "bg-[#f6f7fb] border-[#e0e0ea] text-[#111] placeholder:text-[#bbb] focus:border-[#ff2d55]"
+            }`}
+          />
+          {search.length >= LIMITS.search && <LimitNote />}
+        </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
           {categories.map((cat) => {

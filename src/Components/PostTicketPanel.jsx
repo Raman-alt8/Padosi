@@ -16,6 +16,11 @@ export default function PostPanel({ dark, showToast }) {
 
   const set = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
+  // Price and contact should only ever contain digits — filter out
+  // anything else as the person types rather than validating after the fact.
+  const setDigits = (key) => (e) =>
+    setForm((prev) => ({ ...prev, [key]: e.target.value.replace(/\D/g, "") }));
+
   const inputBase = `w-full rounded-xl px-4 py-2.5 text-sm border outline-none transition-colors ${
     dark
       ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-white"
@@ -109,7 +114,7 @@ export default function PostPanel({ dark, showToast }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelBase}>Price per ticket (₹) *</label>
-          <input type="text" inputMode="numeric" className={inputBase} placeholder="e.g. 1200" value={form.price} onChange={set("price")} maxLength={LIMITS.price} />
+          <input type="text" inputMode="numeric" className={inputBase} placeholder="e.g. 1200" value={form.price} onChange={setDigits("price")} maxLength={LIMITS.price} />
           {form.price.length >= LIMITS.price && <LimitNote />}
         </div>
         <div>
@@ -124,7 +129,7 @@ export default function PostPanel({ dark, showToast }) {
       </div>
       <div>
         <label className={labelBase}>Your contact (phone / WhatsApp) *</label>
-        <input className={inputBase} placeholder="+91 98765 43210" value={form.contact} onChange={set("contact")} maxLength={LIMITS.contact} />
+        <input className={inputBase} placeholder="9876543210" value={form.contact} onChange={setDigits("contact")} maxLength={LIMITS.contact} inputMode="numeric" />
         {form.contact.length >= LIMITS.contact && <LimitNote />}
       </div>
 
