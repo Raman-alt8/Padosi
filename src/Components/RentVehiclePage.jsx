@@ -111,7 +111,7 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
         dark ? "bg-black border-white" : "bg-white border-[#ebebeb] shadow-[0_4px_16px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
       }`}
     >
-      <div className={`relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden ${
+      <div className={`relative w-full aspect-[16/10] flex items-center justify-center overflow-hidden ${
         dark ? "bg-[#111]" : "bg-[#f6f7fb]"
       }`}>
         {thumbnail ? (
@@ -150,7 +150,7 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
         )}
       </div>
 
-      <div className="p-4 flex flex-col flex-1">
+      <div className="p-3 flex flex-col flex-1">
         {/* Price leads the card, same as OLX */}
         <div className="flex items-baseline gap-1.5">
           <span className={`text-xl font-black leading-none ${dark ? "text-white" : "text-[#111]"}`}>
@@ -162,26 +162,26 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
         </div>
 
         {vehicle.description && (
-          <p className={`text-xs mt-1.5 leading-snug line-clamp-1 ${dark ? "text-[#999]" : "text-[#888]"}`}>
+          <p className={`text-xs mt-1 leading-snug line-clamp-1 ${dark ? "text-[#999]" : "text-[#888]"}`}>
             {vehicle.description}
           </p>
         )}
 
-        <h3 className={`text-base font-extrabold leading-snug line-clamp-1 mt-1.5 ${dark ? "text-white" : "text-[#111]"}`}>
+        <h3 className={`text-base font-extrabold leading-snug line-clamp-1 mt-1 ${dark ? "text-white" : "text-[#111]"}`}>
           {vehicle.title}
         </h3>
 
-        <div className={`flex items-center justify-between gap-2 mt-2.5 text-[11px] ${dark ? "text-[#888]" : "text-gray-500"}`}>
+        <div className={`flex items-center justify-between gap-2 mt-2 text-[11px] ${dark ? "text-[#888]" : "text-gray-500"}`}>
           <span className="truncate">📍 {vehicle.area || "Area not listed"}</span>
           <span className="flex-shrink-0">{vehicle.isDemo ? "Demo listing" : timeAgo(vehicle.created_at)}</span>
         </div>
 
-        <div className={`flex items-center gap-2 mt-4 pt-3 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
+        <div className={`flex items-center gap-2 mt-3 pt-2 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
           {vehicle.phone && (
             <a
               href={`tel:${vehicle.phone}`}
               onClick={(e) => e.stopPropagation()}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${
                 dark ? "bg-white text-black hover:bg-white/85" : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
               }`}
             >
@@ -193,7 +193,7 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
             <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(vehicle); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
                   dark
                     ? "border-white text-white hover:bg-white hover:text-black"
                     : "border-[#e0e0e0] text-[#555] hover:border-[#999] hover:text-[#1a1a1a]"
@@ -205,13 +205,13 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
                 <>
                   <button
                     onClick={(e) => { e.stopPropagation(); onDeleteConfirm(vehicle.id); }}
-                    className="px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors border-none"
+                    className="px-3 py-1 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors border-none"
                   >
                     Confirm
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onDeleteCancel(); }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                    className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
                       dark ? "border-white text-[#aaa] hover:bg-[#1a1a1a]" : "border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333]"
                     }`}
                   >
@@ -221,7 +221,7 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); onDeleteRequest(vehicle.id); }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                  className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
                     dark
                       ? "border-white text-[#aaa] hover:bg-red-950"
                       : "border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500"
