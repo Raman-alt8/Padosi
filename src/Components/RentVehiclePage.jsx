@@ -15,6 +15,35 @@ function priceUnitShort(priceType) {
   return priceType ? ` (${priceType})` : "";
 }
 
+// Indian digit grouping for the price (₹425000 → ₹4,25,000), matching how
+// prices read on listing sites like OLX.
+function formatINR(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return n.toLocaleString("en-IN");
+}
+
+// Turns a created_at timestamp into a short relative label ("3h ago",
+// "2d ago") and falls back to a "Jul 02" style date once it's a week old —
+// same convention OLX uses on its cards.
+function timeAgo(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
+
 // A vehicle can arrive from the API with a photoUrls array (current shape)
 // or, in principle, only the legacy single photoUrl — cover both so nothing
 // breaks if either field is ever missing.
@@ -23,13 +52,57 @@ function photosOf(vehicle) {
   return vehicle.photoUrl ? [vehicle.photoUrl] : [];
 }
 
+// ─── TEMPORARY DEMO DATA ────────────────────────────────────────────────────
+// Two placeholder listings so the redesigned card can be previewed without
+// needing real rows in the vehicles table. Everything below is safe to
+// delete once you're happy with the look — just remove this block and the
+// `...DEMO_VEHICLES,` line inside RentVehiclePage further down.
+const DEMO_VEHICLES = [
+  {
+    id: "demo-1",
+    user_id: "demo",
+    title: "Honda Activa 6G",
+    description: "Well maintained, recently serviced, great mileage.",
+    priceType: "Per Day",
+    price: 350,
+    phone: "9876543210",
+    area: "Sector 14",
+    photoUrls: ["https://picsum.photos/seed/padosi-scooter/600/450"],
+    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    isOwner: false,
+    isDemo: true,
+  },
+  {
+    id: "demo-2",
+    user_id: "demo",
+    title: "Maruti Suzuki Swift",
+    description: "Clean interiors, AC works great, full tank on pickup.",
+    priceType: "Per Day",
+    price: 1500,
+    phone: "9123456780",
+    area: "Alwar Bypass Road",
+    photoUrls: ["https://picsum.photos/seed/padosi-car/600/450"],
+    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    isOwner: false,
+    isDemo: true,
+  },
+];
+
 // ─── Vehicle Card ───────────────────────────────────────────────────────────
-// The whole card is clickable and opens VehicleDetailOverlay on the vehicle's
-// first photo. Interactive children (call link, edit, delete/confirm/cancel)
-// stop propagation so they act on themselves instead of also opening detail.
+// Styled after OLX's listing cards: price leads (bold, large), then a short
+// subtitle, then the title, then a location/posted-date row, with a
+// price-type corner tag and a wishlist heart over the photo. The whole card
+// is clickable and opens VehicleDetailOverlay; interactive children (call,
+// wishlist, edit, delete/confirm/cancel) stop propagation so they act on
+// themselves instead of also opening detail.
 function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, dark }) {
   const photos = photosOf(vehicle);
   const thumbnail = photos[0];
+
+  // Wishlist heart is purely cosmetic right now — there's no saved-listings
+  // feature on the backend yet, so this is local-only state to match the
+  // OLX look. Wire it up to a real endpoint if/when that feature exists.
+  const [saved, setSaved] = useState(false);
 
   return (
     <div
@@ -47,6 +120,29 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
           <span className="text-4xl opacity-30">🚗</span>
         )}
 
+        {/* Corner tag — mirrors the "FEATURED" ribbon slot on OLX cards */}
+        <span className="absolute top-2 left-2 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wide bg-[#ff2d55] text-white">
+          {vehicle.isDemo ? "Demo" : vehicle.priceType === "Per Hour" ? "Hourly" : "Daily"}
+        </span>
+
+        {/* Wishlist heart */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setSaved((s) => !s); }}
+          aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm cursor-pointer border-none hover:bg-white transition-colors"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="w-4 h-4"
+            fill={saved ? "#ff2d55" : "none"}
+            stroke={saved ? "#ff2d55" : "#555"}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          >
+            <path d="M12 21s-6.7-4.3-9.3-8.2C1 10 1.6 6.7 4.4 5.2 6.6 4 9.2 4.7 12 7.5 14.8 4.7 17.4 4 19.6 5.2c2.8 1.5 3.4 4.8 1.7 7.6C18.7 16.7 12 21 12 21z" />
+          </svg>
+        </button>
+
         {photos.length > 1 && (
           <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-black/65 text-white">
             📷 {photos.length}
@@ -55,33 +151,29 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
       </div>
 
       <div className="p-4 flex flex-col flex-1">
-        <h3 className={`text-base font-extrabold leading-snug line-clamp-1 ${dark ? "text-white" : "text-[#111]"}`}>
-          {vehicle.title}
-        </h3>
+        {/* Price leads the card, same as OLX */}
+        <div className="flex items-baseline gap-1.5">
+          <span className={`text-xl font-black leading-none ${dark ? "text-white" : "text-[#111]"}`}>
+            ₹{formatINR(vehicle.price)}
+          </span>
+          <span className={`text-xs leading-none ${dark ? "text-[#888]" : "text-gray-500"}`}>
+            {priceUnitShort(vehicle.priceType)}
+          </span>
+        </div>
+
         {vehicle.description && (
-          <p className={`text-xs mt-1 leading-snug line-clamp-2 ${dark ? "text-[#999]" : "text-[#888]"}`}>
+          <p className={`text-xs mt-1.5 leading-snug line-clamp-1 ${dark ? "text-[#999]" : "text-[#888]"}`}>
             {vehicle.description}
           </p>
         )}
 
-        {vehicle.area && (
-          <span className={`inline-flex items-center gap-1 mt-2.5 self-start rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-            dark ? "bg-[#111] text-[#aaa]" : "bg-gray-100 text-[#555]"
-          }`}>
-            📍 {vehicle.area}
-          </span>
-        )}
+        <h3 className={`text-base font-extrabold leading-snug line-clamp-1 mt-1.5 ${dark ? "text-white" : "text-[#111]"}`}>
+          {vehicle.title}
+        </h3>
 
-        <div className="flex items-end justify-between mt-3">
-          <div>
-            <p className={`text-[11px] font-semibold ${dark ? "text-[#888]" : "text-gray-500"}`}>Rent</p>
-            <div className="flex items-end gap-1">
-              <span className="text-lg font-black text-[#ff2d55] leading-none">₹{vehicle.price}</span>
-              <span className={`text-xs leading-none ${dark ? "text-[#888]" : "text-gray-500"}`}>
-                {priceUnitShort(vehicle.priceType)}
-              </span>
-            </div>
-          </div>
+        <div className={`flex items-center justify-between gap-2 mt-2.5 text-[11px] ${dark ? "text-[#888]" : "text-gray-500"}`}>
+          <span className="truncate">📍 {vehicle.area || "Area not listed"}</span>
+          <span className="flex-shrink-0">{vehicle.isDemo ? "Demo listing" : timeAgo(vehicle.created_at)}</span>
         </div>
 
         <div className={`flex items-center gap-2 mt-4 pt-3 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
@@ -89,16 +181,16 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
             <a
               href={`tel:${vehicle.phone}`}
               onClick={(e) => e.stopPropagation()}
-              className={`min-w-0 flex-1 text-sm font-semibold truncate flex items-center gap-1.5 transition-colors ${
-                dark ? "text-white hover:text-[#ff2d55]" : "text-[#111] hover:text-[#ff2d55]"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                dark ? "bg-white text-black hover:bg-white/85" : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
               }`}
             >
-              📞 {vehicle.phone}
+              📞 Call
             </a>
           )}
 
           {vehicle.isOwner && (
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(vehicle); }}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
@@ -264,7 +356,7 @@ function VehicleDetailOverlay({ vehicle, deleteConfirm, onClose, onEdit, onDelet
                 {vehicle.title}
               </h2>
               <div className="text-right flex-shrink-0">
-                <span className="text-2xl font-black text-[#ff2d55] leading-none">₹{vehicle.price}</span>
+                <span className="text-2xl font-black text-[#ff2d55] leading-none">₹{formatINR(vehicle.price)}</span>
                 <span className={`block text-xs mt-0.5 ${dark ? "text-[#888]" : "text-gray-500"}`}>
                   {priceUnitShort(vehicle.priceType)}
                 </span>
@@ -425,7 +517,11 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
     }
   };
 
-  const selectedVehicle = vehicles.find((v) => v.id === selectedId) || null;
+  // TEMPORARY: demo listings prepended so the new card design is visible
+  // right away. Remove `...DEMO_VEHICLES,` once you're done previewing.
+  const displayVehicles = [...DEMO_VEHICLES, ...vehicles];
+
+  const selectedVehicle = displayVehicles.find((v) => v.id === selectedId) || null;
 
   return (
     <div className={`fixed inset-0 z-[5000] flex flex-col overflow-y-auto transition-opacity duration-300 ${
@@ -468,7 +564,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
       <div className="flex-1 px-6 py-8">
         {loading ? (
           <p className={`text-center text-sm mt-16 ${dark ? "text-[#888]" : "text-[#999]"}`}>Loading vehicles…</p>
-        ) : vehicles.length === 0 ? (
+        ) : displayVehicles.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 mt-16 text-center">
             <span className="text-4xl">🚗</span>
             <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#333]"}`}>No vehicles listed yet</p>
@@ -476,7 +572,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1400px] mx-auto">
-            {vehicles.map((vehicle) => (
+            {displayVehicles.map((vehicle) => (
               <VehicleCard
                 key={vehicle.id}
                 vehicle={vehicle}

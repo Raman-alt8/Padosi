@@ -22,7 +22,7 @@ const vehicleValidation = [
     .isFloat({ gt: 0 }).withMessage('Please enter a valid rental price.'),
   body('phone')
     .trim()
-    .matches(/^\d{10}$/).withMessage('Phone number must be exactly 10 digits.'),
+    .matches(/^\d{8,15}$/).withMessage('Phone number must be 8–15 digits.'),
   body('photo_urls')
     .optional()
     .isArray({ max: MAX_PHOTOS }).withMessage(`You can add up to ${MAX_PHOTOS} photos.`),
