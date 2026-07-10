@@ -77,6 +77,16 @@ function runMigrations(db) {
     }
   });
 
+  // Holds every photo on a vehicle listing as a JSON-encoded array (e.g.
+  // '["url1","url2"]'), index 0 being the thumbnail. photo_url is left in
+  // place and kept in sync with index 0 by vehicleRoutes.js, so anything
+  // still reading the single old column keeps working untouched.
+  db.run(`ALTER TABLE vehicles ADD COLUMN photo_urls TEXT DEFAULT '[]'`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add photo_urls column:', err);
+    }
+  });
+
   // IMPORTANT: node's sqlite3 driver does not guarantee that queued db.run()
   // calls execute in the order they were fired unless the connection is
   // serialized. The index creation below depends on the ALTER TABLE having

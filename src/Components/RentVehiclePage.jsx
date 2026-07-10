@@ -1,203 +1,211 @@
-// RentVehiclePage.jsx
-import { useState, useEffect, useCallback } from "react";
+// PostVehiclePage.jsx
+import { useState, useEffect } from "react";
 
-// Pulls whichever id field is present on the logged-in user object — same
-// helper PadosiListings.jsx uses for services, kept consistent here so
-// ownership checks work the same way regardless of how auth wires up the id.
-function currentUserId(currentUser) {
-  const raw = currentUser?.id ?? currentUser?._id ?? currentUser?.userId;
-  return raw != null ? String(raw) : null;
-}
+const PRICE_TYPES = ["Per Hour", "Per Day"];
 
-function priceUnitShort(priceType) {
-  if (priceType === "Per Hour") return "/hour";
-  if (priceType === "Per Day") return "/day";
-  return priceType ? ` (${priceType})` : "";
-}
+// Max number of photos a listing can carry. The first photo in the array is
+// always treated as the thumbnail — that's what RentVehiclePage's card grid
+// shows, and what the "detail" view (coming next) opens on.
+const MAX_PHOTOS = 6;
 
-// ─── Vehicle Card ───────────────────────────────────────────────────────────
-function VehicleCard({ vehicle, deleteConfirm, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, dark }) {
+// Character limits per field. Enforced two ways: maxLength stops typing past
+// the limit (so there's never a need for a running counter), and a small red
+// note appears under a field only while it's sitting exactly at its limit —
+// it disappears the moment a character is deleted, since the length check
+// stops matching.
+const LIMITS = {
+  title: 30,
+  description: 100,
+  price: 8,
+  area: 60,
+  phone: 10,
+};
+
+const emptyForm = {
+  title: "",
+  description: "",
+  price: "",
+  priceType: "Per Day",
+  area: "",
+  phone: "",
+  photoUrls: [],
+};
+
+// Small red "you've hit the limit" note. Only rendered by the caller when
+// the field's current length has reached its cap, so no state or timers are
+// needed for it to disappear — it just stops being rendered.
+function LimitNote({ dark }) {
   return (
-    <div className={`rounded-2xl border overflow-hidden flex flex-col ${
-      dark ? "bg-black border-white" : "bg-white border-[#ebebeb] shadow-[0_4px_16px_rgba(0,0,0,0.05)]"
-    }`}>
-      <div className={`w-full aspect-[4/3] flex items-center justify-center overflow-hidden ${
-        dark ? "bg-[#111]" : "bg-[#f6f7fb]"
-      }`}>
-        {vehicle.photoUrl ? (
-          <img src={vehicle.photoUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-4xl opacity-30">🚗</span>
-        )}
-      </div>
-
-      <div className="p-4 flex flex-col flex-1">
-        <h3 className={`text-base font-extrabold leading-snug line-clamp-1 ${dark ? "text-white" : "text-[#111]"}`}>
-          {vehicle.title}
-        </h3>
-        {vehicle.description && (
-          <p className={`text-xs mt-1 leading-snug line-clamp-2 ${dark ? "text-[#999]" : "text-[#888]"}`}>
-            {vehicle.description}
-          </p>
-        )}
-
-        {vehicle.area && (
-          <span className={`inline-flex items-center gap-1 mt-2.5 self-start rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-            dark ? "bg-[#111] text-[#aaa]" : "bg-gray-100 text-[#555]"
-          }`}>
-            📍 {vehicle.area}
-          </span>
-        )}
-
-        <div className="flex items-end justify-between mt-3">
-          <div>
-            <p className={`text-[11px] font-semibold ${dark ? "text-[#888]" : "text-gray-500"}`}>Rent</p>
-            <div className="flex items-end gap-1">
-              <span className="text-lg font-black text-[#ff2d55] leading-none">₹{vehicle.price}</span>
-              <span className={`text-xs leading-none ${dark ? "text-[#888]" : "text-gray-500"}`}>
-                {priceUnitShort(vehicle.priceType)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className={`flex items-center gap-2 mt-4 pt-3 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
-          {vehicle.phone && (
-            <a
-              href={`tel:${vehicle.phone}`}
-              className={`min-w-0 flex-1 text-sm font-semibold truncate flex items-center gap-1.5 transition-colors ${
-                dark ? "text-white hover:text-[#ff2d55]" : "text-[#111] hover:text-[#ff2d55]"
-              }`}
-            >
-              📞 {vehicle.phone}
-            </a>
-          )}
-
-          {vehicle.isOwner && (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => onEdit(vehicle)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                  dark
-                    ? "border-white text-white hover:bg-white hover:text-black"
-                    : "border-[#e0e0e0] text-[#555] hover:border-[#999] hover:text-[#1a1a1a]"
-                }`}
-              >
-                ✏️ Edit
-              </button>
-              {deleteConfirm === vehicle.id ? (
-                <>
-                  <button
-                    onClick={() => onDeleteConfirm(vehicle.id)}
-                    className="px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors border-none"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={onDeleteCancel}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                      dark ? "border-white text-[#aaa] hover:bg-[#1a1a1a]" : "border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333]"
-                    }`}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => onDeleteRequest(vehicle.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                    dark
-                      ? "border-white text-[#aaa] hover:bg-red-950"
-                      : "border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500"
-                  }`}
-                >
-                  🗑️ Remove
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
+      Character limit reached.
+    </p>
   );
 }
 
-// ─── Main page ───────────────────────────────────────────────────────────────
-// Was previously a category-picker (mirroring ServiceListingsPage). Now
-// simplified per request: it opens straight into the listing grid, pulling
-// from GET /api/vehicles and refreshing whenever a vehicle is posted, edited,
-// or deleted — same "padosi:allVehicles" event PostVehiclePage already fires
-// on save, so no changes are needed there.
-export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
+// ─── Post / Edit a Vehicle ─────────────────────────────────────────────────────
+// Mirrors PostServicePage's role for the Services flow: a full-page form that
+// opens on "padosi:postVehicle", saves to the backend, and fires
+// "padosi:allVehicles" on success so any open vehicle-listing view refreshes.
+// Passing { detail: { vehicle } } on the open event switches this into edit
+// mode — same convention ServiceListingsAllPage's Edit button uses today.
+//
+// Photo uploads happen in two steps, same as the rest of the app's upload flow:
+// picking file(s) immediately POSTs each one to /api/upload (field name
+// "image"), which stores it on Cloudinary and returns a hosted URL; those
+// URLs are collected in form.photoUrls and saved together when the vehicle
+// form itself is submitted. A listing can hold up to MAX_PHOTOS photos, and
+// whichever one sits at index 0 is the thumbnail — new uploads are appended
+// to the end, and "Make thumbnail" moves an existing photo to the front.
+export default function PostVehiclePage({ dark, onSubmit }) {
   const [open, setOpen] = useState(false);
-  const [vehicles, setVehicles] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  const fetchVehicles = useCallback(async () => {
-    setLoading(true);
+  useEffect(() => {
+    const handler = (e) => {
+      setOpen(true);
+      setError("");
+      const vehicle = e?.detail?.vehicle;
+      if (vehicle) {
+        setEditingId(vehicle.id ?? null);
+        // Accept either a new-style photoUrls array or the old single
+        // photoUrl field, so listings created before this change still load.
+        const initialPhotos = Array.isArray(vehicle.photoUrls) && vehicle.photoUrls.length
+          ? vehicle.photoUrls
+          : (vehicle.photoUrl ? [vehicle.photoUrl] : []);
+        setForm({
+          title: vehicle.title || "",
+          description: vehicle.description || "",
+          price: vehicle.price != null ? String(vehicle.price) : "",
+          priceType: vehicle.priceType || "Per Day",
+          area: vehicle.area || "",
+          phone: vehicle.phone || "",
+          photoUrls: initialPhotos,
+        });
+      } else {
+        setEditingId(null);
+        setForm(emptyForm);
+      }
+    };
+    window.addEventListener("padosi:postVehicle", handler);
+    return () => window.removeEventListener("padosi:postVehicle", handler);
+  }, []);
+
+  const update = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  // Uploads every selected file (up to whatever room is left under
+  // MAX_PHOTOS), appending each hosted URL to photoUrls as it comes back so
+  // the grid fills in progressively rather than waiting on the whole batch.
+  const handlePhotosChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ""; // allow picking the same file again later
+    if (!files.length) return;
+
+    const remaining = MAX_PHOTOS - form.photoUrls.length;
+    const toUpload = files.slice(0, remaining);
+    if (!toUpload.length) return;
+
+    setError("");
+    setUploading(true);
     try {
-      const res = await fetch("/api/vehicles", { credentials: "include" });
-      const data = await res.json();
-      if (res.ok) {
-        const myId = currentUserId(currentUser);
-        const withOwnership = (data.vehicles || []).map((v) => ({
-          ...v,
-          isOwner: myId != null && String(v.user_id) === myId,
-        }));
-        setVehicles(withOwnership);
+      for (const file of toUpload) {
+        const formData = new FormData();
+        formData.append("image", file);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not upload photo.");
+        setForm((prev) => ({ ...prev, photoUrls: [...prev.photoUrls, data.url] }));
       }
     } catch (err) {
-      console.error("Could not load vehicle listings:", err);
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = (index) => {
+    setForm((prev) => ({ ...prev, photoUrls: prev.photoUrls.filter((_, i) => i !== index) }));
+  };
+
+  const makeThumbnail = (index) => {
+    setForm((prev) => {
+      if (index === 0) return prev;
+      const next = [...prev.photoUrls];
+      const [picked] = next.splice(index, 1);
+      next.unshift(picked);
+      return { ...prev, photoUrls: next };
+    });
+  };
+
+  const close = () => {
+    setOpen(false);
+    setError("");
+  };
+
+  const handleSubmit = async () => {
+    const title = form.title.trim();
+    const p = Number(form.price);
+    const phone = form.phone.replace(/\D/g, "");
+
+    if (!title) { setError("Give the vehicle a name, e.g. \"Honda Activa 6G\"."); return; }
+    if (!p || p <= 0) { setError("Please enter a valid rental price."); return; }
+    if (!/^\d{10}$/.test(phone)) { setError("Phone number must be exactly 10 digits."); return; }
+
+    setError("");
+    setLoading(true);
+    try {
+      const body = {
+        title,
+        description: form.description.trim(),
+        price: p,
+        priceType: form.priceType,
+        area: form.area.trim(),
+        phone,
+        // photo_url stays as the first image for back-compat with anything
+        // still reading a single photo; photo_urls carries the full set.
+        photo_url: form.photoUrls[0] || "",
+        photo_urls: form.photoUrls,
+      };
+
+      const url = editingId ? `/api/vehicles/${editingId}` : "/api/vehicles";
+      const method = editingId ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not save this listing.");
+
+      window.dispatchEvent(new Event("padosi:allVehicles"));
+      onSubmit?.();
+      close();
+      setForm(emptyForm);
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
-
-  useEffect(() => {
-    const handler = () => {
-      setOpen(true);
-      fetchVehicles();
-    };
-    window.addEventListener("padosi:openRentVehicle", handler);
-    return () => window.removeEventListener("padosi:openRentVehicle", handler);
-  }, [fetchVehicles]);
-
-  useEffect(() => {
-    // Refresh whenever a listing is created/edited elsewhere (PostVehiclePage
-    // fires this on successful save), so the grid never shows stale data.
-    window.addEventListener("padosi:allVehicles", fetchVehicles);
-    return () => window.removeEventListener("padosi:allVehicles", fetchVehicles);
-  }, [fetchVehicles]);
-
-  const handlePostVehicle = () => {
-    if (onPostVehicle) {
-      onPostVehicle();
-    } else {
-      window.dispatchEvent(new CustomEvent("padosi:postVehicle"));
-    }
   };
 
-  const handleEdit = (vehicle) => {
-    setOpen(false);
-    window.dispatchEvent(new CustomEvent("padosi:postVehicle", { detail: { vehicle } }));
-  };
-
-  const handleDeleteConfirm = async (id) => {
-    try {
-      const res = await fetch(`/api/vehicles/${id}`, { method: "DELETE", credentials: "include" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not delete listing.");
-      setVehicles((prev) => prev.filter((v) => v.id !== id));
-    } catch (err) {
-      console.error("Delete vehicle error:", err);
-    } finally {
-      setDeleteConfirm(null);
-    }
-  };
+  const inputCls = `w-full px-4 py-3.5 rounded-xl border text-sm focus:outline-none transition-colors ${
+    dark
+      ? "bg-black border-white text-white placeholder:text-[#666] focus:border-white"
+      : "bg-white border-[#ddd] text-[#111] placeholder:text-[#aaa] focus:border-[#ff2d55]"
+  }`;
+  const labelCls = `block text-xs font-bold uppercase tracking-wide mb-2 ${dark ? "text-[#888]" : "text-[#999]"}`;
 
   return (
-    <div className={`fixed inset-0 z-[5000] flex flex-col overflow-y-auto transition-opacity duration-300 ${
+    <div className={`fixed inset-0 z-[6000] flex flex-col overflow-y-auto transition-opacity duration-300 ${
       dark ? "bg-black" : "bg-[#f6f7fb]"
     } ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
 
@@ -206,7 +214,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
-          onClick={() => setOpen(false)}
+          onClick={close}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
             dark
               ? "bg-black border-white text-white hover:bg-white hover:text-black"
@@ -216,49 +224,185 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
           ← Back
         </button>
         <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
-          Padosi{" "}
+          {editingId ? "Edit" : "List a"}{" "}
           <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
-            Rentals
+            Vehicle
           </span>
         </p>
-        <button
-          onClick={handlePostVehicle}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
-            dark
-              ? "bg-white border-white text-black hover:bg-black hover:text-white"
-              : "bg-[#ff2d55] border-[#ff2d55] text-white hover:bg-[#e0264a] hover:border-[#e0264a]"
-          }`}
-        >
-          + List a Vehicle
-        </button>
+        <div className="w-[76px]" />
       </div>
 
-      {/* Listing grid */}
-      <div className="flex-1 px-6 py-8">
-        {loading ? (
-          <p className={`text-center text-sm mt-16 ${dark ? "text-[#888]" : "text-[#999]"}`}>Loading vehicles…</p>
-        ) : vehicles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 mt-16 text-center">
-            <span className="text-4xl">🚗</span>
-            <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#333]"}`}>No vehicles listed yet</p>
-            <p className={`text-xs ${dark ? "text-[#888]" : "text-[#999]"}`}>Be the first to list one for your neighbours.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1400px] mx-auto">
-            {vehicles.map((vehicle) => (
-              <VehicleCard
-                key={vehicle.id}
-                vehicle={vehicle}
-                deleteConfirm={deleteConfirm}
-                onEdit={handleEdit}
-                onDeleteRequest={(id) => setDeleteConfirm(id)}
-                onDeleteConfirm={handleDeleteConfirm}
-                onDeleteCancel={() => setDeleteConfirm(null)}
-                dark={dark}
-              />
+      {/* Form */}
+      <div className="flex justify-center px-6 py-10">
+        <div className={`w-full max-w-[640px] rounded-2xl p-8 border ${
+          dark ? "bg-black border-white" : "bg-white border-transparent shadow-[0_10px_40px_rgba(0,0,0,0.06)]"
+        }`}>
+
+          {/* Photos */}
+          <label className={labelCls}>Photos</label>
+          <p className={`text-xs mb-3 -mt-1 ${dark ? "text-[#777]" : "text-[#aaa]"}`}>
+            The first photo is used as the thumbnail. Up to {MAX_PHOTOS}.
+          </p>
+          <div className="flex flex-wrap gap-3 mb-6">
+            {form.photoUrls.map((url, index) => (
+              <div
+                key={url + index}
+                className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border ${
+                  dark ? "border-white" : "border-[#eee]"
+                }`}
+              >
+                <img src={url} alt="" className="w-full h-full object-cover" />
+
+                {index === 0 && (
+                  <span className={`absolute top-1 left-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                    dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"
+                  }`}>
+                    Thumbnail
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => removePhoto(index)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center bg-black/70 text-white text-[11px] font-bold cursor-pointer border-none"
+                  aria-label="Remove photo"
+                >
+                  ✕
+                </button>
+
+                {index !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => makeThumbnail(index)}
+                    className="absolute bottom-0 left-0 right-0 py-0.5 text-[9px] font-bold text-white bg-black/60 cursor-pointer border-none"
+                  >
+                    Make thumbnail
+                  </button>
+                )}
+              </div>
             ))}
+
+            {form.photoUrls.length < MAX_PHOTOS && (
+              <label className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center border transition-colors ${
+                dark ? "border-white bg-black" : "border-[#eee] bg-[#fafafa]"
+              } ${uploading ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                {uploading ? (
+                  <span className={`text-[11px] font-bold ${dark ? "text-white" : "text-[#555]"}`}>…</span>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`w-7 h-7 ${dark ? "text-white/30" : "text-[#ccc]"}`}
+                    fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotosChange}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
-        )}
+
+          {/* Title */}
+          <label className={labelCls}>Vehicle name</label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={update("title")}
+            maxLength={LIMITS.title}
+            placeholder="e.g. Honda Activa 6G"
+            className={inputCls}
+          />
+          {form.title.length >= LIMITS.title && <LimitNote dark={dark} />}
+          <div className="mb-5" />
+
+          {/* Description */}
+          <label className={labelCls}>Description</label>
+          <textarea
+            value={form.description}
+            onChange={update("description")}
+            maxLength={LIMITS.description}
+            placeholder="Condition, mileage, any pickup instructions…"
+            rows={3}
+            className={`${inputCls} resize-none`}
+          />
+          {form.description.length >= LIMITS.description && <LimitNote dark={dark} />}
+          <div className="mb-5" />
+
+          {/* Price row */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className={labelCls}>Rental price (₹)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.price}
+                onChange={update("price")}
+                maxLength={LIMITS.price}
+                placeholder="500"
+                className={inputCls}
+              />
+              {form.price.length >= LIMITS.price && <LimitNote dark={dark} />}
+            </div>
+            <div>
+              <label className={labelCls}>Billed</label>
+              <select value={form.priceType} onChange={update("priceType")} className={`${inputCls} cursor-pointer`}>
+                {PRICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Area */}
+          <label className={labelCls}>Pickup area</label>
+          <input
+            type="text"
+            value={form.area}
+            onChange={update("area")}
+            maxLength={LIMITS.area}
+            placeholder="e.g. Sector 14"
+            className={inputCls}
+          />
+          {form.area.length >= LIMITS.area && <LimitNote dark={dark} />}
+          <div className="mb-5" />
+
+          {/* Phone */}
+          <label className={labelCls}>Contact number</label>
+          <input
+            type="tel"
+            value={form.phone}
+            onChange={update("phone")}
+            maxLength={LIMITS.phone}
+            placeholder="9876543210"
+            className={inputCls}
+          />
+          {form.phone.length >= LIMITS.phone && <LimitNote dark={dark} />}
+
+          {error && <p className="text-[#ff2d55] text-xs mt-3 font-medium">⚠️ {error}</p>}
+
+          <div className="flex items-center gap-2 mt-6">
+            <button
+              onClick={handleSubmit}
+              disabled={loading || uploading}
+              className="px-7 py-3.5 rounded-xl bg-[#ff2d55] text-white font-semibold text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all disabled:opacity-60 disabled:translate-y-0 cursor-pointer border-none"
+            >
+              {loading ? "Saving…" : editingId ? "Save Changes" : "List Vehicle"}
+            </button>
+            <button
+              onClick={close}
+              className={`px-7 py-3.5 rounded-xl border font-semibold text-sm transition-colors cursor-pointer bg-transparent ${
+                dark ? "border-white text-[#aaa] hover:bg-[#1a1a1a]" : "border-[#ddd] text-[#555] hover:bg-[#f3f3f3]"
+              }`}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
