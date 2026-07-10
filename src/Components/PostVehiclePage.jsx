@@ -17,7 +17,8 @@ const LIMITS = {
   description: 100,
   price: 8,
   area: 60,
-  phone: 10,
+  phoneMin: 8,
+  phone: 15,
 };
 
 const emptyForm = {
@@ -177,7 +178,10 @@ export default function PostVehiclePage({ dark, onSubmit }) {
 
     if (!title) { setError("Give the vehicle a name, e.g. \"Honda Activa 6G\"."); return; }
     if (!p || p <= 0) { setError("Please enter a valid rental price."); return; }
-    if (!/^\d{10}$/.test(phone)) { setError("Phone number must be exactly 10 digits."); return; }
+    if (phone.length < LIMITS.phoneMin || phone.length > LIMITS.phone) {
+      setError(`Phone number must be ${LIMITS.phoneMin}–${LIMITS.phone} digits.`);
+      return;
+    }
 
     setError("");
     setLoading(true);
@@ -396,9 +400,9 @@ export default function PostVehiclePage({ dark, onSubmit }) {
               className={inputCls}
             />
           </div>
-          {form.phone.length > 0 && form.phone.length < LIMITS.phone && (
+          {form.phone.length > 0 && form.phone.length < LIMITS.phoneMin && (
             <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
-              Enter at least {LIMITS.phone} digits.
+              Enter at least {LIMITS.phoneMin} digits.
             </p>
           )}
           {form.phone.length >= LIMITS.phone && <LimitNote dark={dark} />}
