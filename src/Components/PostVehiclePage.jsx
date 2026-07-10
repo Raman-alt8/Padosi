@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 
 const PRICE_TYPES = ["Per Hour", "Per Day"];
 
+// Matches the backend's cap in routes/vehicleRoutes.js (MAX_PHOTOS = 6).
+const MAX_PHOTOS = 6;
+
 // Character limits per field. Enforced two ways: maxLength stops typing past
 // the limit (so there's never a need for a running counter), and a small red
 // note appears under a field only while it's sitting exactly at its limit —
@@ -23,7 +26,7 @@ const emptyForm = {
   priceType: "Per Day",
   area: "",
   phone: "",
-  photoUrl: "",
+  photoUrls: [],
 };
 
 // Small red "you've hit the limit" note. Only rendered by the caller when
@@ -45,9 +48,12 @@ function LimitNote({ dark }) {
 // mode — same convention ServiceListingsAllPage's Edit button uses today.
 //
 // Photo uploads happen in two steps, same as the rest of the app's upload flow:
-// picking a file immediately POSTs it to /api/upload (field name "image"),
-// which stores it on Cloudinary and returns a hosted URL; that URL is what
-// gets saved as photo_url when the vehicle form itself is submitted.
+// picking file(s) immediately POSTs each one to /api/upload (field name
+// "image"), which stores it on Cloudinary and returns a hosted URL; those
+// URLs are what get saved as photo_urls when the vehicle form itself is
+// submitted. The file input accepts multiple files at once so people don't
+// have to repeat the upload step per photo — up to MAX_PHOTOS total, matching
+// the backend's cap.
 export default function PostVehiclePage({ dark, onSubmit }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -70,7 +76,12 @@ export default function PostVehiclePage({ dark, onSubmit }) {
           priceType: vehicle.priceType || "Per Day",
           area: vehicle.area || "",
           phone: vehicle.phone || "",
-          photoUrl: vehicle.photoUrl || "",
+          photoUrls:
+            Array.isArray(vehicle.photoUrls) && vehicle.photoUrls.length
+              ? vehicle.photoUrls
+              : vehicle.photoUrl
+              ? [vehicle.photoUrl]
+              : [],
         });
       } else {
         setEditingId(null);
@@ -83,28 +94,65 @@ export default function PostVehiclePage({ dark, onSubmit }) {
 
   const update = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
+  // Price and phone should only ever contain digits — filter out anything
+  // else as the person types rather than validating after the fact.
+  const setDigits = (key) => (e) =>
+    setForm((prev) => ({ ...prev, [key]: e.target.value.replace(/\D/g, "") }));
+
+  // Uploads every file picked in one go (the input has `multiple` set), in
+  // parallel, and appends whatever succeeds to photoUrls. Uses allSettled
+  // rather than Promise.all so that one bad file doesn't wipe out the others
+  // that uploaded fine.
   const handlePhotoChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
+    const files = Array.from(e.target.files || []);
+    e.target.value = ""; // let the same file(s) be re-picked later if needed
+    if (!files.length) return;
+
     setError("");
+    const room = MAX_PHOTOS - form.photoUrls.length;
+    if (room <= 0) {
+      setError(`You can add up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+
+    const toUpload = files.slice(0, room);
+    if (files.length > room) {
+      setError(`Only added ${room} photo${room === 1 ? "" : "s"} — the limit is ${MAX_PHOTOS} per listing.`);
+    }
+
+    setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not upload photo.");
-      setForm((prev) => ({ ...prev, photoUrl: data.url }));
-    } catch (err) {
-      setError(err.message);
+      const results = await Promise.allSettled(
+        toUpload.map(async (file) => {
+          const formData = new FormData();
+          formData.append("image", file);
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            credentials: "include",
+            body: formData,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "Could not upload photo.");
+          return data.url;
+        })
+      );
+
+      const uploaded = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+      const anyFailed = results.some((r) => r.status === "rejected");
+
+      if (uploaded.length) {
+        setForm((prev) => ({ ...prev, photoUrls: [...prev.photoUrls, ...uploaded] }));
+      }
+      if (anyFailed) {
+        setError("Some photos could not be uploaded. Please try those again.");
+      }
     } finally {
       setUploading(false);
     }
   };
+
+  const removePhoto = (idx) =>
+    setForm((prev) => ({ ...prev, photoUrls: prev.photoUrls.filter((_, i) => i !== idx) }));
 
   const close = () => {
     setOpen(false);
@@ -130,7 +178,7 @@ export default function PostVehiclePage({ dark, onSubmit }) {
         priceType: form.priceType,
         area: form.area.trim(),
         phone,
-        photo_url: form.photoUrl,
+        photo_urls: form.photoUrls,
       };
 
       const url = editingId ? `/api/vehicles/${editingId}` : "/api/vehicles";
@@ -197,72 +245,65 @@ export default function PostVehiclePage({ dark, onSubmit }) {
           dark ? "bg-black border-white" : "bg-white border-transparent shadow-[0_10px_40px_rgba(0,0,0,0.06)]"
         }`}>
 
-          {/* Photo */}
-          <label className={labelCls}>Photo</label>
-          <div className="flex items-center gap-4 mb-6">
-            <label className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center border transition-colors ${
-              dark ? "border-white bg-black" : "border-[#eee] bg-[#fafafa]"
-            } ${uploading ? "cursor-not-allowed" : "cursor-pointer"}`}>
-              {form.photoUrl && (
-                <img
-                  src={form.photoUrl}
-                  alt=""
-                  className={`w-full h-full object-cover transition-opacity ${uploading ? "opacity-40" : ""}`}
-                />
-              )}
-
-              {/* Centered plus icon — only shown when there's no photo yet */}
-              {!form.photoUrl && !uploading && (
-                <svg
-                  viewBox="0 0 24 24"
-                  className={`w-7 h-7 ${dark ? "text-white/30" : "text-[#ccc]"}`}
-                  fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"
+          {/* Photos — select one or several at once, uploaded together */}
+          <label className={labelCls}>Photos (up to {MAX_PHOTOS})</label>
+          <div className="flex flex-wrap items-center gap-3 mb-1">
+            {form.photoUrls.map((url, idx) => (
+              <div
+                key={`${url}-${idx}`}
+                className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border ${
+                  dark ? "border-white" : "border-[#eee]"
+                }`}
+              >
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                {idx === 0 && (
+                  <span className="absolute bottom-0 inset-x-0 text-center text-[9px] font-bold py-0.5 bg-black/60 text-white">
+                    Cover
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removePhoto(idx)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center text-xs font-bold cursor-pointer leading-none"
                 >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              )}
+                  ×
+                </button>
+              </div>
+            ))}
 
-              {/* Small uploading indicator, replaces both states while the request is in flight */}
-              {uploading && (
-                <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold ${
-                  dark ? "text-white" : "text-[#555]"
-                }`}>
-                  …
-                </span>
-              )}
-
-              {/* Corner plus badge — shown once a photo exists, signalling the frame is still clickable to replace it */}
-              {form.photoUrl && !uploading && (
-                <span className={`absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 ${
-                  dark ? "bg-white border-black text-black" : "bg-[#ff2d55] border-white text-white"
-                }`}>
-                  <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round">
+            {form.photoUrls.length < MAX_PHOTOS && (
+              <label
+                className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center border transition-colors ${
+                  dark ? "border-white bg-black" : "border-[#eee] bg-[#fafafa]"
+                } ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+              >
+                {uploading ? (
+                  <span className={`text-[11px] font-bold ${dark ? "text-white" : "text-[#555]"}`}>…</span>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`w-7 h-7 ${dark ? "text-white/30" : "text-[#ccc]"}`}
+                    fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"
+                  >
                     <path d="M12 5v14M5 12h14" />
                   </svg>
-                </span>
-              )}
-
-              <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploading} className="hidden" />
-            </label>
-            <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold border transition-colors ${
-              uploading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
-            } ${
-              dark
-                ? "bg-black border-white text-white hover:bg-white hover:text-black"
-                : "bg-[#f3f3f3] border-transparent text-[#555] hover:bg-[#ffe0e6] hover:text-[#ff2d55]"
-            }`}>
-              {uploading ? "Uploading…" : "Upload photo"}
-              <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploading} className="hidden" />
-            </label>
-            {form.photoUrl && !uploading && (
-              <button
-                onClick={() => setForm((prev) => ({ ...prev, photoUrl: "" }))}
-                className={`text-xs font-bold underline underline-offset-2 cursor-pointer ${dark ? "text-[#aaa]" : "text-[#999]"}`}
-              >
-                Remove
-              </button>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoChange}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
             )}
           </div>
+          <p className={`text-[11px] mb-6 ${dark ? "text-[#888]" : "text-[#999]"}`}>
+            {form.photoUrls.length > 0
+              ? `${form.photoUrls.length}/${MAX_PHOTOS} photos — first one is the cover image.`
+              : "Select one or more photos at once — no need to upload them one by one."}
+          </p>
 
           {/* Title */}
           <label className={labelCls}>Vehicle name</label>
@@ -298,7 +339,7 @@ export default function PostVehiclePage({ dark, onSubmit }) {
                 type="text"
                 inputMode="numeric"
                 value={form.price}
-                onChange={update("price")}
+                onChange={setDigits("price")}
                 maxLength={LIMITS.price}
                 placeholder="500"
                 className={inputCls}
@@ -329,13 +370,19 @@ export default function PostVehiclePage({ dark, onSubmit }) {
           {/* Phone */}
           <label className={labelCls}>Contact number</label>
           <input
-            type="tel"
+            type="text"
+            inputMode="numeric"
             value={form.phone}
-            onChange={update("phone")}
+            onChange={setDigits("phone")}
             maxLength={LIMITS.phone}
             placeholder="9876543210"
             className={inputCls}
           />
+          {form.phone.length > 0 && form.phone.length < LIMITS.phone && (
+            <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
+              Enter at least {LIMITS.phone} digits.
+            </p>
+          )}
           {form.phone.length >= LIMITS.phone && <LimitNote dark={dark} />}
 
           {error && <p className="text-[#ff2d55] text-xs mt-3 font-medium">⚠️ {error}</p>}
