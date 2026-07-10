@@ -1,5 +1,6 @@
 // PostVehiclePage.jsx
 import { useState, useEffect } from "react";
+import { CountryCodeSelect } from "./ticketShared";
 
 const PRICE_TYPES = ["Per Hour", "Per Day"];
 
@@ -26,6 +27,7 @@ const emptyForm = {
   priceType: "Per Day",
   area: "",
   phone: "",
+  countryCode: "91",
   photoUrls: [],
 };
 
@@ -54,6 +56,14 @@ function LimitNote({ dark }) {
 // submitted. The file input accepts multiple files at once so people don't
 // have to repeat the upload step per photo — up to MAX_PHOTOS total, matching
 // the backend's cap.
+//
+// Contact number uses the same country-code + digits pairing as PostPanel
+// (the ticket-posting form) for visual consistency. Note: unlike tickets,
+// the vehicle backend (vehicleRoutes.js) still validates phone as a bare
+// 10-digit string and stores it without a country prefix, so countryCode
+// is UI-only here — it isn't sent to /api/vehicles. If that should change,
+// vehicleValidation's phone regex and the save/read of `phone` in
+// vehicleRoutes.js need matching updates.
 export default function PostVehiclePage({ dark, onSubmit }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -76,6 +86,7 @@ export default function PostVehiclePage({ dark, onSubmit }) {
           priceType: vehicle.priceType || "Per Day",
           area: vehicle.area || "",
           phone: vehicle.phone || "",
+          countryCode: "91",
           photoUrls:
             Array.isArray(vehicle.photoUrls) && vehicle.photoUrls.length
               ? vehicle.photoUrls
@@ -367,17 +378,24 @@ export default function PostVehiclePage({ dark, onSubmit }) {
           {form.area.length >= LIMITS.area && <LimitNote dark={dark} />}
           <div className="mb-5" />
 
-          {/* Phone */}
+          {/* Phone — country code + digits, same pairing as PostPanel (tickets) */}
           <label className={labelCls}>Contact number</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={form.phone}
-            onChange={setDigits("phone")}
-            maxLength={LIMITS.phone}
-            placeholder="9876543210"
-            className={inputCls}
-          />
+          <div className="flex gap-2">
+            <CountryCodeSelect
+              dark={dark}
+              value={form.countryCode}
+              onChange={(code) => setForm((prev) => ({ ...prev, countryCode: code }))}
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              value={form.phone}
+              onChange={setDigits("phone")}
+              maxLength={LIMITS.phone}
+              placeholder="9876543210"
+              className={inputCls}
+            />
+          </div>
           {form.phone.length > 0 && form.phone.length < LIMITS.phone && (
             <p className="text-[#ff2d55] text-[11px] font-semibold mt-1">
               Enter at least {LIMITS.phone} digits.
