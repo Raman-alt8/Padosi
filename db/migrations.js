@@ -51,7 +51,28 @@ function runMigrations(db) {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `, err => {
-    if (err) console.error('Could not create vehicles table:', err);
+    if (err) {
+      console.error('Could not create vehicles table:', err);
+      return; // bail — the ALTER below would fail too without the table existing
+    }
+
+    // Holds every photo on a vehicle listing as a JSON-encoded array (e.g.
+    // '["url1","url2"]'), index 0 being the thumbnail. photo_url is left in
+    // place and kept in sync with index 0 by vehicleRoutes.js, so anything
+    // still reading the single old column keeps working untouched.
+    //
+    // Must be nested inside the CREATE TABLE callback above, not fired as a
+    // sibling db.run(): node's sqlite3 driver does not guarantee that queued
+    // db.run() calls execute in the order they were fired unless the
+    // connection is serialized. On a fresh database this ALTER can otherwise
+    // run before CREATE TABLE IF NOT EXISTS vehicles has actually finished,
+    // failing with "no such table: vehicles" — which is what was happening
+    // before this fix (same class of bug as the users/username fix below).
+    db.run(`ALTER TABLE vehicles ADD COLUMN photo_urls TEXT DEFAULT '[]'`, err2 => {
+      if (err2 && !err2.message.includes('duplicate column')) {
+        console.error('Could not add photo_urls column:', err2);
+      }
+    });
   });
 
   db.run(`ALTER TABLE users ADD COLUMN phone TEXT`, err => {
@@ -74,16 +95,6 @@ function runMigrations(db) {
   db.run(`ALTER TABLE tickets ADD COLUMN image_url TEXT DEFAULT ''`, err => {
     if (err && !err.message.includes('duplicate column')) {
       console.error('Could not add image_url column:', err);
-    }
-  });
-
-  // Holds every photo on a vehicle listing as a JSON-encoded array (e.g.
-  // '["url1","url2"]'), index 0 being the thumbnail. photo_url is left in
-  // place and kept in sync with index 0 by vehicleRoutes.js, so anything
-  // still reading the single old column keeps working untouched.
-  db.run(`ALTER TABLE vehicles ADD COLUMN photo_urls TEXT DEFAULT '[]'`, err => {
-    if (err && !err.message.includes('duplicate column')) {
-      console.error('Could not add photo_urls column:', err);
     }
   });
 
