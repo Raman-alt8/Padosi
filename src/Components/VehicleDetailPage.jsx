@@ -18,6 +18,7 @@
 // order (photos → ticket → description) with no separate mobile-only markup
 // needed — see the col-start/row-start comment below.
 import { useState, useEffect } from "react";
+import { useWishlist } from "./WishlistContext";
 
 // A vehicle can arrive from the API with a photoUrls array (current shape)
 // or, in principle, only the legacy single photoUrl — cover both so nothing
@@ -73,8 +74,13 @@ function shortRef(id) {
 
 export default function VehicleDetailPage({ vehicle, deleteConfirm, onClose, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, dark }) {
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [saved, setSaved] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  // Wishlist heart now reads/writes the shared WishlistContext instead of
+  // local state, so saving or un-saving here stays in sync with the same
+  // vehicle's heart on its card in the grid, and shows up in the Navbar's
+  // wishlist panel.
+  const { isWishlisted, toggleWishlist } = useWishlist();
 
   // Reset to the thumbnail photo whenever a different vehicle is opened.
   useEffect(() => {
@@ -94,9 +100,20 @@ export default function VehicleDetailPage({ vehicle, deleteConfirm, onClose, onE
   const photos = photosOf(vehicle);
   const hasPhotos = photos.length > 0;
   const showNav = photos.length > 1;
+  const saved = isWishlisted("vehicle", vehicle.id);
 
   const prevPhoto = () => setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
   const nextPhoto = () => setPhotoIndex((i) => (i + 1) % photos.length);
+
+  const handleToggleWishlist = () => {
+    toggleWishlist("vehicle", {
+      id: vehicle.id,
+      title: vehicle.title,
+      subtitle: vehicle.area,
+      priceLabel: `₹${formatINR(vehicle.price)}${priceUnitShort(vehicle.priceType)}`,
+      thumbnail: photos[0] || null,
+    });
+  };
 
   // Stamp-ink accent — the ticket motif's secondary color, used sparingly
   // for eyebrow labels and the ref code. Everything else stays on the app's
@@ -124,10 +141,9 @@ export default function VehicleDetailPage({ vehicle, deleteConfirm, onClose, onE
 
         <p className={`font-serif font-bold text-lg ${dark ? "text-white" : "text-[#111]"}`}>Padosi</p>
 
-        {/* Wishlist heart — cosmetic only, same as the card's heart; no
-            saved-listings endpoint exists yet on the backend. */}
+        {/* Wishlist heart — now shared across the app via WishlistContext. */}
         <button
-          onClick={() => setSaved((s) => !s)}
+          onClick={handleToggleWishlist}
           aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
           className={`w-9 h-9 rounded-full flex items-center justify-center border cursor-pointer transition-colors ${
             dark ? "border-white/30 hover:bg-white/10" : "border-[#ddd] hover:bg-gray-50"
