@@ -359,12 +359,12 @@ function VehicleDetailOverlay({ vehicle, deleteConfirm, onClose, onEdit, onDelet
     <div className={`fixed inset-0 z-[5500] flex flex-col overflow-y-auto ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
       {/* Header */}
-      <div className={`h-[100px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      <div className={`h-[120px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
           onClick={onClose}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
+          className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
             dark
               ? "bg-black border-white text-white hover:bg-white hover:text-black"
               : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
@@ -623,12 +623,12 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
     } ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
 
       {/* Header */}
-      <div className={`h-[100px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      <div className={`h-[120px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
           onClick={() => setOpen(false)}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
+          className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
             dark
               ? "bg-black border-white text-white hover:bg-white hover:text-black"
               : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
@@ -636,7 +636,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
         >
           ← Back
         </button>
-        <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
+        <p className={`text-lg font-black ${dark ? "text-white" : "text-[#111]"}`}>
           Padosi{" "}
           <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
             Rentals
@@ -644,7 +644,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
         </p>
         <button
           onClick={handlePostVehicle}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
+          className={`inline-flex items-center gap-2 px-6 py-3 rounded-full text-base font-bold cursor-pointer border transition-colors ${
             dark
               ? "bg-white border-white text-black hover:bg-black hover:text-white"
               : "bg-[#ff2d55] border-[#ff2d55] text-white hover:bg-[#e0264a] hover:border-[#e0264a]"
