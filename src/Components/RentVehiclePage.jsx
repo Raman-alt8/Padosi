@@ -358,11 +358,11 @@ function VehicleDetailOverlay({ vehicle, deleteConfirm, onClose, onEdit, onDelet
   return (
     <div className={`fixed inset-0 z-[5500] flex flex-col overflow-y-auto ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
-      {/* Header — shrink-0 keeps this pinned at 140px even once the content
+      {/* Header — shrink-0 keeps this pinned at 100px even once the content
           below grows taller than the viewport; without it, flexbox will
           shrink the header toward its own content height instead of letting
           the page scroll. */}
-      <div className={`h-[140px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      <div className={`h-[100px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
