@@ -655,7 +655,11 @@ export default function BuyTicketPage({ showToast, dark = false, user = null }) 
         dark ? "bg-black" : "bg-[#f6f7fb]"
       } ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
     >
-      <div className={`h-[70px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${dark ? "bg-black border-white/20" : "bg-white border-[#eee]"}`}>
+      {/* Header — same h-[80px] as VehicleDetailPage, and the title now
+          matches its font-serif font-bold text-lg treatment. */}
+      <div className={`h-[80px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-20 border-b ${
+        dark ? "bg-black border-white/20" : "bg-white border-[#eee]"
+      }`}>
         <button
           onClick={() => setOpen(false)}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
@@ -664,7 +668,7 @@ export default function BuyTicketPage({ showToast, dark = false, user = null }) 
         >
           ← Back
         </button>
-        <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
+        <p className={`font-serif font-bold text-lg ${dark ? "text-white" : "text-[#111]"}`}>
           Padosi <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>Tickets</span>
         </p>
         <div className="w-20" />

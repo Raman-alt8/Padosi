@@ -258,7 +258,7 @@ export default function VehicleDetailPage({ vehicle, deleteConfirm, onClose, onE
                     href={`tel:${vehicle.phone}`}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#ff2d55] text-white font-bold text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
                   >
-                    Rent now
+                    Rent Now
                   </a>
                 )}
 
