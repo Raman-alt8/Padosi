@@ -358,7 +358,7 @@ function VehicleDetailOverlay({ vehicle, deleteConfirm, onClose, onEdit, onDelet
   return (
     <div className={`fixed inset-0 z-[5500] flex flex-col overflow-y-auto ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
-      {/* Header — shrink-0 keeps this pinned at 100px even once the content
+      {/* Header — shrink-0 keeps this pinned at 80px even once the content
           below grows taller than the viewport; without it, flexbox will
           shrink the header toward its own content height instead of letting
           the page scroll. */}
@@ -644,7 +644,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
         >
           ← Back
         </button>
-        <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
+        <p className={`text-xl font-black ${dark ? "text-white" : "text-[#111]"}`}>
           Padosi{" "}
           <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
             Rentals
