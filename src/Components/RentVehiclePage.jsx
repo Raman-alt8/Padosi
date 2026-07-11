@@ -67,7 +67,10 @@ const DEMO_VEHICLES = [
     price: 350,
     phone: "9876543210",
     area: "Sector 14",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/Honda_Activa_6G.jpg?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Honda_Activa_6G.jpg?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Gold_Metallic_Honda_Activa.jpg?width=800",
+    ],
     created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -81,7 +84,10 @@ const DEMO_VEHICLES = [
     price: 1500,
     phone: "9123456780",
     area: "Alwar Bypass Road",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Swift_4456.JPG?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Swift_4456.JPG?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Swift_2098.JPG?width=800",
+    ],
     created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -95,7 +101,10 @@ const DEMO_VEHICLES = [
     price: 800,
     phone: "9812345670",
     area: "Moti Dungri Road",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/Royal_Enfield_Classic_350_(2017_Model_Year).jpg?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Royal_Enfield_Classic_350_(2017_Model_Year).jpg?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Royal_Enfield_Classic_350_2010_Model.jpg?width=800",
+    ],
     created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -109,7 +118,10 @@ const DEMO_VEHICLES = [
     price: 2800,
     phone: "9988776655",
     area: "Company Bagh",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/Hyundai_Creta.jpg?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Hyundai_Creta.jpg?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/2023_Hyundai_Creta_Black_Edition.jpg?width=800",
+    ],
     created_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -123,7 +135,10 @@ const DEMO_VEHICLES = [
     price: 1000,
     phone: "9765432109",
     area: "Arya Nagar",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Alto_K10.jpg?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Alto_K10.jpg?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Alto_K10_-_front.jpg?width=800",
+    ],
     created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -137,7 +152,10 @@ const DEMO_VEHICLES = [
     price: 450,
     phone: "9654321098",
     area: "Malakhera Road",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/Red_Bajaj_Pulsar_outside_hotel_in_Goa.jpg?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Red_Bajaj_Pulsar_outside_hotel_in_Goa.jpg?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Bajaj_Pulsar_150,_2003.jpg?width=800",
+    ],
     created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -151,7 +169,10 @@ const DEMO_VEHICLES = [
     price: 2200,
     phone: "9543210987",
     area: "Naya Bas",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/2018_Tata_Nexon_XM.jpg?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/2018_Tata_Nexon_XM.jpg?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Tata_Nexon_Blue_Dual_Tone.jpg?width=800",
+    ],
     created_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -165,7 +186,10 @@ const DEMO_VEHICLES = [
     price: 3000,
     phone: "9432109876",
     area: "Bhagat Singh Circle",
-    photoUrls: ["https://commons.wikimedia.org/wiki/Special:FilePath/Mahindra_Thar_in_Mumbai_2012.JPG?width=800"],
+    photoUrls: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Mahindra_Thar_in_Mumbai_2012.JPG?width=800",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Mahindra_Thar_in_maroon,_rear_right.jpg?width=800",
+    ],
     created_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
     isOwner: false,
     isDemo: true,
@@ -260,63 +284,49 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
           <span className="flex-shrink-0">{vehicle.isDemo ? "Demo listing" : timeAgo(vehicle.created_at)}</span>
         </div>
 
-        <div className={`flex items-center gap-2 mt-3 pt-2 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
-          {vehicle.phone && (
-            <a
-              href={`tel:${vehicle.phone}`}
-              onClick={(e) => e.stopPropagation()}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                dark ? "bg-white text-black hover:bg-white/85" : "bg-[#ff2d55] text-white hover:bg-[#e0264a]"
+        {vehicle.isOwner && (
+          <div className={`flex items-center justify-end gap-2 mt-3 pt-2 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(vehicle); }}
+              className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                dark
+                  ? "border-white text-white hover:bg-white hover:text-black"
+                  : "border-[#e0e0e0] text-[#555] hover:border-[#999] hover:text-[#1a1a1a]"
               }`}
             >
-              📞 Call
-            </a>
-          )}
-
-          {vehicle.isOwner && (
-            <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-              <button
-                onClick={(e) => { e.stopPropagation(); onEdit(vehicle); }}
-                className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                  dark
-                    ? "border-white text-white hover:bg-white hover:text-black"
-                    : "border-[#e0e0e0] text-[#555] hover:border-[#999] hover:text-[#1a1a1a]"
-                }`}
-              >
-                ✏️ Edit
-              </button>
-              {deleteConfirm === vehicle.id ? (
-                <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDeleteConfirm(vehicle.id); }}
-                    className="px-3 py-1 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors border-none"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDeleteCancel(); }}
-                    className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                      dark ? "border-white text-[#aaa] hover:bg-[#1a1a1a]" : "border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333]"
-                    }`}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
+              ✏️ Edit
+            </button>
+            {deleteConfirm === vehicle.id ? (
+              <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onDeleteRequest(vehicle.id); }}
+                  onClick={(e) => { e.stopPropagation(); onDeleteConfirm(vehicle.id); }}
+                  className="px-3 py-1 rounded-full text-xs font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors border-none"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDeleteCancel(); }}
                   className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
-                    dark
-                      ? "border-white text-[#aaa] hover:bg-red-950"
-                      : "border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500"
+                    dark ? "border-white text-[#aaa] hover:bg-[#1a1a1a]" : "border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333]"
                   }`}
                 >
-                  🗑️ Remove
+                  No
                 </button>
-              )}
-            </div>
-          )}
-        </div>
+              </>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteRequest(vehicle.id); }}
+                className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                  dark
+                    ? "border-white text-[#aaa] hover:bg-red-950"
+                    : "border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500"
+                }`}
+              >
+                🗑️ Remove
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
