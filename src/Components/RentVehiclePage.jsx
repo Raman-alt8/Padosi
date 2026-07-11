@@ -631,7 +631,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
           the page scroll (this was the bug: header rendered fine while the
           "Loading vehicles…" line was short, then got squeezed down once the
           full grid pushed the page past viewport height). */}
-      <div className={`h-[140px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      <div className={`h-[100px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
