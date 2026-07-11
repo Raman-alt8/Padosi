@@ -1,5 +1,6 @@
 // RentVehiclePage.jsx
 import { useState, useEffect, useCallback } from "react";
+import VehicleDetailPage from "./VehicleDetailPage";
 
 // Pulls whichever id field is present on the logged-in user object — same
 // helper PadosiListings.jsx uses for services, kept consistent here so
@@ -200,7 +201,7 @@ const DEMO_VEHICLES = [
 // Styled after OLX's listing cards: price leads (bold, large), then a short
 // subtitle, then the title, then a location/posted-date row, with a
 // price-type corner tag and a wishlist heart over the photo. The whole card
-// is clickable and opens VehicleDetailOverlay; interactive children (call,
+// is clickable and opens VehicleDetailPage; interactive children (call,
 // wishlist, edit, delete/confirm/cancel) stop propagation so they act on
 // themselves instead of also opening detail.
 function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, dark }) {
@@ -327,209 +328,6 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
             )}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Vehicle Detail Overlay ─────────────────────────────────────────────────
-// Opens on top of the listing grid (same "full page override" pattern
-// RentVehiclePage and PostVehiclePage already use — fixed inset-0 + its own
-// z-index) and shows every photo the listing has via a simple gallery: a
-// large main image with prev/next arrows and dot indicators, plus a
-// thumbnail strip to jump straight to a given photo.
-function VehicleDetailOverlay({ vehicle, deleteConfirm, onClose, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, dark }) {
-  const [photoIndex, setPhotoIndex] = useState(0);
-
-  // Reset to the thumbnail photo whenever a different vehicle is opened.
-  useEffect(() => {
-    setPhotoIndex(0);
-  }, [vehicle?.id]);
-
-  if (!vehicle) return null;
-
-  const photos = photosOf(vehicle);
-  const hasPhotos = photos.length > 0;
-  const showNav = photos.length > 1;
-
-  const prevPhoto = () => setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
-  const nextPhoto = () => setPhotoIndex((i) => (i + 1) % photos.length);
-
-  return (
-    <div className={`fixed inset-0 z-[5500] flex flex-col overflow-y-auto ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
-
-      {/* Header — shrink-0 keeps this pinned at 80px even once the content
-          below grows taller than the viewport; without it, flexbox will
-          shrink the header toward its own content height instead of letting
-          the page scroll. */}
-      <div className={`h-[80px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
-        dark ? "bg-black border-white" : "bg-white border-[#eee]"
-      }`}>
-        <button
-          onClick={onClose}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
-            dark
-              ? "bg-black border-white text-white hover:bg-white hover:text-black"
-              : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-          }`}
-        >
-          ← Back
-        </button>
-        <p className={`text-base font-black truncate max-w-[55%] ${dark ? "text-white" : "text-[#111]"}`}>
-          {vehicle.title}
-        </p>
-        <div className="w-[76px]" />
-      </div>
-
-      <div className="flex justify-center px-6 py-8">
-        <div className="w-full max-w-[720px]">
-
-          {/* Main photo */}
-          <div className={`relative w-full aspect-[4/3] rounded-2xl overflow-hidden flex items-center justify-center ${
-            dark ? "bg-[#111]" : "bg-[#eceef4]"
-          }`}>
-            {hasPhotos ? (
-              <img src={photos[photoIndex]} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-6xl opacity-30">🚗</span>
-            )}
-
-            {showNav && (
-              <>
-                <button
-                  onClick={prevPhoto}
-                  aria-label="Previous photo"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center bg-black/55 text-white text-lg font-bold cursor-pointer border-none hover:bg-black/75 transition-colors"
-                >
-                  ‹
-                </button>
-                <button
-                  onClick={nextPhoto}
-                  aria-label="Next photo"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center bg-black/55 text-white text-lg font-bold cursor-pointer border-none hover:bg-black/75 transition-colors"
-                >
-                  ›
-                </button>
-
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                  {photos.map((_, i) => (
-                    <span
-                      key={i}
-                      className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                        i === photoIndex ? "bg-white" : "bg-white/40"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Thumbnail strip */}
-          {showNav && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-              {photos.map((url, i) => (
-                <button
-                  key={url + i}
-                  onClick={() => setPhotoIndex(i)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 cursor-pointer transition-colors ${
-                    i === photoIndex
-                      ? "border-[#ff2d55]"
-                      : dark ? "border-transparent opacity-60 hover:opacity-100" : "border-transparent opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Details */}
-          <div className={`mt-6 rounded-2xl p-6 border ${
-            dark ? "bg-black border-white" : "bg-white border-transparent shadow-[0_10px_40px_rgba(0,0,0,0.06)]"
-          }`}>
-            <div className="flex items-start justify-between gap-4">
-              <h2 className={`text-xl font-black leading-snug ${dark ? "text-white" : "text-[#111]"}`}>
-                {vehicle.title}
-              </h2>
-              <div className="text-right flex-shrink-0">
-                <span className="text-2xl font-black text-[#ff2d55] leading-none">₹{formatINR(vehicle.price)}</span>
-                <span className={`block text-xs mt-0.5 ${dark ? "text-[#888]" : "text-gray-500"}`}>
-                  {priceUnitShort(vehicle.priceType)}
-                </span>
-              </div>
-            </div>
-
-            {vehicle.area && (
-              <span className={`inline-flex items-center gap-1 mt-3 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                dark ? "bg-[#111] text-[#aaa]" : "bg-gray-100 text-[#555]"
-              }`}>
-                📍 {vehicle.area}
-              </span>
-            )}
-
-            {vehicle.description && (
-              <p className={`text-sm mt-4 leading-relaxed ${dark ? "text-[#ccc]" : "text-[#444]"}`}>
-                {vehicle.description}
-              </p>
-            )}
-
-            <div className={`flex flex-wrap items-center gap-2 mt-6 pt-5 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
-              {vehicle.phone && (
-                <a
-                  href={`tel:${vehicle.phone}`}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#ff2d55] text-white font-semibold text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
-                >
-                  📞 Call {vehicle.phone}
-                </a>
-              )}
-
-              {vehicle.isOwner && (
-                <>
-                  <button
-                    onClick={() => onEdit(vehicle)}
-                    className={`px-5 py-3 rounded-xl text-sm font-bold cursor-pointer border transition-colors ${
-                      dark
-                        ? "border-white text-white hover:bg-white hover:text-black"
-                        : "border-[#e0e0e0] text-[#555] hover:border-[#999] hover:text-[#1a1a1a]"
-                    }`}
-                  >
-                    ✏️ Edit
-                  </button>
-                  {deleteConfirm === vehicle.id ? (
-                    <>
-                      <button
-                        onClick={() => onDeleteConfirm(vehicle.id)}
-                        className="px-5 py-3 rounded-xl text-sm font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors border-none"
-                      >
-                        Confirm delete
-                      </button>
-                      <button
-                        onClick={onDeleteCancel}
-                        className={`px-5 py-3 rounded-xl text-sm font-bold cursor-pointer border transition-colors ${
-                          dark ? "border-white text-[#aaa] hover:bg-[#1a1a1a]" : "border-[#e0e0e0] text-[#777] hover:border-[#333] hover:text-[#333]"
-                        }`}
-                      >
-                        No
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => onDeleteRequest(vehicle.id)}
-                      className={`px-5 py-3 rounded-xl text-sm font-bold cursor-pointer border transition-colors ${
-                        dark
-                          ? "border-white text-[#aaa] hover:bg-red-950"
-                          : "border-[#e0e0e0] text-[#999] hover:bg-red-50 hover:border-red-300 hover:text-red-500"
-                      }`}
-                    >
-                      🗑️ Remove
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -693,7 +491,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
 
       {/* Detail overlay — only mounted while a vehicle is selected */}
       {selectedVehicle && (
-        <VehicleDetailOverlay
+        <VehicleDetailPage
           vehicle={selectedVehicle}
           deleteConfirm={deleteConfirm}
           onClose={() => setSelectedId(null)}
