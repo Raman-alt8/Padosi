@@ -249,8 +249,9 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   return (
     <div className={`fixed inset-0 z-[5000] flex flex-col overflow-hidden ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
-      {/* ── Header ── */}
-      <div className={`h-[70px] flex items-center justify-between px-6 flex-shrink-0 border-b ${
+      {/* ── Header — matches RentVehiclePage's real header exactly:
+          h-[80px], shrink-0, sticky top-0, z-10, text-xl font-black title. ── */}
+      <div className={`h-[80px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
@@ -263,7 +264,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         >
           ← Back
         </button>
-        <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
+        <p className={`text-xl font-black ${dark ? "text-white" : "text-[#111]"}`}>
           Padosi{" "}
           <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
             Ride Share
