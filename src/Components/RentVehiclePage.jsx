@@ -655,7 +655,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
       </div>
 
       {/* Listing grid */}
-      <div className="flex-1 px-6 py-8">
+      <div className="flex-1 px-6 pt-10 pb-8">
         {loading ? (
           <p className={`text-center text-sm mt-16 ${dark ? "text-[#888]" : "text-[#999]"}`}>Loading vehicles…</p>
         ) : displayVehicles.length === 0 ? (
