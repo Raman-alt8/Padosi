@@ -358,8 +358,11 @@ function VehicleDetailOverlay({ vehicle, deleteConfirm, onClose, onEdit, onDelet
   return (
     <div className={`fixed inset-0 z-[5500] flex flex-col overflow-y-auto ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
-      {/* Header */}
-      <div className={`h-[140px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      {/* Header — shrink-0 keeps this pinned at 140px even once the content
+          below grows taller than the viewport; without it, flexbox will
+          shrink the header toward its own content height instead of letting
+          the page scroll. */}
+      <div className={`h-[140px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
@@ -622,8 +625,13 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
       dark ? "bg-black" : "bg-[#f6f7fb]"
     } ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
 
-      {/* Header */}
-      <div className={`h-[140px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      {/* Header — shrink-0 keeps this pinned at 140px even once the listing
+          grid grows taller than the viewport; without it, flexbox will
+          shrink the header toward its own content height instead of letting
+          the page scroll (this was the bug: header rendered fine while the
+          "Loading vehicles…" line was short, then got squeezed down once the
+          full grid pushed the page past viewport height). */}
+      <div className={`h-[140px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
