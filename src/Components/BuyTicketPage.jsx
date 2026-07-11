@@ -676,7 +676,7 @@ export default function BuyTicketPage({ showToast, dark = false, user = null }) 
 
       <div className={`py-12 px-6 text-center ${dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"}`}>
         <h1 className="text-5xl font-black">🎟️</h1>
-        <h2 className="text-3xl font-black mt-2">Tickets</h2>
+        <h2 className="font-serif font-bold text-3xl mt-2">Tickets</h2>
         <p className={`mt-2 text-sm max-w-sm mx-auto ${dark ? "opacity-60" : "opacity-90"}`}>
           Buy tickets from neighbours or post your extras — no middlemen, no markup.
         </p>
