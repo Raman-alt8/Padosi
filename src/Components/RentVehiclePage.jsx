@@ -359,7 +359,7 @@ function VehicleDetailOverlay({ vehicle, deleteConfirm, onClose, onEdit, onDelet
     <div className={`fixed inset-0 z-[5500] flex flex-col overflow-y-auto ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
       {/* Header */}
-      <div className={`h-[88px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      <div className={`h-[100px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
@@ -623,7 +623,7 @@ export default function RentVehiclePage({ currentUser, onPostVehicle, dark }) {
     } ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
 
       {/* Header */}
-      <div className={`h-[88px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      <div className={`h-[100px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
