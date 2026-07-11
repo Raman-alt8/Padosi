@@ -55,8 +55,9 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
       dark ? "bg-black" : "bg-[#f6f7fb]"
     } ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
 
-      {/* Header */}
-      <div className={`h-[70px] flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+      {/* Header — h-[80px], shrink-0, z-20 to match VehicleDetailPage;
+          title uses the same font-serif font-bold text-lg treatment. */}
+      <div className={`h-[80px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-20 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
@@ -69,7 +70,7 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
         >
           ← Back
         </button>
-        <p className={`text-base font-black ${dark ? "text-white" : "text-[#111]"}`}>
+        <p className={`font-serif font-bold text-lg ${dark ? "text-white" : "text-[#111]"}`}>
           Padosi{" "}
           <span className={`underline decoration-2 underline-offset-2 ${dark ? "text-white" : "text-[#ff2d55]"}`}>
             Services
@@ -95,7 +96,7 @@ export default function ServiceListingsPage({ onSelectCategory, onPostService, d
           onClick={handleOpenAllListings}
           className={`
             group relative inline-block
-            text-5xl font-black cursor-pointer
+            font-serif font-bold text-5xl cursor-pointer
             bg-transparent border-none p-0
             transition-all duration-150
             ${dark ? "text-black" : "text-white"}
