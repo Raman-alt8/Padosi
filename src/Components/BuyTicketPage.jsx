@@ -327,6 +327,10 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
   const isOwner  = !!currentUserId && String(listing.userId) === String(currentUserId);
   const [editing, setEditing] = useState(false);
 
+  // Wishlist heart is cosmetic/local only, same as the heart on
+  // VehicleCard/VehicleDetailPage — no saved-listings endpoint exists yet.
+  const [saved, setSaved] = useState(false);
+
   const handleSaveEdit = async (id, fields) => {
     await onEdit(id, fields);
     setEditing(false);
@@ -410,16 +414,29 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => onBuy(listing)}
-                className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
-                  dark
-                    ? "bg-white text-black border-white hover:bg-white/80"
-                    : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
-                }`}
-              >
-                Buy
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSaved((s) => !s)}
+                  aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center border cursor-pointer transition-colors flex-shrink-0 ${
+                    dark ? "border-white/40 hover:bg-white/10" : "border-[#ddd] hover:bg-gray-50"
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill={saved ? "#ff2d55" : "none"} stroke={saved ? "#ff2d55" : dark ? "#aaa" : "#555"} strokeWidth={2} strokeLinejoin="round">
+                    <path d="M12 21s-6.7-4.3-9.3-8.2C1 10 1.6 6.7 4.4 5.2 6.6 4 9.2 4.7 12 7.5 14.8 4.7 17.4 4 19.6 5.2c2.8 1.5 3.4 4.8 1.7 7.6C18.7 16.7 12 21 12 21z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => onBuy(listing)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all border ${
+                    dark
+                      ? "bg-white text-black border-white hover:bg-white/80"
+                      : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+                  }`}
+                >
+                  Buy
+                </button>
+              </div>
             )}
           </div>
         </>
