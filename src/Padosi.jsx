@@ -220,7 +220,7 @@ export default function App() {
     // WishlistProvider wraps the whole tree so any card anywhere — vehicle,
     // ticket, service — can call useWishlist(), and the navbar heart /
     // WishlistPage below always see the same shared, localStorage-backed list.
-    <WishlistProvider>
+    <WishlistProvider currentUser={currentUser} showToast={showToast}>
       <div className={darkMode ? "bg-black text-white min-h-screen" : "bg-[#f6f7fb] text-[#111] min-h-screen"}>
         <Navbar
           currentUser={currentUser}

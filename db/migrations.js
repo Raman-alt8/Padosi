@@ -13,6 +13,34 @@ function runMigrations(db) {
     if (err) console.error('Could not create dismissals table:', err);
   });
 
+  // Wishlist table — one row per (user, listing). type + item_id together
+  // identify the underlying listing (a ticket "12" and a vehicle "12" don't
+  // collide), and the UNIQUE constraint below is what lets the upsert in
+  // POST /api/wishlist work. Scoped entirely by user_id, so one account can
+  // never see or touch another account's saved items.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS wishlist_items (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type       TEXT    NOT NULL,
+      item_id    TEXT    NOT NULL,
+      title      TEXT,
+      subtitle   TEXT,
+      meta       TEXT    DEFAULT '[]',      -- JSON-encoded array of strings
+      price      REAL,
+      price_unit TEXT,
+      image      TEXT,
+      icon       TEXT,
+      badge      TEXT,
+      is_demo    INTEGER DEFAULT 0,         -- 0 / 1
+      raw        TEXT    DEFAULT '{}',      -- JSON-encoded object
+      saved_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (user_id, type, item_id)
+    )
+  `, err => {
+    if (err) console.error('Could not create wishlist_items table:', err);
+  });
+
   // Services table — every posted listing lives here, visible to all users.
   db.run(`
     CREATE TABLE IF NOT EXISTS services (
