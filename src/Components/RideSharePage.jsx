@@ -1,11 +1,23 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import RidePostFormPage from "./RidePostFormPage";
+import { useWishlist } from "./WishlistContext";
 
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
 function initials(name = "") {
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+// Simple line-style heart, filled + tinted when a route is saved. Same shape
+// as the heart used on ServiceListingsAllPage/WishlistPage, for a consistent
+// icon app-wide.
+function HeartIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={filled ? 0 : 2}>
+      <path d="M12 21s-6.7-4.3-9.3-8.2C1 10 1.6 6.7 4.4 5.2 6.6 4 9.2 4.7 12 7.5 14.8 4.7 17.4 4 19.6 5.2c2.8 1.5 3.4 4.8 1.7 7.6C18.7 16.7 12 21 12 21z" />
+    </svg>
+  );
 }
 
 // ── Temporary showcase routes ────────────────────────────────────────────────
@@ -68,6 +80,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [routes, setRoutes]       = useState([]);
   const [loading, setLoading]     = useState(false);
   const [search, setSearch]       = useState("");
+
+  // Shared wishlist store — same context every other listing page reads
+  // from, so a heart tapped here shows up on WishlistPage instantly.
+  const { isWishlisted, toggleWishlist } = useWishlist();
 
   // Locally-scoped, "this account only" state for demo cards — mirrors
   // ServiceListingsAllPage's declinedIndexes/acceptedIndexes. Declining a
@@ -244,6 +260,29 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       || r.description.toLowerCase().includes(q);
   });
 
+  // Builds the shared wishlist-entry shape (see WishlistContext.jsx's header
+  // comment for the full field list) from a ride route. Real routes already
+  // carry a stable `.id` from the API; demo routes use their negative
+  // sentinel ids (-1, -2), so both key correctly without ever colliding.
+  const buildWishlistEntry = (r) => ({
+    type: "ride",
+    id: r.id,
+    title: `${r.from_place} → ${r.to_place}`,
+    subtitle: r.poster_name ? `Posted by ${r.poster_name}` : undefined,
+    meta: [
+      `📅 ${r.freq === "7" ? "Daily" : `${r.freq}× a week`}`,
+      `🕐 ${r.depart_time || "—"}`,
+      `👥 ${r.seats} seat${r.seats > 1 ? "s" : ""}`,
+    ],
+    price: r.price > 0 ? r.price : null,
+    priceUnit: "/seat",
+    image: null,
+    icon: "🛣️",
+    badge: r.isDemo ? "Demo" : undefined,
+    isDemo: !!r.isDemo,
+    raw: r,
+  });
+
   if (!open) return null;
 
   return (
@@ -327,6 +366,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
             ) : filtered.map(r => {
               const isOwner   = r.poster_id === currentUser?.id;
               const freqLabel = r.freq === "7" ? "Daily" : `${r.freq}× a week`;
+              const saved     = isWishlisted("ride", r.id);
 
               return (
                 <div
@@ -337,21 +377,40 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                       : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
                   }`}
                 >
-                  {/* Close button — only on accepted routes */}
-                  {!isOwner && r.my_response === "accepted" && (
+                  {/* Top-right controls: wishlist heart, plus the
+                      "remove from view" close button (accepted routes only) */}
+                  <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
                     <button
-                      onClick={() => handleHideAccepted(r.id)}
-                      aria-label="Remove this route from your view"
-                      title="Remove from view"
-                      className={`absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-colors z-10 ${
-                        dark
-                          ? "text-white/50 hover:text-white hover:bg-white/10"
-                          : "text-[#bbb] hover:text-[#777] hover:bg-[#f0f0f0]"
+                      onClick={() => toggleWishlist(buildWishlistEntry(r))}
+                      aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+                      aria-pressed={saved}
+                      title={saved ? "Remove from wishlist" : "Save to wishlist"}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border transition-all active:scale-90 ${
+                        saved
+                          ? "bg-[#ff2d55] border-[#ff2d55] text-white"
+                          : dark
+                            ? "bg-black/60 border-white/30 text-white/60 hover:text-[#ff2d55] hover:border-[#ff2d55]/50"
+                            : "bg-white/90 border-[#eee] text-[#ccc] hover:text-[#ff2d55] hover:border-[#ff2d55]/40 shadow-sm"
                       }`}
                     >
-                      ✕
+                      <HeartIcon filled={saved} />
                     </button>
-                  )}
+
+                    {!isOwner && r.my_response === "accepted" && (
+                      <button
+                        onClick={() => handleHideAccepted(r.id)}
+                        aria-label="Remove this route from your view"
+                        title="Remove from view"
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-colors ${
+                          dark
+                            ? "text-white/50 hover:text-white hover:bg-white/10"
+                            : "text-[#bbb] hover:text-[#777] hover:bg-[#f0f0f0]"
+                        }`}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
 
                   {/* Route from → to */}
                   <div className="flex items-center gap-2.5">

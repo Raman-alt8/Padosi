@@ -1,17 +1,17 @@
 // WishlistPage.jsx
 // Opens when the navbar heart dispatches "padosi:openWishlist". Shows every
-// saved item — vehicles, tickets, services — in one unified card design,
-// regardless of which page it was saved from. This deliberately does NOT
-// reuse VehicleCard/TicketCard: those are built for their own listing grids
-// (owner edit/remove, category badges, etc.), while a "saved items" page is
-// its own product surface — closer to Amazon/Flipkart's wishlist grid than
-// to any single listing page.
+// saved item — vehicles, tickets, services, ride shares — in one unified
+// card design, regardless of which page it was saved from. This deliberately
+// does NOT reuse VehicleCard/TicketCard: those are built for their own
+// listing grids (owner edit/remove, category badges, etc.), while a "saved
+// items" page is its own product surface — closer to Amazon/Flipkart's
+// wishlist grid than to any single listing page.
 import { useState, useEffect, useMemo } from "react";
 import { useWishlist } from "./WishlistContext";
 
-const TYPE_LABEL = { vehicle: "Rental", ticket: "Ticket", service: "Service" };
-const TYPE_FILTERS = ["All", "Rentals", "Tickets", "Services"];
-const FILTER_TO_TYPE = { Rentals: "vehicle", Tickets: "ticket", Services: "service" };
+const TYPE_LABEL = { vehicle: "Rental", ticket: "Ticket", service: "Service", ride: "Ride Share" };
+const TYPE_FILTERS = ["All", "Rentals", "Tickets", "Services", "Rides"];
+const FILTER_TO_TYPE = { Rentals: "vehicle", Tickets: "ticket", Services: "service", Rides: "ride" };
 
 function formatINR(value) {
   const n = Number(value);
@@ -57,6 +57,7 @@ function WishlistCard({ entry, dark, onRemove, ticketReveal }) {
   const isVehicle = entry.type === "vehicle";
   const isTicket  = entry.type === "ticket";
   const isService = entry.type === "service";
+  const isRide    = entry.type === "ride";
 
   const revealData    = isTicket ? ticketReveal.revealed[entry.id] : null;
   const revealLoading = isTicket && ticketReveal.loadingId === entry.id;
@@ -183,6 +184,20 @@ function WishlistCard({ entry, dark, onRemove, ticketReveal }) {
         {isService && (
           <button
             onClick={() => window.dispatchEvent(new Event("padosi:openServices"))}
+            className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
+              dark ? "bg-white text-black border-white hover:bg-white/80" : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
+            }`}
+          >
+            View
+          </button>
+        )}
+
+        {/* Ride shares route back to the Ride Share page, same "View"
+            pattern as Services — the full accept/decline/contact flow lives
+            on RideSharePage itself, not duplicated here. */}
+        {isRide && (
+          <button
+            onClick={() => window.dispatchEvent(new Event("padosi:openRide"))}
             className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
               dark ? "bg-white text-black border-white hover:bg-white/80" : "bg-[#ff2d55] text-white border-[#ff2d55] hover:bg-[#e0254c]"
             }`}

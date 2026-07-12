@@ -1,5 +1,6 @@
 // ServiceListingsAllPage.jsx
 import { useState, useEffect, useMemo } from "react";
+import { useWishlist } from "./WishlistContext";
 
 const CATEGORY_ICONS = {
   "Plumber": "🔧",
@@ -354,6 +355,10 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
 
+  // Shared wishlist store — same context every other listing page reads
+  // from, so a heart tapped here shows up on WishlistPage instantly.
+  const { isWishlisted, toggleWishlist } = useWishlist();
+
   // Locally-scoped, "this account only" state. Declining hides a card just for
   // this viewer without touching the underlying listing; accepting flips that
   // card's footer to show contact details instead of Accept/Decline. This
@@ -415,6 +420,33 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
     // Guard against forwarding a demo card's negative sentinel index to the
     // real app's chat handler.
     if (index >= 0) onChat?.(index);
+  };
+
+  // Builds the shared wishlist-entry shape (see WishlistContext.jsx's header
+  // comment for the full field list) from a service listing. Keyed by
+  // originalIndex — same identity ServiceCard/deleteConfirm/acceptedIndexes
+  // already use, including negative sentinel indices for demo cards, so a
+  // demo listing's saved state never collides with a real one.
+  const buildWishlistEntry = (listing, index) => ({
+    type: "service",
+    id: index,
+    title: listing.title,
+    subtitle: listing.category,
+    meta: [
+      listing.area && `📍 ${listing.area}`,
+      listing.availability && `🕐 ${listing.availability}`,
+    ].filter(Boolean),
+    price: listing.price || null,
+    priceUnit: priceUnitShort(listing.priceType),
+    image: listing.photoUrl || null,
+    icon: CATEGORY_ICONS[listing.category] || "🛠️",
+    badge: listing.isDemo ? "Demo" : undefined,
+    isDemo: !!listing.isDemo,
+    raw: listing,
+  });
+
+  const handleToggleWishlist = (index, listing) => {
+    toggleWishlist(buildWishlistEntry(listing, index));
   };
 
   const visibleListings = useMemo(() => {
@@ -603,6 +635,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                   index={originalIndex}
                   deleteConfirm={deleteConfirm}
                   isAccepted={acceptedIndexes.has(originalIndex)}
+                  isWishlisted={isWishlisted("service", originalIndex)}
                   onEdit={handleEdit}
                   onDeleteRequest={(idx) => setDeleteConfirm(idx)}
                   onDeleteConfirm={handleDelete}
@@ -610,6 +643,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                   onAccept={handleAccept}
                   onDecline={handleDecline}
                   onChat={handleChat}
+                  onToggleWishlist={(idx) => handleToggleWishlist(idx, listing)}
                 />
               ))}
             </div>
