@@ -21,6 +21,7 @@ const rideRouteRoutes   = require('./routes/rideRouteRoutes');
 const ticketRoutes      = require('./routes/ticketRoutes');
 const serviceRoutes     = require('./routes/serviceRoutes');
 const vehicleRoutes     = require('./routes/vehicleRoutes');
+const wishlistRoutes    = require('./routes/wishlistRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -79,6 +80,7 @@ app.use('/api/ride-routes', rideRouteRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
 
