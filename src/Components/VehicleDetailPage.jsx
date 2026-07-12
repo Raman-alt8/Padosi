@@ -18,6 +18,7 @@
 // order (photos → ticket → description) with no separate mobile-only markup
 // needed — see the col-start/row-start comment below.
 import { useState, useEffect } from "react";
+import MessageSellerButton from "./MessageSellerButton";
 
 // A vehicle can arrive from the API with a photoUrls array (current shape)
 // or, in principle, only the legacy single photoUrl — cover both so nothing
@@ -260,6 +261,29 @@ export default function VehicleDetailPage({ vehicle, deleteConfirm, onClose, onE
                   >
                     Rent Now
                   </a>
+                )}
+
+                {/* Chat with seller — opens the in-app chat window via
+                    socket.io instead of leaving the site. Hidden for the
+                    listing's own owner (can't chat with yourself). Works
+                    for demo listings too: MessageSellerButton detects
+                    vehicle.isDemo and builds a local-only conversation
+                    instead of calling the real API. */}
+                {!vehicle.isOwner && (
+                  <MessageSellerButton
+                    listingType="vehicle"
+                    listingId={vehicle.id}
+                    sellerId={vehicle.userId}
+                    sellerName={vehicle.seller}
+                    isDemo={vehicle.isDemo}
+                    dark={dark}
+                    label="💬 Chat with seller"
+                    className={`w-full mt-3 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm cursor-pointer transition-all border ${
+                      dark
+                        ? "border-white text-white hover:bg-white hover:text-black"
+                        : "border-[#ff2d55] text-[#ff2d55] hover:bg-[#fff0f3]"
+                    }`}
+                  />
                 )}
 
                 {vehicle.isOwner && (
