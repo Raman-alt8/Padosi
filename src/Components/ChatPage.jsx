@@ -15,6 +15,13 @@ export default function ChatPage({ currentUser, dark, showToast }) {
   // they're tracked here instead and merged in for display. In-memory only,
   // same "nothing persisted" contract as the rest of the demo flow.
   const [demoConversations, setDemoConversations] = useState([]);
+  // Demo message history, keyed by conversation id: { [id]: Message[] }.
+  // Lives here — not inside ChatWindow — specifically so it survives
+  // switching between conversations. ChatWindow's own state resets each
+  // time its props change conversation, which is exactly what was wiping
+  // out a thread's messages when you clicked back to a name you'd already
+  // chatted with.
+  const [demoThreads, setDemoThreads] = useState({});
   const [activeId, setActiveId] = useState(null);
 
   const loadConversations = async () => {
@@ -118,6 +125,13 @@ export default function ChatPage({ currentUser, dark, showToast }) {
                 otherUser={{ id: active.other_id, full_name: active.other_name, avatar_url: active.other_avatar }}
                 dark={dark}
                 isDemo={!!active.is_demo}
+                demoMessages={demoThreads[active.id]}
+                onDemoMessagesChange={(update) =>
+                  setDemoThreads((prev) => ({
+                    ...prev,
+                    [active.id]: typeof update === "function" ? update(prev[active.id] || []) : update,
+                  }))
+                }
               />
             </>
           ) : (
