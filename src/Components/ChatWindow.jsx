@@ -5,16 +5,43 @@ import { useSocket } from "./SocketContext";
 
 const LIMITS = { message: 2000 }; // same input-limiting convention as PostVehiclePage.jsx
 
-export default function ChatWindow({ conversationId, currentUser, otherUser, dark }) {
+// isDemo: true for conversations MessageSellerButton built client-side for
+// isDemo listings. Those have no row in the conversations/messages tables
+// and no socket room, so this component takes a different path for them —
+// no GET for history, no join_conversation, no send_message over the
+// socket. Instead messages live only in local state and "sending" just
+// appends locally (with a short canned reply so the thread doesn't feel
+// dead), matching the "nothing persisted" contract from that file's
+// comment.
+export default function ChatWindow({ conversationId, currentUser, otherUser, dark, isDemo = false }) {
   const socket = useSocket();
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemo);
   const [typingUser, setTypingUser] = useState(false);
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
+  const replyTimeout = useRef(null);
 
+  // Demo thread: seed a friendly opener instead of fetching history that
+  // doesn't exist, so the window doesn't just open on an empty void.
   useEffect(() => {
+    if (!isDemo) return;
+    setMessages([
+      {
+        id: `demo-greeting-${conversationId}`,
+        conversation_id: conversationId,
+        sender_id: otherUser?.id,
+        content: "Hey! Thanks for reaching out — happy to answer any questions about the listing 🙂",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    setLoading(false);
+  }, [isDemo, conversationId, otherUser?.id]);
+
+  // Real thread: fetch actual history as before.
+  useEffect(() => {
+    if (isDemo) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -28,10 +55,10 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
       }
     })();
     return () => { cancelled = true; };
-  }, [conversationId]);
+  }, [conversationId, isDemo]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (isDemo || !socket) return; // demo threads never join a real socket room
 
     socket.emit("join_conversation", conversationId, (res) => {
       if (res?.error) console.error("join_conversation failed:", res.error);
@@ -52,16 +79,49 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
       socket.off("receive_message", handleReceive);
       socket.off("typing", handleTyping);
     };
-  }, [socket, conversationId, currentUser.id]);
+  }, [socket, conversationId, currentUser.id, isDemo]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typingUser]);
 
+  // Clean up a pending canned reply if the window unmounts mid-timeout.
+  useEffect(() => () => clearTimeout(replyTimeout.current), []);
+
   const handleSend = (e) => {
     e.preventDefault();
     const trimmed = draft.trim();
-    if (!trimmed || !socket) return;
+    if (!trimmed) return;
+
+    if (isDemo) {
+      const mine = {
+        id: `demo-${Date.now()}`,
+        conversation_id: conversationId,
+        sender_id: currentUser.id,
+        content: trimmed,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, mine]);
+      setDraft("");
+
+      // Canned reply so the thread feels alive when showing off the
+      // feature — not a real seller, just enough to demo both sides.
+      setTypingUser(true);
+      clearTimeout(replyTimeout.current);
+      replyTimeout.current = setTimeout(() => {
+        setTypingUser(false);
+        setMessages((prev) => [...prev, {
+          id: `demo-reply-${Date.now()}`,
+          conversation_id: conversationId,
+          sender_id: otherUser?.id,
+          content: "Sounds good — this is a demo listing, so replies here are canned, but this is how a real chat would look!",
+          created_at: new Date().toISOString(),
+        }]);
+      }, 1200);
+      return;
+    }
+
+    if (!socket) return;
     socket.emit("send_message", { conversationId, content: trimmed }, (res) => {
       if (res?.error) console.error("send_message failed:", res.error);
     });
@@ -71,7 +131,7 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
 
   const handleChange = (e) => {
     setDraft(e.target.value);
-    if (!socket) return;
+    if (isDemo || !socket) return; // no typing indicator to broadcast for a local-only thread
     socket.emit("typing", { conversationId, isTyping: true });
     clearTimeout(typingTimeout.current);
     typingTimeout.current = setTimeout(() => {

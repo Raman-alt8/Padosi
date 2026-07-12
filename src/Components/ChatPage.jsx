@@ -10,6 +10,11 @@ import ChatWindow from "./ChatWindow";
 export default function ChatPage({ currentUser, dark, showToast }) {
   const [open, setOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
+  // Demo conversations (from MessageSellerButton's isDemo branch) never
+  // exist server-side, so they can't come back from loadConversations() —
+  // they're tracked here instead and merged in for display. In-memory only,
+  // same "nothing persisted" contract as the rest of the demo flow.
+  const [demoConversations, setDemoConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
 
   const loadConversations = async () => {
@@ -25,7 +30,29 @@ export default function ChatPage({ currentUser, dark, showToast }) {
     const openInbox = () => { setOpen(true); loadConversations(); };
     const openChat = (e) => {
       const convo = e.detail?.conversation;
+      const isDemo = !!(e.detail?.isDemo || convo?.is_demo);
       setOpen(true);
+
+      if (isDemo && convo) {
+        // Normalize to the same shape real conversations use (other_id /
+        // other_name / etc.) so the sidebar and ChatWindow don't need to
+        // know or care that this one's fake.
+        const normalized = {
+          id: convo.id,
+          other_id: convo.seller_id,
+          other_name: convo.seller_name,
+          other_avatar: null,
+          last_message: null,
+          unread_count: 0,
+          is_demo: true,
+        };
+        setDemoConversations((prev) =>
+          prev.some((c) => c.id === normalized.id) ? prev : [...prev, normalized]
+        );
+        setActiveId(normalized.id);
+        return; // nothing to fetch — this conversation has no row to fetch
+      }
+
       loadConversations().then(() => { if (convo) setActiveId(convo.id); });
     };
     window.addEventListener("padosi:openInbox", openInbox);
@@ -38,7 +65,9 @@ export default function ChatPage({ currentUser, dark, showToast }) {
 
   if (!open || !currentUser) return null;
 
-  const active = conversations.find((c) => c.id === activeId);
+  // Demo threads first so a freshly-opened one is easy to spot at the top.
+  const allConversations = [...demoConversations, ...conversations];
+  const active = allConversations.find((c) => c.id === activeId);
 
   return (
     <div className="fixed inset-0 z-[80] flex justify-end bg-black/50" onClick={() => setOpen(false)}>
@@ -52,11 +81,11 @@ export default function ChatPage({ currentUser, dark, showToast }) {
             <button onClick={() => setOpen(false)} className={`bg-transparent border-none cursor-pointer text-lg ${dark ? "text-white" : "text-[#111]"}`}>✕</button>
           </div>
 
-          {conversations.length === 0 && (
+          {allConversations.length === 0 && (
             <p className={`px-4 py-6 text-sm ${dark ? "text-[#888]" : "text-[#666]"}`}>No conversations yet.</p>
           )}
 
-          {conversations.map((c) => (
+          {allConversations.map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveId(c.id)}
@@ -88,6 +117,7 @@ export default function ChatPage({ currentUser, dark, showToast }) {
                 currentUser={currentUser}
                 otherUser={{ id: active.other_id, full_name: active.other_name, avatar_url: active.other_avatar }}
                 dark={dark}
+                isDemo={!!active.is_demo}
               />
             </>
           ) : (
