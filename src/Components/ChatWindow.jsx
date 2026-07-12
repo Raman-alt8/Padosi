@@ -13,9 +13,23 @@ const LIMITS = { message: 2000 }; // same input-limiting convention as PostVehic
 // appends locally (with a short canned reply so the thread doesn't feel
 // dead), matching the "nothing persisted" contract from that file's
 // comment.
-export default function ChatWindow({ conversationId, currentUser, otherUser, dark, isDemo = false }) {
+export default function ChatWindow({
+  conversationId,
+  currentUser,
+  otherUser,
+  dark,
+  isDemo = false,
+  // Controlled by ChatPage for demo threads: demoMessages is that
+  // conversation's history (or undefined if never opened before), and
+  // onDemoMessagesChange writes an updated array back up. Keeping the
+  // array itself in the parent (rather than copying it into local state
+  // here) is what makes a thread survive you clicking away to another
+  // name and back — this component doesn't own it, so it can't reset it.
+  demoMessages,
+  onDemoMessagesChange,
+}) {
   const socket = useSocket();
-  const [messages, setMessages] = useState([]);
+  const [realMessages, setRealMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(!isDemo);
   const [typingUser, setTypingUser] = useState(false);
@@ -23,11 +37,18 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
   const typingTimeout = useRef(null);
   const replyTimeout = useRef(null);
 
-  // Demo thread: seed a friendly opener instead of fetching history that
-  // doesn't exist, so the window doesn't just open on an empty void.
+  const messages = isDemo ? (demoMessages || []) : realMessages;
+
+  // Demo thread, first time it's opened: seed a friendly opener instead of
+  // fetching history that doesn't exist. If demoMessages already has
+  // content, this conversation was visited before — leave it alone.
   useEffect(() => {
     if (!isDemo) return;
-    setMessages([
+    if (demoMessages && demoMessages.length > 0) {
+      setLoading(false);
+      return;
+    }
+    onDemoMessagesChange?.([
       {
         id: `demo-greeting-${conversationId}`,
         conversation_id: conversationId,
@@ -37,7 +58,10 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
       },
     ]);
     setLoading(false);
-  }, [isDemo, conversationId, otherUser?.id]);
+    // Intentionally only re-runs when the demo conversation itself changes,
+    // not on every demoMessages update (that would re-seed on every send).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo, conversationId]);
 
   // Real thread: fetch actual history as before.
   useEffect(() => {
@@ -47,7 +71,7 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
       setLoading(true);
       try {
         const data = await api("GET", `/api/conversations/${conversationId}/messages`);
-        if (!cancelled) setMessages(data.messages || []);
+        if (!cancelled) setRealMessages(data.messages || []);
       } catch (err) {
         console.error("Failed to load messages:", err);
       } finally {
@@ -56,6 +80,12 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
     })();
     return () => { cancelled = true; };
   }, [conversationId, isDemo]);
+
+  // Switching conversations shouldn't carry a stale "is typing…" indicator
+  // from whichever thread you were just looking at.
+  useEffect(() => {
+    setTypingUser(false);
+  }, [conversationId]);
 
   useEffect(() => {
     if (isDemo || !socket) return; // demo threads never join a real socket room
@@ -66,7 +96,7 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
 
     const handleReceive = (message) => {
       if (message.conversation_id !== conversationId) return;
-      setMessages((prev) => [...prev, message]);
+      setRealMessages((prev) => [...prev, message]);
     };
     const handleTyping = ({ conversationId: cid, userId, isTyping }) => {
       if (cid !== conversationId || userId === currentUser.id) return;
@@ -94,14 +124,22 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
     if (!trimmed) return;
 
     if (isDemo) {
+      // Captured now, at send time, so the reply below lands in the right
+      // thread even if you've clicked over to a different conversation
+      // before the 1.2s delay is up.
+      const targetConversationId = conversationId;
+
       const mine = {
         id: `demo-${Date.now()}`,
-        conversation_id: conversationId,
+        conversation_id: targetConversationId,
         sender_id: currentUser.id,
         content: trimmed,
         created_at: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, mine]);
+      // Functional update — builds on whatever's actually in the thread at
+      // write time rather than a snapshot from when Send was clicked, so
+      // firing off a couple of messages quickly doesn't lose any of them.
+      onDemoMessagesChange?.((prev) => [...(prev || []), mine]);
       setDraft("");
 
       // Canned reply so the thread feels alive when showing off the
@@ -109,10 +147,10 @@ export default function ChatWindow({ conversationId, currentUser, otherUser, dar
       setTypingUser(true);
       clearTimeout(replyTimeout.current);
       replyTimeout.current = setTimeout(() => {
-        setTypingUser(false);
-        setMessages((prev) => [...prev, {
+        if (conversationId === targetConversationId) setTypingUser(false);
+        onDemoMessagesChange?.((prev) => [...(prev || []), {
           id: `demo-reply-${Date.now()}`,
-          conversation_id: conversationId,
+          conversation_id: targetConversationId,
           sender_id: otherUser?.id,
           content: "Sounds good — this is a demo listing, so replies here are canned, but this is how a real chat would look!",
           created_at: new Date().toISOString(),
