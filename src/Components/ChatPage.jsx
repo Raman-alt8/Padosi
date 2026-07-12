@@ -77,7 +77,14 @@ export default function ChatPage({ currentUser, dark, showToast }) {
   const active = allConversations.find((c) => c.id === activeId);
 
   return (
-    <div className="fixed inset-0 z-[80] flex justify-end bg-black/50" onClick={() => setOpen(false)}>
+    // z-[9000] — deliberately higher than every listing overlay in the app
+    // (RentVehiclePage/RideSharePage z-[5000], VehicleDetailPage z-[5500],
+    // ServiceListingsAllPage z-[7000]). ChatPage is opened *from* those
+    // pages via MessageSellerButton while they're still open underneath, so
+    // it has to render above all of them or it's stuck invisible behind
+    // whichever listing page triggered it — closing that page was the only
+    // way to "reveal" a chat that had, in fact, already opened.
+    <div className="fixed inset-0 z-[9000] flex justify-end bg-black/50" onClick={() => setOpen(false)}>
       <div
         className={`w-full max-w-3xl h-full flex shadow-2xl ${dark ? "bg-black" : "bg-white"}`}
         onClick={(e) => e.stopPropagation()}
