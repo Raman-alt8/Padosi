@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import VehicleDetailPage from "./VehicleDetailPage";
 import { useWishlist } from "./WishlistContext";
+import { demoSellerFor } from "./demoIdentities";
 
 // Pulls whichever id field is present on the logged-in user object — same
 // helper PadosiListings.jsx uses for services, kept consistent here so
@@ -59,10 +60,16 @@ function photosOf(vehicle) {
 // needing real rows in the vehicles table. Everything below is safe to
 // delete once you're happy with the look — just remove this block and the
 // `...DEMO_VEHICLES,` line inside RentVehiclePage further down.
-const DEMO_VEHICLES = [
+//
+// Each entry only carries the vehicle-specific fields; ownership/demo flags
+// and seller identity are applied once below via demoSellerFor(), instead of
+// being repeated (and previously hardcoded to a single "demo" user) on every
+// object. That also means every card now resolves to a distinct, consistent
+// seller name — useful for actually trying "Chat with seller" on a demo card
+// instead of talking to a generic "Demo Seller" every time.
+const RAW_DEMO_VEHICLES = [
   {
     id: "demo-1",
-    user_id: "demo",
     title: "Honda Activa 6G",
     description: "Well maintained, recently serviced, great mileage.",
     priceType: "Per Day",
@@ -74,12 +81,9 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Gold_Metallic_Honda_Activa.jpg?width=800",
     ],
     created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
   {
     id: "demo-2",
-    user_id: "demo",
     title: "Maruti Suzuki Swift",
     description: "Clean interiors, AC works great, full tank on pickup.",
     priceType: "Per Day",
@@ -91,12 +95,9 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Swift_2098.JPG?width=800",
     ],
     created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
   {
     id: "demo-3",
-    user_id: "demo",
     title: "Royal Enfield Classic 350",
     description: "Smooth thump, garage-kept, ideal for weekend rides.",
     priceType: "Per Day",
@@ -108,12 +109,9 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Royal_Enfield_Classic_350_2010_Model.jpg?width=800",
     ],
     created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
   {
     id: "demo-4",
-    user_id: "demo",
     title: "Hyundai Creta",
     description: "Spacious SUV, sunroof, perfect for family trips.",
     priceType: "Per Day",
@@ -125,12 +123,9 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/2023_Hyundai_Creta_Black_Edition.jpg?width=800",
     ],
     created_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
   {
     id: "demo-5",
-    user_id: "demo",
     title: "Maruti Suzuki Alto K10",
     description: "Light on fuel, easy to park, great for city runs.",
     priceType: "Per Day",
@@ -142,12 +137,9 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Maruti_Suzuki_Alto_K10_-_front.jpg?width=800",
     ],
     created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
   {
     id: "demo-6",
-    user_id: "demo",
     title: "Bajaj Pulsar 150",
     description: "Punchy engine, new tyres, good for daily commute.",
     priceType: "Per Day",
@@ -159,12 +151,9 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Bajaj_Pulsar_150,_2003.jpg?width=800",
     ],
     created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
   {
     id: "demo-7",
-    user_id: "demo",
     title: "Tata Nexon",
     description: "Compact SUV, top safety rating, great highway ride.",
     priceType: "Per Day",
@@ -176,12 +165,9 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Tata_Nexon_Blue_Dual_Tone.jpg?width=800",
     ],
     created_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
   {
     id: "demo-8",
-    user_id: "demo",
     title: "Mahindra Thar",
     description: "4x4 ready, great for off-road weekend getaways.",
     priceType: "Per Day",
@@ -193,10 +179,24 @@ const DEMO_VEHICLES = [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Mahindra_Thar_in_maroon,_rear_right.jpg?width=800",
     ],
     created_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    isOwner: false,
-    isDemo: true,
   },
 ];
+
+// Each raw entry gets its ownership/demo flags plus a deterministic seller
+// identity from demoIdentities — same listing id always resolves to the
+// same name, so "Chat with seller" reads as a real person on repeat visits
+// rather than someone new every reload.
+const DEMO_VEHICLES = RAW_DEMO_VEHICLES.map((vehicle) => {
+  const seller = demoSellerFor(vehicle.id);
+  return {
+    ...vehicle,
+    user_id: seller.id,
+    userId: seller.id,
+    seller: seller.name,
+    isOwner: false,
+    isDemo: true,
+  };
+});
 
 // ─── Vehicle Card ───────────────────────────────────────────────────────────
 // Styled after OLX's listing cards: price leads (bold, large), then a short
