@@ -1,12 +1,21 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import RidePostFormPage from "./RidePostFormPage";
 import { useWishlist } from "./WishlistContext";
+import { demoSellerFor } from "./demoIdentities";
+import MessageSellerButton from "./MessageSellerButton";
 
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
 function initials(name = "") {
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+// Deterministic placeholder email built from a demo seller's name, e.g.
+// "Rohan Mehta" -> "rohan.mehta@example.com". Only ever used for demo
+// routes — real routes carry a real poster_contact.email from the API.
+function demoEmailFor(name = "") {
+  return `${name.toLowerCase().replace(/\s+/g, ".")}@example.com`;
 }
 
 // Simple line-style heart, filled + tinted when a route is saved. Same shape
@@ -21,27 +30,34 @@ function HeartIcon({ filled }) {
 }
 
 // ── Temporary showcase routes ────────────────────────────────────────────────
-// Hardcoded example cards so the grid never looks empty while real routes are
-// still trickling in. Same pattern as ServiceListingsAllPage's DEMO_LISTINGS:
-// negative sentinel `id`s (-1, -2, ...) so they can never collide with a real
-// route id from the server, `poster_id: "__demo__"` so they never match
-// currentUser.id (even when logged out and currentUser.id is undefined),
-// and `isDemo: true` purely for the "Sample" badge.
+// Same raw-data → mapped-with-demoSellerFor split RentVehiclePage.jsx and
+// ServiceListingsAllPage.jsx both use: RAW_DEMO_ROUTES only carries
+// route-specific fields (where it goes, when, how many seats), and the map
+// below attaches a deterministic poster identity — id, name, and a matching
+// contact card — from demoIdentities, instead of every card sharing one
+// generic "Demo Rider" name and a shared "__demo__" sentinel. Same route id
+// always resolves to the same poster, so accepting a demo route and hitting
+// Chat talks to a consistent named neighbour instead of a placeholder.
 //
-// They behave exactly like a real "someone else posted this" card: no
-// isOwner match, so they fall into the normal Accept/Decline footer, and
-// accepting one reveals poster contact info exactly like a real accepted
-// route — except the accept/decline never reaches the server, since
+// `poster_id` still can never collide with a real user id — demoSellerFor
+// builds it as `demo-seller-<routeId>`, a shape no real backend user id
+// takes — so `isOwner` (computed below as `r.poster_id === currentUser?.id`)
+// still never accidentally matches, same guarantee "__demo__" used to give.
+//
+// Negative sentinel `id`s (-1, -2, ...) are kept so they can never collide
+// with a real route id from the server. They behave exactly like a real
+// "someone else posted this" card: no isOwner match, so they fall into the
+// normal Accept/Decline footer, and accepting one reveals poster contact
+// info (now including a real chat button) exactly like a real accepted
+// route — except accept/decline never reaches the server, since
 // handleAccept/handleDecline short-circuit on negative ids below.
 //
-// To remove this showcase content later: delete this array, the demoAccepted/
-// demoDeclined state, and the `demo` half of the `visibleRoutes` useMemo.
-const DEMO_ROUTES = [
+// To remove this showcase content later: delete this block (both
+// RAW_DEMO_ROUTES and the DEMO_ROUTES map), the demoAccepted/demoDeclined
+// state, and the `demo` half of the `visibleRoutes` useMemo.
+const RAW_DEMO_ROUTES = [
   {
     id: -1,
-    isDemo: true,
-    poster_id: "__demo__",
-    poster_name: "Demo Rider",
     from_place: "Vaishali Nagar",
     to_place: "MI Road",
     freq: "5",
@@ -49,13 +65,10 @@ const DEMO_ROUTES = [
     seats: 3,
     price: 40,
     description: "Sample ride — post your own route to replace this.",
-    poster_contact: { name: "Demo Rider", email: "demo1@example.com", phone: "+91 90000 00003" },
+    phone: "+91 90000 00003",
   },
   {
     id: -2,
-    isDemo: true,
-    poster_id: "__demo__",
-    poster_name: "Demo Rider Two",
     from_place: "Malviya Nagar",
     to_place: "Sindhi Camp",
     freq: "7",
@@ -63,9 +76,94 @@ const DEMO_ROUTES = [
     seats: 2,
     price: 0,
     description: "Another sample route so you can see how ride cards look.",
-    poster_contact: { name: "Demo Rider Two", email: "demo2@example.com", phone: "+91 90000 00004" },
+    phone: "+91 90000 00004",
+  },
+  {
+    id: -3,
+    from_place: "Mansarovar",
+    to_place: "Jaipur Railway Station",
+    freq: "7",
+    depart_time: "07:15",
+    seats: 4,
+    price: 30,
+    description: "Daily office commute, AC car, music on request.",
+    phone: "+91 90000 00009",
+  },
+  {
+    id: -4,
+    from_place: "C-Scheme",
+    to_place: "World Trade Park",
+    freq: "3",
+    depart_time: "10:00",
+    seats: 2,
+    price: 20,
+    description: "Weekend shopping run, happy to wait around 30 minutes.",
+    phone: "+91 90000 00010",
+  },
+  {
+    id: -5,
+    from_place: "Jagatpura",
+    to_place: "Malviya Nagar Metro",
+    freq: "5",
+    depart_time: "09:00",
+    seats: 3,
+    price: 25,
+    description: "Weekday college commute, punctual departure every time.",
+    phone: "+91 90000 00011",
+  },
+  {
+    id: -6,
+    from_place: "Vidhyadhar Nagar",
+    to_place: "Sanganer Airport",
+    freq: "2",
+    depart_time: "05:30",
+    seats: 1,
+    price: 150,
+    description: "Early morning airport drop, occasional trips only.",
+    phone: "+91 90000 00012",
+  },
+  {
+    id: -7,
+    from_place: "Tonk Road",
+    to_place: "Amrapali Circle",
+    freq: "6",
+    depart_time: "19:30",
+    seats: 3,
+    price: 15,
+    description: "Evening return commute, bike-friendly boot space.",
+    phone: "+91 90000 00013",
+  },
+  {
+    id: -8,
+    from_place: "Raja Park",
+    to_place: "SMS Hospital",
+    freq: "4",
+    depart_time: "08:00",
+    seats: 2,
+    price: 20,
+    description: "Regular hospital visit route, quiet and non-smoking.",
+    phone: "+91 90000 00014",
   },
 ];
+
+// Each raw entry gets its poster identity (id + name) from demoIdentities,
+// plus a matching poster_contact card built from that same identity so the
+// name shown in the header, the "Email <FirstName>" button, and the chat
+// button's sellerName all agree with each other.
+const DEMO_ROUTES = RAW_DEMO_ROUTES.map((route) => {
+  const seller = demoSellerFor(route.id);
+  return {
+    ...route,
+    isDemo: true,
+    poster_id: seller.id,
+    poster_name: seller.name,
+    poster_contact: {
+      name: seller.name,
+      email: demoEmailFor(seller.name),
+      phone: route.phone,
+    },
+  };
+});
 
 // ─── Ride Share Page ──────
 // Opens when the window event "padosi:openRide" is dispatched.
@@ -540,6 +638,28 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                             📞 {r.poster_contact.phone}
                           </a>
                         )}
+                        {/* Chat with poster — same MessageSellerButton
+                            VehicleDetailPage and ServiceListingsAllPage use.
+                            sellerId/sellerName are just r.poster_id/
+                            r.poster_name, the same fields already driving
+                            the isOwner check above, so this needs no new
+                            data on real routes — it just works. isDemo
+                            routes fall into MessageSellerButton's own local
+                            demo-thread branch automatically. */}
+                        <MessageSellerButton
+                          listingType="ride"
+                          listingId={r.id}
+                          sellerId={r.poster_id}
+                          sellerName={r.poster_name}
+                          isDemo={r.isDemo}
+                          dark={dark}
+                          label={`💬 Chat with ${r.poster_name?.split(" ")[0] || "poster"}`}
+                          className={`inline-flex items-center justify-center gap-2 text-xs font-bold py-2 px-3 rounded-lg border cursor-pointer transition-colors ${
+                            dark
+                              ? "border-white/40 text-white/70 hover:border-white hover:text-white"
+                              : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                          }`}
+                        />
                       </div>
 
                     ) : (

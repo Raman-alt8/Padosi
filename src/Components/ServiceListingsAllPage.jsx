@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useWishlist } from "./WishlistContext";
 import { demoSellerFor } from "./demoIdentities";
+import MessageSellerButton from "./MessageSellerButton";
 
 const CATEGORY_ICONS = {
   "Plumber": "🔧",
@@ -63,7 +64,7 @@ const RAW_DEMO_LISTINGS = [
   {
     id: "demo-service-1",
     category: "Plumber",
-    title: "Example: Quick Leak & Tap Repairs",
+    title: "Quick Leak & Tap Repairs",
     description: "This is a sample card so you can see how a listing looks — post your own to replace it.",
     price: 300,
     priceType: "Per visit",
@@ -75,13 +76,82 @@ const RAW_DEMO_LISTINGS = [
   {
     id: "demo-service-2",
     category: "House Cleaning",
-    title: "Example: Home Deep Cleaning",
+    title: "Home Deep Cleaning",
     description: "Another sample listing for demo purposes — real neighbours' posts will look just like this.",
     price: 800,
     priceType: "Monthly",
     experience: 3,
     availability: "Tue, Thu, Sat",
     phone: "+91 90000 00002",
+  },
+  {
+    id: "demo-service-3",
+    category: "Electrician",
+    title: "Wiring & Appliance Fitting",
+    description: "Switchboard repairs, fan/light fitting, and full house rewiring on request.",
+    price: 250,
+    priceType: "Per visit",
+    experience: 8,
+    availability: "Mon-Sun",
+    verified: true,
+    phone: "+91 90000 00003",
+  },
+  {
+    id: "demo-service-4",
+    category: "Tutoring",
+    title: "Class 6–10 Maths & Science",
+    description: "Board-exam focused, small batches of 4, doubt-clearing sessions included.",
+    price: 1200,
+    priceType: "Monthly",
+    experience: 6,
+    availability: "Mon-Fri, evenings",
+    phone: "+91 90000 00004",
+  },
+  {
+    id: "demo-service-5",
+    category: "Salon & Beauty",
+    title: "At-Home Facial & Waxing",
+    description: "Certified beautician, hygienic kit brought to your door, all skin types.",
+    price: 600,
+    priceType: "Per visit",
+    experience: 4,
+    availability: "Tue-Sun",
+    verified: true,
+    phone: "+91 90000 00005",
+  },
+  {
+    id: "demo-service-6",
+    category: "Pet Care",
+    title: "Daily Dog Walking & Feeding",
+    description: "Morning and evening walks, feeding on schedule, updates sent after every visit.",
+    price: 400,
+    priceType: "Monthly",
+    experience: 2,
+    availability: "Daily",
+    phone: "+91 90000 00006",
+  },
+  {
+    id: "demo-service-7",
+    category: "AC & Appliance Repair",
+    title: "AC Service & Gas Refill",
+    description: "Split & window AC servicing, gas top-up, and general appliance troubleshooting.",
+    price: 500,
+    priceType: "Per visit",
+    experience: 7,
+    availability: "Mon-Sat",
+    verified: true,
+    phone: "+91 90000 00007",
+  },
+  {
+    id: "demo-service-8",
+    category: "Cook & Catering",
+    title: "Home-Style Tiffin Service",
+    description: "Fresh North Indian thali, delivered daily, customizable for diet preferences.",
+    price: 2500,
+    priceType: "Monthly",
+    experience: 5,
+    availability: "Mon-Sat",
+    phone: "+91 90000 00008",
   },
 ];
 
@@ -149,7 +219,7 @@ function HeartIcon({ filled }) {
 // below is driven purely by `isOwner` / `isAccepted`, same as any real
 // listing — demo cards have neither `isOwner`, so they naturally get the
 // Accept/Decline treatment like a post from someone else.
-function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onChat, onToggleWishlist }) {
+function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, dark, onEdit, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onAccept, onDecline, onToggleWishlist }) {
   const icon = CATEGORY_ICONS[listing.category] || "🛠️";
   const isOwner = listing.isOwner;
   const isDemo = listing.isDemo;
@@ -339,14 +409,16 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
                 ) : (
                   <span className="text-[clamp(11px,2.1cqw,13px)] font-bold text-[#999]">No number</span>
                 )}
-                <button
-                  onClick={() => onChat?.(index)}
-                  aria-label="Chat"
-                  title="Chat"
+                <MessageSellerButton
+                  listingType="service"
+                  listingId={listing.id ?? index}
+                  sellerId={listing.userId}
+                  sellerName={listing.seller}
+                  isDemo={listing.isDemo}
+                  dark={dark}
+                  label="💬"
                   className="w-[clamp(26px,6cqw,34px)] h-[clamp(26px,6cqw,34px)] flex-shrink-0 rounded-full flex items-center justify-center text-[clamp(12px,2.6cqw,16px)] cursor-pointer border border-[#e0e0e0] text-[#555] bg-[#f4f4f4] hover:bg-[#ff2d55] hover:text-white hover:border-[#ff2d55] transition-colors"
-                >
-                  💬
-                </button>
+                />
               </div>
             ) : (
               /* ── Other user: Accept + Decline ── */
@@ -373,7 +445,7 @@ function ServiceCard({ listing, index, deleteConfirm, isAccepted, isWishlisted, 
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function ServiceListingsAllPage({ listings = [], onDelete, onAccept, onDecline, onChat, dark }) {
+export default function ServiceListingsAllPage({ listings = [], onDelete, onAccept, onDecline, dark }) {
   const [open, setOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -438,31 +510,6 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
     // parent about real listings.
     setDeclinedIndexes((prev) => new Set(prev).add(index));
     if (index >= 0) onDecline?.(index);
-  };
-
-  // Real listings still hand off to the parent app's own chat handler. Demo
-  // listings have no conversation row server-side, so instead of a silent
-  // no-op we open a local-only demo thread directly, using the seller
-  // identity demoSellerFor() attached back in the DEMO_LISTINGS map — same
-  // isDemo conversation shape ChatPage.jsx already normalizes (seller_id /
-  // seller_name), and the same event RentVehiclePage's chat button relies on.
-  const handleChat = (index, listing) => {
-    if (index >= 0) {
-      onChat?.(index);
-      return;
-    }
-    if (listing?.isDemo) {
-      window.dispatchEvent(new CustomEvent("padosi:openChat", {
-        detail: {
-          isDemo: true,
-          conversation: {
-            id: `demo-convo-${listing.userId}`,
-            seller_id: listing.userId,
-            seller_name: listing.seller,
-          },
-        },
-      }));
-    }
   };
 
   // Builds the shared wishlist-entry shape (see WishlistContext.jsx's header
@@ -679,13 +726,13 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                   deleteConfirm={deleteConfirm}
                   isAccepted={acceptedIndexes.has(originalIndex)}
                   isWishlisted={isWishlisted("service", originalIndex)}
+                  dark={dark}
                   onEdit={handleEdit}
                   onDeleteRequest={(idx) => setDeleteConfirm(idx)}
                   onDeleteConfirm={handleDelete}
                   onDeleteCancel={() => setDeleteConfirm(null)}
                   onAccept={handleAccept}
                   onDecline={handleDecline}
-                  onChat={(idx) => handleChat(idx, listing)}
                   onToggleWishlist={(idx) => handleToggleWishlist(idx, listing)}
                 />
               ))}
@@ -708,7 +755,6 @@ export function Demo() {
       onDelete={(idx) => setListings((prev) => prev.filter((_, i) => i !== idx))}
       onAccept={(idx) => console.log("Accepted", idx)}
       onDecline={(idx) => console.log("Declined", idx)}
-      onChat={(idx) => console.log("Open chat for", idx)}
     />
   );
 }
