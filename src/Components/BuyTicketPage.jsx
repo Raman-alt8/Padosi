@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { EVENT_CATEGORIES, ImageUploadField, LIMITS, LimitNote, CountryCodeSelect, parseContact } from "./ticketShared";
 import PostPanel from "./PostTicketPanel";
+import { useWishlist } from "./WishlistContext";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -327,9 +328,27 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
   const isOwner  = !!currentUserId && String(listing.userId) === String(currentUserId);
   const [editing, setEditing] = useState(false);
 
-  // Wishlist heart is cosmetic/local only, same as the heart on
-  // VehicleCard/VehicleDetailPage — no saved-listings endpoint exists yet.
-  const [saved, setSaved] = useState(false);
+  // Wishlist heart now reads/writes the shared store (WishlistContext) so
+  // this ticket shows up on the navbar's Wishlist page alongside saved
+  // vehicles and services, not just locally on this card.
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const saved = isWishlisted("ticket", listing.id);
+
+  const handleToggleWishlist = () => {
+    toggleWishlist({
+      type:      "ticket",
+      id:        listing.id,
+      title:     listing.title,
+      subtitle:  listing.category,
+      icon:      listing.icon,
+      price:     listing.price,
+      priceUnit: "/ticket",
+      meta:      [`📅 ${listing.date}`, `📍 ${listing.venue}`],
+      badge:     listing.badge,
+      isDemo:    String(listing.id).startsWith("demo-"),
+      raw:       listing,
+    });
+  };
 
   const handleSaveEdit = async (id, fields) => {
     await onEdit(id, fields);
@@ -416,7 +435,7 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
             ) : (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setSaved((s) => !s)}
+                  onClick={handleToggleWishlist}
                   aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
                   className={`w-9 h-9 rounded-xl flex items-center justify-center border cursor-pointer transition-colors flex-shrink-0 ${
                     dark ? "border-white/40 hover:bg-white/10" : "border-[#ddd] hover:bg-gray-50"

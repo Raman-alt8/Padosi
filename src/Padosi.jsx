@@ -7,6 +7,8 @@ import { Modal, ModalTag } from "./Components/Modal";
 import { DeleteAccountModal, ActivityModal, HistoryModal, AboutModal, HelpModal } from "./Components/AccountModals";
 import { SettingsPage } from "./Components/SettingsPage";
 import { api } from "./utils";
+import { WishlistProvider } from "./WishlistContext";
+import WishlistPage from "./WishlistPage";
 
 // ─── Toast ───────────────────────────────────────────────────
 function Toast({ message, dark }) {
@@ -216,74 +218,85 @@ export default function App() {
   };
 
   return (
-    <div className={darkMode ? "bg-black text-white min-h-screen" : "bg-[#f6f7fb] text-[#111] min-h-screen"}>
-      <Navbar
-        currentUser={currentUser}
-        onLogin={() => setLoginOpen(true)}
-        onSignup={() => setSignupOpen(true)}
-        onSignout={handleSignout}
-        onManageAccount={() => setSettingsOpen(true)}
-        onMyTasks={() => setHistoryOpen(true)}
-        onActivity={() => setActivityOpen(true)}
-        showToast={showToast}
-        darkMode={darkMode}
-        onToggleDark={setDarkMode}
-        onAbout={() => setAboutOpen(true)}
-        onHelp={() => setHelpOpen(true)}
-      />
+    // WishlistProvider wraps the whole tree so any card anywhere — vehicle,
+    // ticket, service — can call useWishlist(), and the navbar heart /
+    // WishlistPage below always see the same shared, localStorage-backed list.
+    <WishlistProvider>
+      <div className={darkMode ? "bg-black text-white min-h-screen" : "bg-[#f6f7fb] text-[#111] min-h-screen"}>
+        <Navbar
+          currentUser={currentUser}
+          onLogin={() => setLoginOpen(true)}
+          onSignup={() => setSignupOpen(true)}
+          onSignout={handleSignout}
+          onManageAccount={() => setSettingsOpen(true)}
+          onMyTasks={() => setHistoryOpen(true)}
+          onActivity={() => setActivityOpen(true)}
+          showToast={showToast}
+          darkMode={darkMode}
+          onToggleDark={setDarkMode}
+          onAbout={() => setAboutOpen(true)}
+          onHelp={() => setHelpOpen(true)}
+        />
 
-      <HeroSection
-        currentUser={currentUser}
-        tasks={tasks}
-        setTasks={setTasks}
-        nearbyTasks={nearbyTasks}
-        showToast={showToast}
-        onRequireLogin={() => setLoginOpen(true)}
-        dark={darkMode}
-      />
+        <HeroSection
+          currentUser={currentUser}
+          tasks={tasks}
+          setTasks={setTasks}
+          nearbyTasks={nearbyTasks}
+          showToast={showToast}
+          onRequireLogin={() => setLoginOpen(true)}
+          dark={darkMode}
+        />
 
-      <VerifiedSection
-        currentUser={currentUser}
-        showToast={showToast}
-        onRequireLogin={() => setLoginOpen(true)}
-        onUpdate={setCurrentUser}
-        dark={darkMode}
-      />
-      <HowItWorks dark={darkMode} />
+        <VerifiedSection
+          currentUser={currentUser}
+          showToast={showToast}
+          onRequireLogin={() => setLoginOpen(true)}
+          onUpdate={setCurrentUser}
+          dark={darkMode}
+        />
+        <HowItWorks dark={darkMode} />
 
-      <AuthModals
-        loginOpen={loginOpen}
-        signupOpen={signupOpen}
-        onClose={type => type === "login" ? setLoginOpen(false) : setSignupOpen(false)}
-        onLogin={handleLogin}
-        onSignup={handleLogin}
-        showToast={showToast}
-        dark={darkMode}
-      />
+        <AuthModals
+          loginOpen={loginOpen}
+          signupOpen={signupOpen}
+          onClose={type => type === "login" ? setLoginOpen(false) : setSignupOpen(false)}
+          onLogin={handleLogin}
+          onSignup={handleLogin}
+          showToast={showToast}
+          dark={darkMode}
+        />
 
-      <SettingsPage
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        currentUser={currentUser}
-        onUpdate={setCurrentUser}
-        onDeleteAccount={() => setDeleteAccountOpen(true)}
-        showToast={showToast}
-        dark={darkMode}
-      />
-      <DeleteAccountModal
-        open={deleteAccountOpen}
-        onClose={() => setDeleteAccountOpen(false)}
-        currentUser={currentUser}
-        onDeleted={handleAccountDeleted}
-        showToast={showToast}
-        dark={darkMode}
-      />
-      <ActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} tasks={tasks} dark={darkMode} />
-      <HistoryModal  open={historyOpen}  onClose={() => setHistoryOpen(false)}  tasks={tasks} dark={darkMode} />
-      <AboutModal    open={aboutOpen}    onClose={() => setAboutOpen(false)}    dark={darkMode} />
-      <HelpModal     open={helpOpen}     onClose={() => setHelpOpen(false)}     dark={darkMode} />
+        <SettingsPage
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          currentUser={currentUser}
+          onUpdate={setCurrentUser}
+          onDeleteAccount={() => setDeleteAccountOpen(true)}
+          showToast={showToast}
+          dark={darkMode}
+        />
+        <DeleteAccountModal
+          open={deleteAccountOpen}
+          onClose={() => setDeleteAccountOpen(false)}
+          currentUser={currentUser}
+          onDeleted={handleAccountDeleted}
+          showToast={showToast}
+          dark={darkMode}
+        />
+        <ActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} tasks={tasks} dark={darkMode} />
+        <HistoryModal  open={historyOpen}  onClose={() => setHistoryOpen(false)}  tasks={tasks} dark={darkMode} />
+        <AboutModal    open={aboutOpen}    onClose={() => setAboutOpen(false)}    dark={darkMode} />
+        <HelpModal     open={helpOpen}     onClose={() => setHelpOpen(false)}     dark={darkMode} />
 
-      <Toast message={toastMsg} dark={darkMode} />
-    </div>
+        {/* Opens on the navbar heart's "padosi:openWishlist" event. Mounted
+            here at the root (rather than inside PadosiListings) so it's
+            reachable no matter where PadosiListings itself is rendered in
+            the tree. */}
+        <WishlistPage dark={darkMode} showToast={showToast} />
+
+        <Toast message={toastMsg} dark={darkMode} />
+      </div>
+    </WishlistProvider>
   );
 }

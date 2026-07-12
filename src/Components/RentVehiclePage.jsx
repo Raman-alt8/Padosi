@@ -1,6 +1,7 @@
 // RentVehiclePage.jsx
 import { useState, useEffect, useCallback } from "react";
 import VehicleDetailPage from "./VehicleDetailPage";
+import { useWishlist } from "./WishlistContext";
 
 // Pulls whichever id field is present on the logged-in user object — same
 // helper PadosiListings.jsx uses for services, kept consistent here so
@@ -208,10 +209,28 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
   const photos = photosOf(vehicle);
   const thumbnail = photos[0];
 
-  // Wishlist heart is purely cosmetic right now — there's no saved-listings
-  // feature on the backend yet, so this is local-only state to match the
-  // OLX look. Wire it up to a real endpoint if/when that feature exists.
-  const [saved, setSaved] = useState(false);
+  // Wishlist heart reads/writes the shared store (WishlistContext) so this
+  // vehicle shows up on the navbar's Wishlist page alongside saved tickets
+  // and services, not just locally on this card.
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const saved = isWishlisted("vehicle", vehicle.id);
+
+  const handleToggleWishlist = (e) => {
+    e.stopPropagation();
+    toggleWishlist({
+      type:      "vehicle",
+      id:        vehicle.id,
+      title:     vehicle.title,
+      subtitle:  vehicle.description,
+      image:     thumbnail,
+      price:     vehicle.price,
+      priceUnit: priceUnitShort(vehicle.priceType),
+      meta:      [`📍 ${vehicle.area || "Area not listed"}`],
+      badge:     vehicle.isDemo ? "Demo" : null,
+      isDemo:    !!vehicle.isDemo,
+      raw:       vehicle,
+    });
+  };
 
   return (
     <div
@@ -236,7 +255,7 @@ function VehicleCard({ vehicle, deleteConfirm, onView, onEdit, onDeleteRequest, 
 
         {/* Wishlist heart */}
         <button
-          onClick={(e) => { e.stopPropagation(); setSaved((s) => !s); }}
+          onClick={handleToggleWishlist}
           aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
           className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm cursor-pointer border-none hover:bg-white transition-colors"
         >

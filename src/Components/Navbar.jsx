@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef } from "react";
+// Assumes WishlistContext.jsx sits one folder up from Components/ — i.e.
+// alongside App.jsx, BuyTicketPage.jsx, RentVehiclePage.jsx. Adjust this
+// path if your layout differs.
+import { useWishlist } from "../WishlistContext";
 
 // ─── Navbar ──────────────────
 export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onManageAccount, onMyTasks, onActivity, showToast, darkMode, onToggleDark, onAbout, onHelp }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const dropRef = useRef(null);
+  const { items: wishlistItems } = useWishlist();
 
   useEffect(() => {
     const handler = e => {
@@ -36,13 +41,18 @@ export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onMa
         {/* Nav links */}
         <div className="flex gap-2 text-sm items-center">
           <button
-            onClick={() => showToast("❤️ Wishlist — coming soon!")}
+            onClick={() => window.dispatchEvent(new Event("padosi:openWishlist"))}
             aria-label="Wishlist"
-            className="w-10 h-10 flex items-center justify-center rounded-full text-gray-700 hover:bg-gray-100 transition-colors border-none cursor-pointer"
+            className="relative w-10 h-10 flex items-center justify-center rounded-full text-gray-700 hover:bg-gray-100 transition-colors border-none cursor-pointer"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 21s-6.7-4.3-9.3-8.2C1 10 1.6 6.7 4.4 5.2 6.6 4 9.2 4.7 12 7.5 14.8 4.7 17.4 4 19.6 5.2c2.8 1.5 3.4 4.8 1.7 7.6C18.7 16.7 12 21 12 21z" />
             </svg>
+            {wishlistItems.length > 0 && (
+              <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#ff2d55] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                {wishlistItems.length > 9 ? "9+" : wishlistItems.length}
+              </span>
+            )}
           </button>
 
           <button
