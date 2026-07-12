@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { EVENT_CATEGORIES, ImageUploadField, LIMITS, LimitNote, CountryCodeSelect, parseContact } from "./ticketShared";
 import PostPanel from "./PostTicketPanel";
 import { useWishlist } from "./WishlistContext";
+import MessageSellerButton from "./MessageSellerButton";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,16 @@ function todayISO() {
 // Shown to buyer after clicking Buy — displays ticket image + seller contact
 
 function RevealModal({ data, dark, onClose }) {
+  // Hand off cleanly to ChatPage: once a conversation opens from the
+  // "Message Seller" button below, this modal should get out of the way
+  // instead of sitting on top of the chat window.
+  useEffect(() => {
+    if (!data) return;
+    const handler = () => onClose();
+    window.addEventListener("padosi:openChat", handler);
+    return () => window.removeEventListener("padosi:openChat", handler);
+  }, [data, onClose]);
+
   if (!data) return null;
   return (
     <div
@@ -76,20 +87,22 @@ function RevealModal({ data, dark, onClose }) {
           <p className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
             {data.contact}
           </p>
-          {/* WhatsApp deep-link if it looks like a phone number */}
-          {/\d{8,}/.test(data.contact) && (
-            <a
-              href={`https://wa.me/${data.contact.replace(/\D/g, "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
-                dark
-                  ? "bg-white text-black border-white hover:bg-white/80"
-                  : "bg-[#25d366] text-white border-[#25d366] hover:bg-[#1ebe5d]"
-              }`}
-            >
-              💬 Message on WhatsApp
-            </a>
+          {/* In-app chat via socket.io, replacing the old WhatsApp deep-link.
+              Demo listings aren't backed by a real seller/conversation, so
+              the chat button is hidden for those. */}
+          {!data.isDemo && data.listingId && data.sellerId ? (
+            <MessageSellerButton
+              listingType="ticket"
+              listingId={data.listingId}
+              sellerId={data.sellerId}
+              dark={dark}
+            />
+          ) : (
+            data.isDemo && (
+              <p className={`text-xs italic ${dark ? "text-white/30" : "text-[#ccc]"}`}>
+                Chat isn't available for demo listings.
+              </p>
+            )
           )}
         </div>
 
@@ -547,8 +560,16 @@ function BuyPanel({ dark, showToast, user }) {
   // ── Buy → reveal ticket image + contact ──────────────────────────────────
   const handleBuy = async (listing) => {
     // Demo cards aren't backed by the API — reveal their local data directly.
+    // listingId/sellerId/isDemo ride along so RevealModal knows whether it
+    // can offer the "Message Seller" chat button.
     if (String(listing.id).startsWith("demo-")) {
-      setReveal({ contact: listing.contact, image_url: listing.image_url });
+      setReveal({
+        contact:   listing.contact,
+        image_url: listing.image_url,
+        listingId: listing.id,
+        sellerId:  listing.userId,
+        isDemo:    true,
+      });
       return;
     }
     setRevealing(listing.id);
@@ -556,7 +577,7 @@ function BuyPanel({ dark, showToast, user }) {
       const res  = await fetch(`/api/tickets/${listing.id}/reveal`, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) { showToast(`⚠️ ${data.error || "Could not load ticket details."}`); return; }
-      setReveal(data);
+      setReveal({ ...data, listingId: listing.id, sellerId: listing.userId, isDemo: false });
     } catch { showToast("⚠️ Network error. Please try again."); }
     finally  { setRevealing(null); }
   };
