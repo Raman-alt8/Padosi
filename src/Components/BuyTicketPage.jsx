@@ -3,6 +3,7 @@ import { EVENT_CATEGORIES, ImageUploadField, LIMITS, LimitNote, CountryCodeSelec
 import PostPanel from "./PostTicketPanel";
 import { useWishlist } from "./WishlistContext";
 import MessageSellerButton from "./MessageSellerButton";
+import { demoSellerFor } from "./demoIdentities";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -88,21 +89,21 @@ function RevealModal({ data, dark, onClose }) {
             {data.contact}
           </p>
           {/* In-app chat via socket.io, replacing the old WhatsApp deep-link.
-              Demo listings aren't backed by a real seller/conversation, so
-              the chat button is hidden for those. */}
-          {!data.isDemo && data.listingId && data.sellerId ? (
+              Demo listings now work here too: MessageSellerButton's isDemo
+              branch builds a client-side-only conversation using a named
+              seller from demoIdentities.js instead of hitting the real API,
+              so "Message Seller" opens a real (if canned) chat rather than
+              the "not available for demo listings" dead end this used to
+              show. */}
+          {data.listingId && data.sellerId && (
             <MessageSellerButton
               listingType="ticket"
               listingId={data.listingId}
               sellerId={data.sellerId}
+              sellerName={data.sellerName}
+              isDemo={data.isDemo}
               dark={dark}
             />
-          ) : (
-            data.isDemo && (
-              <p className={`text-xs italic ${dark ? "text-white/30" : "text-[#ccc]"}`}>
-                Chat isn't available for demo listings.
-              </p>
-            )
           )}
         </div>
 
@@ -478,15 +479,20 @@ function TicketCard({ listing, dark, currentUserId, onBuy, onRemove, onEdit }) {
 }
 
 // ─── Demo listings ────────────────────────────────────────────────────────────
-// Two placeholder cards shown as if posted by other neighbours, so the Buy
-// tab never looks empty. They carry a userId that will never match the
+// Placeholder cards shown as if posted by other neighbours, so the Buy tab
+// never looks empty. They carry a userId that will never match the
 // signed-in user, so they always render with a "Buy" button, never
 // Edit/Remove. Their ids are prefixed "demo-" so handleBuy can short-circuit
 // past the real /reveal API and just show the local data.
-const DEMO_LISTINGS = [
+//
+// Each raw entry only carries the ticket-specific fields; userId/seller are
+// applied once below via demoSellerFor() (namespaced "ticket-<id>" so these
+// never collide with the same id used on the vehicles or services demo
+// data), giving each listing a distinct, consistent seller — and, per the
+// RevealModal above, an actually-working "Message Seller" chat.
+const RAW_DEMO_LISTINGS = [
   {
     id:          "demo-1",
-    userId:      "demo-user-1",
     title:       "Coldplay: Music of the Spheres",
     category:    "Concert",
     icon:        "🎵",
@@ -494,7 +500,6 @@ const DEMO_LISTINGS = [
     venue:       "DY Patil Stadium, Navi Mumbai",
     price:       4500,
     qty:         2,
-    seller:      "Rohan M.",
     badge:       "Hot",
     description: "Silver category, aisle seats. Selling as I can't travel that weekend.",
     contact:     "+91 9876543210",
@@ -502,7 +507,6 @@ const DEMO_LISTINGS = [
   },
   {
     id:          "demo-2",
-    userId:      "demo-user-2",
     title:       "India vs Australia — T20I",
     category:    "Cricket",
     icon:        "🏏",
@@ -510,13 +514,77 @@ const DEMO_LISTINGS = [
     venue:       "Wankhede Stadium, Mumbai",
     price:       1800,
     qty:         1,
-    seller:      "Priya S.",
     badge:       "Last one",
     description: "Upper stand, great view of the pitch. Splitting from a pair.",
     contact:     "+91 9123456780",
     image_url:   null,
   },
+  {
+    id:          "demo-3",
+    title:       "Arijit Singh — Live in Concert",
+    category:    "Concert",
+    icon:        "🎵",
+    date:        "2026-10-18",
+    venue:       "Jawaharlal Nehru Stadium, Delhi",
+    price:       3200,
+    qty:         3,
+    badge:       null,
+    description: "General standing tickets, gates open 5 PM. Extras from a group booking.",
+    contact:     "+91 9988001122",
+    image_url:   null,
+  },
+  {
+    id:          "demo-4",
+    title:       "Sunburn Festival — Day Pass",
+    category:    "Concert",
+    icon:        "🎧",
+    date:        "2026-12-28",
+    venue:       "Aravalli Grounds, Jaipur",
+    price:       2500,
+    qty:         4,
+    badge:       "2 left",
+    description: "Single-day passes, plans changed so selling at cost. E-ticket transferable.",
+    contact:     "+91 9871234567",
+    image_url:   null,
+  },
+  {
+    id:          "demo-5",
+    title:       "IPL: Rajasthan Royals vs Mumbai Indians",
+    category:    "Cricket",
+    icon:        "🏏",
+    date:        "2026-04-22",
+    venue:       "Sawai Mansingh Stadium, Jaipur",
+    price:       2200,
+    qty:         2,
+    badge:       "Hot",
+    description: "Pavilion block, shaded seating. Great view of both dugouts.",
+    contact:     "+91 9765012345",
+    image_url:   null,
+  },
+  {
+    id:          "demo-6",
+    title:       "Ranji Trophy Final — Day 3 & 4",
+    category:    "Cricket",
+    icon:        "🏏",
+    date:        "2026-03-05",
+    venue:       "SMS Stadium, Jaipur",
+    price:       500,
+    qty:         5,
+    badge:       null,
+    description: "General stand passes for both remaining days. Selling as a bundle or separately.",
+    contact:     "+91 9654009988",
+    image_url:   null,
+  },
 ];
+
+const DEMO_LISTINGS = RAW_DEMO_LISTINGS.map((t) => {
+  const seller = demoSellerFor(`ticket-${t.id}`);
+  return {
+    ...t,
+    userId: seller.id,
+    seller: seller.name,
+  };
+});
 
 // ─── BuyPanel ─────────────────────────────────────────────────────────────────
 
@@ -560,15 +628,16 @@ function BuyPanel({ dark, showToast, user }) {
   // ── Buy → reveal ticket image + contact ──────────────────────────────────
   const handleBuy = async (listing) => {
     // Demo cards aren't backed by the API — reveal their local data directly.
-    // listingId/sellerId/isDemo ride along so RevealModal knows whether it
-    // can offer the "Message Seller" chat button.
+    // listingId/sellerId/sellerName/isDemo ride along so RevealModal knows
+    // how to wire up the "Message Seller" chat button.
     if (String(listing.id).startsWith("demo-")) {
       setReveal({
-        contact:   listing.contact,
-        image_url: listing.image_url,
-        listingId: listing.id,
-        sellerId:  listing.userId,
-        isDemo:    true,
+        contact:    listing.contact,
+        image_url:  listing.image_url,
+        listingId:  listing.id,
+        sellerId:   listing.userId,
+        sellerName: listing.seller,
+        isDemo:     true,
       });
       return;
     }
