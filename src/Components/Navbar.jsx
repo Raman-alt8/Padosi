@@ -53,7 +53,7 @@ export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onMa
           </button>
 
           <button
-            onClick={() => showToast("💬 Chat — coming soon!")}
+            onClick={() => window.dispatchEvent(new CustomEvent("padosi:openChat", { detail: { conversation: null } }))}
             aria-label="Chat"
             className="w-10 h-10 flex items-center justify-center rounded-full text-gray-700 hover:bg-gray-100 transition-colors border-none cursor-pointer"
           >
