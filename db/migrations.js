@@ -147,3 +147,50 @@ function runMigrations(db) {
 }
 
 module.exports = runMigrations;
+
+// ── Chat: conversations + messages ──────────────────────────────────────
+  // A conversation is scoped to one listing + one buyer + one seller, so the
+  // same two users messaging about two different listings get two separate
+  // threads. messages must nest inside the conversations callback — same
+  // ordering issue as vehicles/photo_urls above: node's sqlite3 driver
+  // doesn't guarantee db.run() calls fire in order unless nested.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      listing_type    TEXT    NOT NULL,   -- 'ticket' | 'ride' | 'service' | 'vehicle'
+      listing_id      TEXT    NOT NULL,
+      buyer_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      seller_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (listing_type, listing_id, buyer_id, seller_id)
+    )
+  `, err => {
+    if (err) {
+      console.error('Could not create conversations table:', err);
+      return;
+    }
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content         TEXT    NOT NULL,
+        created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+        read_at         DATETIME
+      )
+    `, err2 => {
+      if (err2) {
+        console.error('Could not create messages table:', err2);
+        return;
+      }
+
+      db.run(
+        `CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`,
+        err3 => {
+          if (err3) console.error('Could not create messages index:', err3);
+        }
+      );
+    });
+  });

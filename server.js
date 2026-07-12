@@ -2,13 +2,15 @@
 require('dotenv').config();
 
 const express     = require('express');
+const http        = require('http');
 const session     = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const cors        = require('cors');
 const path        = require('path');
 
-const db       = require('./db');
-const passport = require('./auth');
+const db         = require('./db');
+const passport   = require('./auth');
+const initSocket = require('./socket');
 
 const runMigrations = require('./db/migrations');
 
@@ -22,9 +24,11 @@ const ticketRoutes      = require('./routes/ticketRoutes');
 const serviceRoutes     = require('./routes/serviceRoutes');
 const vehicleRoutes     = require('./routes/vehicleRoutes');
 const wishlistRoutes    = require('./routes/wishlistRoutes');
+const messageRoutes     = require('./routes/messageRoutes');
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
+const app    = express();
+const server = http.createServer(app); // wraps express so Socket.io can share the same port
+const PORT   = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
@@ -32,17 +36,21 @@ app.set('trust proxy', 1);
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+const corsOrigin = isDev
+  ? 'http://localhost:5173'
+  : (process.env.FRONTEND_URL || 'https://padosi-1.onrender.com');
+
 app.use(cors({
-  origin: isDev
-    ? 'http://localhost:5173'
-    : (process.env.FRONTEND_URL || 'https://padosi-1.onrender.com'),
+  origin: corsOrigin,
   credentials: true,
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(session({
+// Pulled into its own variable (instead of inline in app.use) so the exact
+// same session store/config can be reused by Socket.io below.
+const sessionMiddleware = session({
   store:             new SQLiteStore({ db: 'sessions.db', dir: __dirname }),
   secret:            process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave:            false,
@@ -53,10 +61,18 @@ app.use(session({
     secure:   !isDev,
     sameSite: isDev ? 'lax' : 'none',
   },
-}));
+});
+
+app.use(sessionMiddleware);
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+// ─── Socket.io ─────────────────────────────────────────────────────────────
+// Shares the session + passport middleware above, so a socket connection is
+// authenticated the same way as any HTTP request (see socket.js).
+
+initSocket(server, { sessionMiddleware, passport, corsOrigin });
 
 // ─── Static files ─────────────────────────────────────────────────────────────
 
@@ -67,9 +83,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 runMigrations(db);
 
 // ─── API routes ───────────────────────────────────────────────────────────────
-// Same URL prefixes as before the split: /api/upload, /api/me*, /api/signup,
-// /api/login, /api/logout, /auth/google*, /api/tasks*, /api/ride-routes*,
-// /api/tickets*, /api/services*, /api/vehicles*.
 
 app.use('/api', uploadRoutes);
 app.use('/api', accountRoutes);
@@ -81,6 +94,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/conversations', messageRoutes);
 
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
 
@@ -98,6 +112,6 @@ app.get('*', (req, res) => {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
