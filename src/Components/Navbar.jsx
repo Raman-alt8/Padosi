@@ -1,8 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-// Assumes WishlistContext.jsx sits one folder up from Components/ — i.e.
-// alongside App.jsx, BuyTicketPage.jsx, RentVehiclePage.jsx. Adjust this
-// path if your layout differs.
-import { useWishlist } from "../WishlistContext";
+import { useWishlist } from "./WishlistContext";
 
 // ─── Navbar ──────────────────
 export default function Navbar({ currentUser, onLogin, onSignup, onSignout, onManageAccount, onMyTasks, onActivity, showToast, darkMode, onToggleDark, onAbout, onHelp }) {
