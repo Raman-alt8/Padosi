@@ -3,13 +3,13 @@
 // services, ...) so a heart tapped on any card shows up in one place:
 // WishlistPage, opened from the navbar heart.
 //
-// Place this file in the same folder as BuyTicketPage.jsx / RentVehiclePage.jsx
-// / PadosiListings.jsx. Two other files import it with a different relative
-// path — see the comment at the top of each:
-//   - Components/Navbar.jsx   → import { useWishlist } from "../WishlistContext";
-//   - App.jsx                 → import { WishlistProvider } from "./WishlistContext";
-// Adjust those two paths if your folder layout differs from what's assumed
-// here.
+// Lives in src/Components/, alongside Navbar.jsx, WishlistPage.jsx,
+// BuyTicketPage.jsx, RentVehiclePage.jsx, PadosiListings.jsx, etc.
+// Two files import from it:
+//   - Components/Navbar.jsx     → import { useWishlist } from "./WishlistContext";
+//   - Components/WishlistPage.jsx → import { useWishlist } from "./WishlistContext";
+//   - src/Padosi.jsx (root App)  → import { useWishlist, WishlistProvider } from "./Components/WishlistContext";
+// If you move this file, update those import paths to match its new location.
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 const STORAGE_KEY = "padosi-wishlist";

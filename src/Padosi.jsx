@@ -8,6 +8,7 @@ import { DeleteAccountModal, ActivityModal, HistoryModal, AboutModal, HelpModal 
 import { SettingsPage } from "./Components/SettingsPage";
 import { api } from "./utils";
 import { useWishlist, WishlistProvider } from "./Components/WishlistContext";
+import WishlistPage from "./Components/WishlistPage";
 // ─── Toast ───────────────────────────────────────────────────
 function Toast({ message, dark }) {
   return (
