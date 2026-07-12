@@ -1,6 +1,7 @@
 // ServiceListingsAllPage.jsx
 import { useState, useEffect, useMemo } from "react";
 import { useWishlist } from "./WishlistContext";
+import { demoSellerFor } from "./demoIdentities";
 
 const CATEGORY_ICONS = {
   "Plumber": "🔧",
@@ -37,46 +38,69 @@ const SORT_OPTIONS = [
 const CARDS_PER_PAGE = 6;
 
 // ── Temporary showcase listings ──────────────────────────────────────────────
-// Hardcoded example cards so the grid never looks empty while real listings
-// are still trickling in. They're tagged `isDemo: true` and given negative
-// sentinel `originalIndex` values (-1, -2, ...) so they can never collide
-// with a real array index and never reach onDelete / onAccept / onDecline /
-// the parent's real state at all — see handleAccept/handleDecline below,
+// Same raw-data → mapped-with-demoSellerFor split RentVehiclePage.jsx uses:
+// RAW_DEMO_LISTINGS only carries listing-specific fields, and the map below
+// attaches a deterministic seller identity (id + name + area) from
+// demoIdentities, plus isOwner/isDemo, in one place instead of repeating a
+// generic phone-only "poster" per card. Same listing id always resolves to
+// the same seller, so accepting a demo card and hitting Chat talks to a
+// consistent named person instead of a dead end.
+//
+// Negative sentinel `originalIndex` values (-1, -2, ...) are assigned once
+// these are mapped into the grid below, so they can never collide with a
+// real array index and never reach onDelete / onAccept / onDecline / the
+// parent's real state at all — see handleAccept/handleDecline further down,
 // which update local UI state for these cards but never forward the fake
-// index to onAccept/onDecline/onChat props.
+// index to onAccept/onDecline/the parent's onChat prop.
 //
 // They behave exactly like a real "someone else posted this" card: no
 // isOwner flag, so they fall into the normal Accept/Decline footer, and
 // accepting one flips it to show phone + chat like any other accepted card.
-// To remove this showcase content later: delete this array, and the single
-// `isDemo` badge usage in ServiceCard's identity row can go with it.
-const DEMO_LISTINGS = [
+// To remove this showcase content later: delete this block (both
+// RAW_DEMO_LISTINGS and the DEMO_LISTINGS map), and the single `isDemo`
+// badge usage in ServiceCard's identity row can go with it.
+const RAW_DEMO_LISTINGS = [
   {
-    isDemo: true,
+    id: "demo-service-1",
     category: "Plumber",
     title: "Example: Quick Leak & Tap Repairs",
     description: "This is a sample card so you can see how a listing looks — post your own to replace it.",
     price: 300,
     priceType: "Per visit",
     experience: 5,
-    area: "Sample area",
     availability: "Mon-Sat",
     verified: true,
     phone: "+91 90000 00001",
   },
   {
-    isDemo: true,
+    id: "demo-service-2",
     category: "House Cleaning",
     title: "Example: Home Deep Cleaning",
     description: "Another sample listing for demo purposes — real neighbours' posts will look just like this.",
     price: 800,
     priceType: "Monthly",
     experience: 3,
-    area: "Sample area",
     availability: "Tue, Thu, Sat",
     phone: "+91 90000 00002",
   },
 ];
+
+// Each raw entry gets its ownership/demo flags plus a deterministic seller
+// identity from demoIdentities. Also retires the old "Sample area"
+// placeholder in favour of a real-looking locality — a raw entry's own
+// `area`, if it ever sets one, still wins.
+const DEMO_LISTINGS = RAW_DEMO_LISTINGS.map((listing) => {
+  const seller = demoSellerFor(listing.id);
+  return {
+    ...listing,
+    area: listing.area || seller.area,
+    seller: seller.name,
+    userId: seller.id,
+    user_id: seller.id,
+    isOwner: false,
+    isDemo: true,
+  };
+});
 
 // Human-readable, compact price suffix — falls back to a parenthesised raw
 // value so unrecognised priceType strings still render something sane.
@@ -364,7 +388,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
   // card's footer to show contact details instead of Accept/Decline. This
   // applies to demo cards too (negative originalIndex) — their local UI state
   // updates the same way, we just never forward a negative index up to the
-  // parent via onAccept/onDecline/onChat, since there's no real listing behind it.
+  // parent via onAccept/onDecline, since there's no real listing behind it.
   const [declinedIndexes, setDeclinedIndexes] = useState(() => new Set());
   const [acceptedIndexes, setAcceptedIndexes] = useState(() => new Set());
 
@@ -416,10 +440,29 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
     if (index >= 0) onDecline?.(index);
   };
 
-  const handleChat = (index) => {
-    // Guard against forwarding a demo card's negative sentinel index to the
-    // real app's chat handler.
-    if (index >= 0) onChat?.(index);
+  // Real listings still hand off to the parent app's own chat handler. Demo
+  // listings have no conversation row server-side, so instead of a silent
+  // no-op we open a local-only demo thread directly, using the seller
+  // identity demoSellerFor() attached back in the DEMO_LISTINGS map — same
+  // isDemo conversation shape ChatPage.jsx already normalizes (seller_id /
+  // seller_name), and the same event RentVehiclePage's chat button relies on.
+  const handleChat = (index, listing) => {
+    if (index >= 0) {
+      onChat?.(index);
+      return;
+    }
+    if (listing?.isDemo) {
+      window.dispatchEvent(new CustomEvent("padosi:openChat", {
+        detail: {
+          isDemo: true,
+          conversation: {
+            id: `demo-convo-${listing.userId}`,
+            seller_id: listing.userId,
+            seller_name: listing.seller,
+          },
+        },
+      }));
+    }
   };
 
   // Builds the shared wishlist-entry shape (see WishlistContext.jsx's header
@@ -642,7 +685,7 @@ export default function ServiceListingsAllPage({ listings = [], onDelete, onAcce
                   onDeleteCancel={() => setDeleteConfirm(null)}
                   onAccept={handleAccept}
                   onDecline={handleDecline}
-                  onChat={handleChat}
+                  onChat={(idx) => handleChat(idx, listing)}
                   onToggleWishlist={(idx) => handleToggleWishlist(idx, listing)}
                 />
               ))}
