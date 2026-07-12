@@ -7,8 +7,8 @@ import { Modal, ModalTag } from "./Components/Modal";
 import { DeleteAccountModal, ActivityModal, HistoryModal, AboutModal, HelpModal } from "./Components/AccountModals";
 import { SettingsPage } from "./Components/SettingsPage";
 import { api } from "./utils";
-import { WishlistProvider } from "./WishlistContext";
-import WishlistPage from "./WishlistPage";
+import { WishlistProvider } from "./Components/WishlistContext";
+import WishlistPage from "./Components/WishlistPage";
 
 // ─── Toast ───────────────────────────────────────────────────
 function Toast({ message, dark }) {
