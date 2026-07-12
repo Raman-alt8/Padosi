@@ -144,11 +144,8 @@ function runMigrations(db) {
       if (err2) console.error('Could not create username unique index:', err2);
     });
   });
-}
 
-module.exports = runMigrations;
-
-// ── Chat: conversations + messages ──────────────────────────────────────
+  // ── Chat: conversations + messages ──────────────────────────────────────
   // A conversation is scoped to one listing + one buyer + one seller, so the
   // same two users messaging about two different listings get two separate
   // threads. messages must nest inside the conversations callback — same
@@ -194,3 +191,6 @@ module.exports = runMigrations;
       );
     });
   });
+}
+
+module.exports = runMigrations;
