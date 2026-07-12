@@ -7,7 +7,7 @@ import { Modal, ModalTag } from "./Components/Modal";
 import { DeleteAccountModal, ActivityModal, HistoryModal, AboutModal, HelpModal } from "./Components/AccountModals";
 import { SettingsPage } from "./Components/SettingsPage";
 import { api } from "./utils";
-import { WishlistProvider } from "./Components/WishlistContext";
+import { useWishlist } from "./Components/WishlistContext";
 import WishlistPage from "./Components/WishlistPage";
 
 // ─── Toast ───────────────────────────────────────────────────
