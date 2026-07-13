@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import RidePostFormPage from "./RidePostFormPage";
+import RideAcceptPage from "./RideAcceptPage";
 import { useWishlist } from "./WishlistContext";
 import { demoSellerFor } from "./demoIdentities";
-import MessageSellerButton from "./MessageSellerButton";
 
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -50,7 +50,7 @@ function HeartIcon({ filled }) {
 // normal Accept/Decline footer, and accepting one reveals poster contact
 // info (now including a real chat button) exactly like a real accepted
 // route — except accept/decline never reaches the server, since
-// handleAccept/handleDecline short-circuit on negative ids below.
+// handleConfirmAccept/handleDecline short-circuit on negative ids below.
 //
 // To remove this showcase content later: delete this block (both
 // RAW_DEMO_ROUTES and the DEMO_ROUTES map), the demoAccepted/demoDeclined
@@ -190,6 +190,17 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [demoDeclined, setDemoDeclined] = useState(() => new Set());
   const [demoAccepted, setDemoAccepted] = useState(() => new Set());
 
+  // ── Accept overlay state ────────────────────────────────────────────────
+  // Accepting a route no longer expands the card in place (which used to
+  // stretch every card sharing that grid row). Instead it opens
+  // RideAcceptPage as a full-screen overlay, same pattern as formOpen below.
+  // acceptStep carries whether we're opening it fresh ("review") or just
+  // reopening an already-accepted route to see contact info again
+  // ("confirmed") — decided once, in openAccept, from the route clicked.
+  const [acceptOpen, setAcceptOpen]   = useState(false);
+  const [acceptRoute, setAcceptRoute] = useState(null);
+  const [acceptStep, setAcceptStep]   = useState("review");
+
   // ── Open / close ────────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -262,29 +273,48 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   };
 
-  // ── Accept ──────────────────────────────────────────────────────────────────
-  const handleAccept = async (routeId) => {
+  // ── Accept overlay open/close ────────────────────────────────────────────
+  // Clicking "Accept" on a not-yet-accepted card opens the review step.
+  // Clicking the "View contact & chat" button on an already-accepted card
+  // opens straight to the confirmed step so the poster's info shows
+  // immediately, without re-asking for seats.
+  const openAccept = (route) => {
+    setAcceptRoute(route);
+    setAcceptStep(route.my_response === "accepted" ? "confirmed" : "review");
+    setAcceptOpen(true);
+  };
+
+  const closeAccept = () => {
+    setAcceptOpen(false);
+    setAcceptRoute(null);
+  };
+
+  // ── Confirm accept (called by RideAcceptPage) ────────────────────────────
+  // Does the actual accept — API call for real routes, local-state-only for
+  // demo routes — and returns { poster_contact } so RideAcceptPage can show
+  // its confirmed step. Throws on failure so RideAcceptPage's own inline
+  // error banner can display the message.
+  const handleConfirmAccept = async (routeId, seats, note) => {
     // Demo card — flip local state only, never touch the API.
     if (routeId < 0) {
       setDemoAccepted(prev => new Set(prev).add(routeId));
-      return;
+      const demoRoute = DEMO_ROUTES.find(d => d.id === routeId);
+      return { poster_contact: demoRoute?.poster_contact };
     }
-    try {
-      const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/accept`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) { showToast(`⚠️ ${data.error}`); return; }
-      setRoutes(prev => prev.map(r =>
-        r.id === routeId
-          ? { ...r, my_response: "accepted", poster_contact: data.poster }
-          : r
-      ));
-    } catch (err) {
-      console.error(err);
-      showToast("⚠️ Network error. Please try again.");
-    }
+    const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/accept`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seats, note }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Could not accept this route. Please try again.");
+    setRoutes(prev => prev.map(r =>
+      r.id === routeId
+        ? { ...r, my_response: "accepted", poster_contact: data.poster, accepted_seats: seats, accepted_note: note }
+        : r
+    ));
+    return { poster_contact: data.poster };
   };
 
   // ── Decline ─────────────────────────────────────────────────────────────────
@@ -620,57 +650,21 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                       </div>
 
                     ) : r.my_response === "accepted" ? (
-                      <div className={`rounded-xl p-3 border flex flex-col gap-2 ${
-                        dark ? "bg-white/5 border-white/20" : "bg-[#f0fff4] border-[#b2f5c8]"
-                      }`}>
-                        <p className={`text-xs font-bold ${dark ? "text-white/60" : "text-[#27ae60]"}`}>
-                          ✅ Accepted — contact the poster
-                        </p>
-                        <a
-                          href={`mailto:${r.poster_contact?.email || ""}?subject=Ride Share — ${r.from_place} to ${r.to_place}`}
-                          className={`inline-flex items-center justify-center gap-2 text-xs font-bold py-2 px-3 rounded-lg border transition-colors ${
-                            dark
-                              ? "border-white text-white hover:bg-white hover:text-black"
-                              : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                          }`}
-                        >
-                          ✉️ Email {r.poster_contact?.name?.split(" ")[0] || "poster"}
-                        </a>
-                        {r.poster_contact?.phone && (
-                          <a
-                            href={`tel:${r.poster_contact.phone}`}
-                            className={`inline-flex items-center justify-center gap-2 text-xs font-bold py-2 px-3 rounded-lg border transition-colors ${
-                              dark
-                                ? "border-white/40 text-white/70 hover:border-white hover:text-white"
-                                : "border-[#ddd] text-[#555] bg-white hover:border-[#27ae60] hover:text-[#27ae60]"
-                            }`}
-                          >
-                            📞 {r.poster_contact.phone}
-                          </a>
-                        )}
-                        {/* Chat with poster — same MessageSellerButton
-                            VehicleDetailPage and ServiceListingsAllPage use.
-                            sellerId/sellerName are just r.poster_id/
-                            r.poster_name, the same fields already driving
-                            the isOwner check above, so this needs no new
-                            data on real routes — it just works. isDemo
-                            routes fall into MessageSellerButton's own local
-                            demo-thread branch automatically. */}
-                        <MessageSellerButton
-                          listingType="ride"
-                          listingId={r.id}
-                          sellerId={r.poster_id}
-                          sellerName={r.poster_name}
-                          isDemo={r.isDemo}
-                          dark={dark}
-                          label={`💬 Chat with ${r.poster_name?.split(" ")[0] || "poster"}`}
-                          className={`inline-flex items-center justify-center gap-2 text-xs font-bold py-2 px-3 rounded-lg border cursor-pointer transition-colors ${
-                            dark
-                              ? "border-white/40 text-white/70 hover:border-white hover:text-white"
-                              : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                          }`}
-                        />
-                      </div>
+                      // Accepted — a single compact button instead of the old
+                      // inline mailto/tel/chat block. Opening RideAcceptPage
+                      // (initialStep="confirmed", via openAccept below) shows
+                      // that same contact info full-screen, without the card
+                      // itself ever growing taller than its neighbours.
+                      <button
+                        onClick={() => openAccept(r)}
+                        className={`w-full inline-flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-3 rounded-xl border transition-colors ${
+                          dark
+                            ? "bg-white/5 border-white/20 text-white/80 hover:border-white hover:text-white"
+                            : "bg-[#f0fff4] border-[#b2f5c8] text-[#27ae60] hover:border-[#27ae60]"
+                        }`}
+                      >
+                        ✅ Accepted — View contact &amp; chat
+                      </button>
 
                     ) : (
                       <div className="flex gap-2">
@@ -685,7 +679,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                           ✕ Decline
                         </button>
                         <button
-                          onClick={() => handleAccept(r.id)}
+                          onClick={() => openAccept(r)}
                           className={`flex-1 text-xs py-2.5 rounded-xl font-bold cursor-pointer border transition-all hover:-translate-y-0.5 ${
                             dark
                               ? "border-white bg-white text-black hover:shadow-[0_6px_20px_rgba(255,255,255,0.2)]"
@@ -713,6 +707,25 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           showToast={showToast}
           onClose={closeForm}
           onSaved={handleFormSaved}
+        />
+      )}
+
+      {/* ── Accept / review overlay (separate component) ──
+          Same pattern as the form above: rendered on top of everything,
+          so picking seats or viewing an accepted route's contact info
+          never resizes the card grid behind it. */}
+      {acceptOpen && acceptRoute && (
+        <RideAcceptPage
+          open={acceptOpen}
+          route={acceptRoute}
+          currentUser={currentUser}
+          dark={dark}
+          showToast={showToast}
+          onClose={closeAccept}
+          onConfirmAccept={handleConfirmAccept}
+          initialStep={acceptStep}
+          initialSeats={acceptRoute.accepted_seats || 1}
+          initialNote={acceptRoute.accepted_note || ""}
         />
       )}
     </div>
