@@ -14,6 +14,10 @@ const LIMITS = {
   price: 7,
 };
 
+// Default map view shown the instant the form opens, before the user has
+// typed a From/To — a wide India view so the iframe is never blank/hidden.
+const DEFAULT_MAP_SRC = "https://maps.google.com/maps?q=India&z=5&output=embed";
+
 // Small red "you've hit the limit" note. Only rendered by the caller when
 // the field's current length has reached its cap, so no state or timers are
 // needed for it to disappear — it just stops being rendered.
@@ -41,9 +45,14 @@ function LimitNote() {
 //   onSaved      — (route, isEdit: boolean) => void, called with the
 //                  server's route object after a successful save
 export default function RidePostFormPage({ open, editingRoute, dark, showToast, onClose, onSaved }) {
+  // "partner"  → you have a vehicle and are offering to share your commute
+  // "ride"     → you don't have a vehicle and are looking for someone
+  //              driving your route. Vehicle/Seats don't apply in this
+  //              mode since you're not the one offering the ride.
+  const [mode, setMode]               = useState("partner");
   const [seats, setSeats]             = useState(1);
-  const [vehicleType, setVehicleType] = useState("car"); // "car" | "bike"
-  const [freq, setFreq]               = useState("");
+  const [vehicleTypes, setVehicleTypes] = useState([]); // e.g. [] | ["car"] | ["bike"] | ["car","bike"]
+  const [freq, setFreq]               = useState(""); // "weekday" | "weekend" | "full_week"
   const [genderPref, setGenderPref]   = useState(""); // "" | "male" | "female" | "no_preference"
   const [from, setFrom]               = useState("");
   const [to, setTo]                   = useState("");
@@ -53,14 +62,17 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
   const [formError, setFormError]     = useState("");
   const [submitting, setSubmitting]   = useState(false);
 
-  const [mapSrc, setMapSrc]         = useState("");
-  const [mapHidden, setMapHidden]   = useState(true);
+  // Map is always on once the form is open — starts on a default wide view
+  // and is swapped for a route-specific view once From/To are filled (or
+  // the user hits Preview).
+  const [mapSrc, setMapSrc] = useState(DEFAULT_MAP_SRC);
 
   // Initialize fields whenever the form opens — either prefilled from
   // editingRoute, or blank for a fresh post.
   useEffect(() => {
     if (!open) return;
     if (editingRoute) {
+      setMode(editingRoute.mode === "ride" ? "ride" : "partner");
       setFrom(editingRoute.from_place);
       setTo(editingRoute.to_place);
       setFreq(editingRoute.freq);
@@ -69,22 +81,33 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
       setPriceVal(String(editingRoute.price ?? ""));
       setDesc(editingRoute.description);
       setSeats(editingRoute.seats);
-      setVehicleType(editingRoute.vehicle_type || "car");
+      // Back-compat: older routes may only have a single vehicle_type string.
+      if (Array.isArray(editingRoute.vehicle_types)) {
+        setVehicleTypes(editingRoute.vehicle_types);
+      } else if (editingRoute.vehicle_type) {
+        setVehicleTypes([editingRoute.vehicle_type]);
+      } else {
+        setVehicleTypes([]);
+      }
       const q = encodeURIComponent(`${editingRoute.from_place} to ${editingRoute.to_place} India`);
       setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
-      setMapHidden(false);
     } else {
+      setMode("partner");
       setFrom(""); setTo(""); setFreq(""); setGenderPref(""); setDeptTime(""); setPriceVal("");
-      setDesc(""); setSeats(1); setVehicleType("car"); setMapSrc(""); setMapHidden(true);
+      setDesc(""); setSeats(1); setVehicleTypes([]); setMapSrc(DEFAULT_MAP_SRC);
     }
     setFormError("");
     setSubmitting(false);
   }, [open, editingRoute]);
 
+  const toggleVehicle = (key) => {
+    setVehicleTypes(prev => prev.includes(key) ? prev.filter(v => v !== key) : [...prev, key]);
+  };
+
   const handleSubmit = async () => {
     if (!from)     { setFormError("⚠️ Please enter a starting point.");          return; }
     if (!to)       { setFormError("⚠️ Please enter a destination.");             return; }
-    if (!freq)     { setFormError("⚠️ Please select how many times a week.");    return; }
+    if (!freq)     { setFormError("⚠️ Please select weekday, weekend, or full week."); return; }
     if (!deptTime) { setFormError("⚠️ Please enter your usual departure time."); return; }
     if (!desc)     { setFormError("⚠️ Please add a short description.");         return; }
 
@@ -92,15 +115,16 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
     setFormError("");
 
     const payload = {
-      from_place:   from,
-      to_place:     to,
+      mode,
+      from_place:    from,
+      to_place:      to,
       freq,
-      gender_pref:  genderPref || null,
-      depart_time:  deptTime,
-      seats,
-      vehicle_type: vehicleType,
-      price:        Number(priceVal) || 0,
-      description:  desc,
+      gender_pref:   genderPref || null,
+      depart_time:   deptTime,
+      seats:         mode === "partner" ? seats : null,
+      vehicle_types: mode === "partner" ? vehicleTypes : [],
+      price:         Number(priceVal) || 0,
+      description:   desc,
     };
 
     try {
@@ -120,7 +144,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
       if (!res.ok) { setFormError(data.error || "Something went wrong."); return; }
 
       onSaved?.(data.route, Boolean(editingRoute));
-      showToast(editingRoute ? "✏️ Route updated" : "🚗 Route posted!");
+      showToast(editingRoute ? "✏️ Updated" : mode === "ride" ? "🙋 Ride request posted!" : "🚗 Route posted!");
       onClose?.();
     } catch (err) {
       console.error(err);
@@ -166,30 +190,52 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
 
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
-        {/* Map pane */}
+        {/* Map pane — always live, no placeholder state */}
         <div className={`flex-1 relative min-h-[200px] ${dark ? "bg-black" : "bg-[#f0f1f5]"}`}>
-          {mapSrc && (
-            <iframe src={mapSrc} className="w-full h-full border-none" allowFullScreen loading="lazy" />
-          )}
-          {mapHidden && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-              <span className={`text-5xl ${dark ? "text-white/20" : "text-[#ccc]"}`}>🗺️</span>
-              <p className={`text-sm text-center max-w-[180px] leading-snug ${dark ? "text-white/30" : "text-[#bbb]"}`}>
-                Enter your route to preview it on the map
-              </p>
-            </div>
-          )}
+          <iframe src={mapSrc} className="w-full h-full border-none" allowFullScreen loading="lazy" />
         </div>
 
         {/* Form pane */}
         <div className={`w-full md:w-[400px] flex-shrink-0 overflow-y-auto p-7 border-l ${
           dark ? "bg-black border-white" : "bg-white border-[#eee]"
         }`}>
+
+          {/* Need a Partner / Need a Ride — top-level mode switch. Defaults
+              to "partner" (the original layout). Switching to "ride" hides
+              the Vehicle and Seats sections below, since a ride-seeker
+              isn't the one offering a vehicle. */}
+          <div className="flex gap-2 mb-6">
+            {[
+              { key: "partner", label: "🧑‍🤝‍🧑 Need a Partner" },
+              { key: "ride",    label: "🙋 Need a Ride" },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMode(key)}
+                className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
+                  mode === key
+                    ? dark
+                      ? "bg-white border-white text-black"
+                      : "bg-[#ff2d55] border-[#ff2d55] text-white"
+                    : dark
+                      ? "border-white/40 bg-black text-white/60 hover:border-white hover:text-white"
+                      : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <h2 className={`text-xl font-black mb-1 ${dark ? "text-white" : "text-[#111]"}`}>
-            {editingRoute ? "Edit your route" : "Your route details"}
+            {editingRoute
+              ? "Edit your route"
+              : mode === "ride" ? "Your ride request" : "Your route details"}
           </h2>
           <p className={`text-xs mb-6 ${dark ? "text-white/40" : "text-[#999]"}`}>
-            Share your regular trip so neighbours can ride along.
+            {mode === "ride"
+              ? "Tell neighbours the route you need a lift on."
+              : "Share your regular trip so neighbours can ride along."}
           </p>
 
           {/* From / To — character-limited, maxLength stops the browser from
@@ -211,13 +257,13 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
             </div>
           ))}
 
-          {/* Map preview trigger */}
+          {/* Map preview trigger — still here for updating the view to the
+              specific route on demand; map itself is already live by default */}
           <button
             onClick={() => {
               if (!from || !to) { showToast("⚠️ Enter both a starting point and destination first."); return; }
               const q = encodeURIComponent(`${from} to ${to} India`);
               setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
-              setMapHidden(false);
             }}
             className={`w-full py-3 rounded-xl border text-sm font-bold cursor-pointer transition-colors mb-5 ${
               dark
@@ -230,47 +276,20 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
 
           <hr className={`my-5 ${dark ? "border-white/20" : "border-[#eee]"}`} />
 
-          {/* Frequency */}
+          {/* Frequency — now three options instead of the old 1–7 picker */}
           <div className="mb-4">
-            <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>📅 Times per week</label>
+            <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>📅 Frequency</label>
             <div className="flex gap-2 flex-wrap">
-              {["1","2","3","4","5","6","7"].map(v => (
-                <button
-                  key={v}
-                  onClick={() => setFreq(v)}
-                  className={`px-3 py-2 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
-                    freq === v
-                      ? dark
-                        ? "bg-white border-white text-black"
-                        : "bg-[#ff2d55] border-[#ff2d55] text-white"
-                      : dark
-                        ? "border-white/40 bg-black text-white/60 hover:border-white hover:text-white"
-                        : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                  }`}
-                >
-                  {v === "7" ? "Daily" : `${v}×`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Vehicle type — two-way pill toggle, same visual language as the
-              frequency picker above. Stored as "car" | "bike" and sent
-              straight through in the payload below, so the icon shown on
-              the route card / accept page always reflects what's picked
-              here. */}
-          <div className="mb-4">
-            <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>🚘 Vehicle</label>
-            <div className="flex gap-2">
               {[
-                { key: "car",  label: "🚗 Car" },
-                { key: "bike", label: "🏍️ Bike" },
+                { key: "weekday",   label: "Weekday" },
+                { key: "weekend",   label: "Weekend" },
+                { key: "full_week", label: "Full Week" },
               ].map(({ key, label }) => (
                 <button
                   key={key}
-                  onClick={() => setVehicleType(key)}
-                  className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
-                    vehicleType === key
+                  onClick={() => setFreq(key)}
+                  className={`px-3 py-2 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
+                    freq === key
                       ? dark
                         ? "bg-white border-white text-black"
                         : "bg-[#ff2d55] border-[#ff2d55] text-white"
@@ -285,16 +304,84 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
             </div>
           </div>
 
-          {/* Gender preference — optional 3-way pill toggle. Unlike frequency
-              and vehicle (which are required, single-click-only), this one
-              starts unset and can be cleared: double-clicking a pill acts as
-              a "remove selection" gesture, resetting genderPref back to "".
-              Single click just selects it like the other pickers. */}
+          {/* Vehicle type + Seats — only relevant when offering a ride.
+              Vehicle is now a multi-select: clicking a pill toggles it in
+              or out (both Car and Bike can be active at once); clicking an
+              already-active pill removes it. */}
+          {mode === "partner" && (
+            <>
+              <div className="mb-4">
+                <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>🚘 Vehicle</label>
+                <div className="flex gap-2">
+                  {[
+                    { key: "car",  label: "🚗 Car" },
+                    { key: "bike", label: "🏍️ Bike" },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => toggleVehicle(key)}
+                      className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
+                        vehicleTypes.includes(key)
+                          ? dark
+                            ? "bg-white border-white text-black"
+                            : "bg-[#ff2d55] border-[#ff2d55] text-white"
+                          : dark
+                            ? "border-white/40 bg-black text-white/60 hover:border-white hover:text-white"
+                            : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>👥 Seats available</label>
+                <div className="flex items-center gap-3 mt-1">
+                  <button
+                    onClick={() => setSeats(s => Math.max(1, s - 1))}
+                    className={`w-8 h-8 rounded-full border text-lg font-bold flex items-center justify-center cursor-pointer transition-colors ${
+                      dark
+                        ? "border-white bg-black text-white hover:bg-white hover:text-black"
+                        : "border-[#ddd] bg-white text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                    }`}
+                  >−</button>
+                  <span className={`text-xl font-black min-w-[20px] text-center ${dark ? "text-white" : "text-[#111]"}`}>{seats}</span>
+                  <button
+                    onClick={() => setSeats(s => Math.min(8, s + 1))}
+                    className={`w-8 h-8 rounded-full border text-lg font-bold flex items-center justify-center cursor-pointer transition-colors ${
+                      dark
+                        ? "border-white bg-black text-white hover:bg-white hover:text-black"
+                        : "border-[#ddd] bg-white text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                    }`}
+                  >+</button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Departure time */}
+          <div className="mb-4">
+            <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>🕐 Departs at</label>
+            <input
+              type="time"
+              value={deptTime}
+              onChange={e => setDeptTime(e.target.value)}
+              style={{ colorScheme: dark ? "dark" : "light" }}
+              className={inputCls}
+            />
+          </div>
+
+          {/* Gender preference — now a single-click toggle instead of
+              double-click. Clicking an already-selected pill deselects it
+              back to "" (unset); clicking a different pill just swaps
+              the selection, same as Frequency above. */}
           <div className="mb-4">
             <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>
               🚻 Gender preference{" "}
               <span className={`font-medium normal-case ${dark ? "text-white/30" : "text-[#bbb]"}`}>
-                (optional — double-tap to clear)
+                (optional — tap again to clear)
               </span>
             </label>
             <div className="flex gap-2 flex-wrap">
@@ -305,9 +392,8 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
               ].map(({ key, label }) => (
                 <button
                   key={key}
-                  onClick={() => setGenderPref(key)}
-                  onDoubleClick={() => setGenderPref("")}
-                  className={`px-3 py-2 rounded-xl border text-sm font-bold cursor-pointer transition-colors select-none ${
+                  onClick={() => setGenderPref(prev => prev === key ? "" : key)}
+                  className={`px-3 py-2 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
                     genderPref === key
                       ? dark
                         ? "bg-white border-white text-black"
@@ -320,42 +406,6 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
                   {label}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Departure time + seats */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>🕐 Departs at</label>
-              <input
-                type="time"
-                value={deptTime}
-                onChange={e => setDeptTime(e.target.value)}
-                style={{ colorScheme: dark ? "dark" : "light" }}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>👥 Seats available</label>
-              <div className="flex items-center gap-3 mt-1">
-                <button
-                  onClick={() => setSeats(s => Math.max(1, s - 1))}
-                  className={`w-8 h-8 rounded-full border text-lg font-bold flex items-center justify-center cursor-pointer transition-colors ${
-                    dark
-                      ? "border-white bg-black text-white hover:bg-white hover:text-black"
-                      : "border-[#ddd] bg-white text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                  }`}
-                >−</button>
-                <span className={`text-xl font-black min-w-[20px] text-center ${dark ? "text-white" : "text-[#111]"}`}>{seats}</span>
-                <button
-                  onClick={() => setSeats(s => Math.min(8, s + 1))}
-                  className={`w-8 h-8 rounded-full border text-lg font-bold flex items-center justify-center cursor-pointer transition-colors ${
-                    dark
-                      ? "border-white bg-black text-white hover:bg-white hover:text-black"
-                      : "border-[#ddd] bg-white text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                  }`}
-                >+</button>
-              </div>
             </div>
           </div>
 
@@ -408,7 +458,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
           >
             {submitting
               ? "Saving…"
-              : editingRoute ? "💾 Save Changes" : "🚗 Post Route"}
+              : editingRoute ? "💾 Save Changes" : mode === "ride" ? "🙋 Post Ride Request" : "🚗 Post Route"}
           </button>
         </div>
       </div>
