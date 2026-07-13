@@ -469,49 +469,73 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
               return (
                 <div
                   key={r.id}
-                  className={`relative rounded-2xl border p-5 flex flex-col gap-3.5 hover:-translate-y-1 transition-all ${
+                  className={`relative rounded-2xl border p-5 pt-4 flex flex-col gap-3.5 hover:-translate-y-1 transition-all ${
                     dark
                       ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
                       : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
                   }`}
                 >
-                  {/* Top-right controls: wishlist heart, plus the
-                      "remove from view" close button (accepted routes only) */}
-                  <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
-                    <button
-                      onClick={() => toggleWishlist(buildWishlistEntry(r))}
-                      aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
-                      aria-pressed={saved}
-                      title={saved ? "Remove from wishlist" : "Save to wishlist"}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border transition-all active:scale-90 ${
-                        saved
-                          ? "bg-[#ff2d55] border-[#ff2d55] text-white"
-                          : dark
-                            ? "bg-black/60 border-white/30 text-white/60 hover:text-[#ff2d55] hover:border-[#ff2d55]/50"
-                            : "bg-white/90 border-[#eee] text-[#ccc] hover:text-[#ff2d55] hover:border-[#ff2d55]/40 shadow-sm"
-                      }`}
-                    >
-                      <HeartIcon filled={saved} />
-                    </button>
-
-                    {!isOwner && r.my_response === "accepted" && (
+                  {/* Top-right stack: wishlist heart (+ "remove from view" close
+                      button for accepted routes) on the first row, and the
+                      "Your route" / "Sample" badge stacked directly beneath it.
+                      Keeping both in this one absolute-positioned column (instead
+                      of putting the badge inline in the from/to row below) is
+                      what stops the badge from landing on top of the heart
+                      button or the route title — they now share one reserved
+                      corner instead of two separate things both reaching for
+                      the same top-right space. */}
+                  <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleHideAccepted(r.id)}
-                        aria-label="Remove this route from your view"
-                        title="Remove from view"
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-colors ${
-                          dark
-                            ? "text-white/50 hover:text-white hover:bg-white/10"
-                            : "text-[#bbb] hover:text-[#777] hover:bg-[#f0f0f0]"
+                        onClick={() => toggleWishlist(buildWishlistEntry(r))}
+                        aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+                        aria-pressed={saved}
+                        title={saved ? "Remove from wishlist" : "Save to wishlist"}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border transition-all active:scale-90 ${
+                          saved
+                            ? "bg-[#ff2d55] border-[#ff2d55] text-white"
+                            : dark
+                              ? "bg-black/60 border-white/30 text-white/60 hover:text-[#ff2d55] hover:border-[#ff2d55]/50"
+                              : "bg-white/90 border-[#eee] text-[#ccc] hover:text-[#ff2d55] hover:border-[#ff2d55]/40 shadow-sm"
                         }`}
                       >
-                        ✕
+                        <HeartIcon filled={saved} />
                       </button>
+
+                      {!isOwner && r.my_response === "accepted" && (
+                        <button
+                          onClick={() => handleHideAccepted(r.id)}
+                          aria-label="Remove this route from your view"
+                          title="Remove from view"
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-colors ${
+                            dark
+                              ? "text-white/50 hover:text-white hover:bg-white/10"
+                              : "text-[#bbb] hover:text-[#777] hover:bg-[#f0f0f0]"
+                          }`}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {isOwner && (
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border ${
+                        dark
+                          ? "border-white text-white bg-black/60"
+                          : "border-[#ff2d55] text-[#ff2d55] bg-[#fff0f3]"
+                      }`}>
+                        Your route
+                      </span>
+                    )}
+                    {r.isDemo && (
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border border-purple-300 text-purple-600 bg-purple-50">
+                        Sample
+                      </span>
                     )}
                   </div>
 
                   {/* Route from → to */}
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 pr-11">
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
                       <span className={`w-2.5 h-2.5 rounded-full ${dark ? "bg-white" : "bg-[#ff2d55]"}`} />
                       <span className={`w-0.5 h-5 ${dark ? "bg-white/30" : "bg-[#eee]"}`} />
@@ -521,20 +545,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                       <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{r.from_place}</p>
                       <p className={`text-xs mt-2 truncate ${dark ? "text-white/50" : "text-[#999]"}`}>{r.to_place}</p>
                     </div>
-                    {isOwner && (
-                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 border ${
-                        dark
-                          ? "border-white text-white"
-                          : "border-[#ff2d55] text-[#ff2d55] bg-[#fff0f3]"
-                      }`}>
-                        Your route
-                      </span>
-                    )}
-                    {r.isDemo && (
-                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 border border-purple-300 text-purple-600 bg-purple-50">
-                        Sample
-                      </span>
-                    )}
                   </div>
 
                   {/* Tags */}
