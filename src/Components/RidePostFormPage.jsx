@@ -44,6 +44,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
   const [seats, setSeats]             = useState(1);
   const [vehicleType, setVehicleType] = useState("car"); // "car" | "bike"
   const [freq, setFreq]               = useState("");
+  const [genderPref, setGenderPref]   = useState(""); // "" | "male" | "female" | "no_preference"
   const [from, setFrom]               = useState("");
   const [to, setTo]                   = useState("");
   const [deptTime, setDeptTime]       = useState("");
@@ -63,6 +64,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
       setFrom(editingRoute.from_place);
       setTo(editingRoute.to_place);
       setFreq(editingRoute.freq);
+      setGenderPref(editingRoute.gender_pref || "");
       setDeptTime(editingRoute.depart_time);
       setPriceVal(String(editingRoute.price ?? ""));
       setDesc(editingRoute.description);
@@ -72,7 +74,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
       setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
       setMapHidden(false);
     } else {
-      setFrom(""); setTo(""); setFreq(""); setDeptTime(""); setPriceVal("");
+      setFrom(""); setTo(""); setFreq(""); setGenderPref(""); setDeptTime(""); setPriceVal("");
       setDesc(""); setSeats(1); setVehicleType("car"); setMapSrc(""); setMapHidden(true);
     }
     setFormError("");
@@ -93,6 +95,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
       from_place:   from,
       to_place:     to,
       freq,
+      gender_pref:  genderPref || null,
       depart_time:  deptTime,
       seats,
       vehicle_type: vehicleType,
@@ -268,6 +271,44 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
                   onClick={() => setVehicleType(key)}
                   className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
                     vehicleType === key
+                      ? dark
+                        ? "bg-white border-white text-black"
+                        : "bg-[#ff2d55] border-[#ff2d55] text-white"
+                      : dark
+                        ? "border-white/40 bg-black text-white/60 hover:border-white hover:text-white"
+                        : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Gender preference — optional 3-way pill toggle. Unlike frequency
+              and vehicle (which are required, single-click-only), this one
+              starts unset and can be cleared: double-clicking a pill acts as
+              a "remove selection" gesture, resetting genderPref back to "".
+              Single click just selects it like the other pickers. */}
+          <div className="mb-4">
+            <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>
+              🚻 Gender preference{" "}
+              <span className={`font-medium normal-case ${dark ? "text-white/30" : "text-[#bbb]"}`}>
+                (optional — double-tap to clear)
+              </span>
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: "male",          label: "Male" },
+                { key: "female",        label: "Female" },
+                { key: "no_preference", label: "No preference" },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setGenderPref(key)}
+                  onDoubleClick={() => setGenderPref("")}
+                  className={`px-3 py-2 rounded-xl border text-sm font-bold cursor-pointer transition-colors select-none ${
+                    genderPref === key
                       ? dark
                         ? "bg-white border-white text-black"
                         : "bg-[#ff2d55] border-[#ff2d55] text-white"
