@@ -381,7 +381,7 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
             <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>
               🚻 Gender preference{" "}
               <span className={`font-medium normal-case ${dark ? "text-white/30" : "text-[#bbb]"}`}>
-                (optional — tap again to clear)
+                (optional)
               </span>
             </label>
             <div className="flex gap-2 flex-wrap">
