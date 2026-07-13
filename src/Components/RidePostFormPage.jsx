@@ -41,15 +41,16 @@ function LimitNote() {
 //   onSaved      — (route, isEdit: boolean) => void, called with the
 //                  server's route object after a successful save
 export default function RidePostFormPage({ open, editingRoute, dark, showToast, onClose, onSaved }) {
-  const [seats, setSeats]           = useState(1);
-  const [freq, setFreq]             = useState("");
-  const [from, setFrom]             = useState("");
-  const [to, setTo]                 = useState("");
-  const [deptTime, setDeptTime]     = useState("");
-  const [priceVal, setPriceVal]     = useState("");
-  const [desc, setDesc]             = useState("");
-  const [formError, setFormError]   = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [seats, setSeats]             = useState(1);
+  const [vehicleType, setVehicleType] = useState("car"); // "car" | "bike"
+  const [freq, setFreq]               = useState("");
+  const [from, setFrom]               = useState("");
+  const [to, setTo]                   = useState("");
+  const [deptTime, setDeptTime]       = useState("");
+  const [priceVal, setPriceVal]       = useState("");
+  const [desc, setDesc]               = useState("");
+  const [formError, setFormError]     = useState("");
+  const [submitting, setSubmitting]   = useState(false);
 
   const [mapSrc, setMapSrc]         = useState("");
   const [mapHidden, setMapHidden]   = useState(true);
@@ -66,12 +67,13 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
       setPriceVal(String(editingRoute.price ?? ""));
       setDesc(editingRoute.description);
       setSeats(editingRoute.seats);
+      setVehicleType(editingRoute.vehicle_type || "car");
       const q = encodeURIComponent(`${editingRoute.from_place} to ${editingRoute.to_place} India`);
       setMapSrc(`https://maps.google.com/maps?q=${q}&z=13&output=embed`);
       setMapHidden(false);
     } else {
       setFrom(""); setTo(""); setFreq(""); setDeptTime(""); setPriceVal("");
-      setDesc(""); setSeats(1); setMapSrc(""); setMapHidden(true);
+      setDesc(""); setSeats(1); setVehicleType("car"); setMapSrc(""); setMapHidden(true);
     }
     setFormError("");
     setSubmitting(false);
@@ -88,13 +90,14 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
     setFormError("");
 
     const payload = {
-      from_place:  from,
-      to_place:    to,
+      from_place:   from,
+      to_place:     to,
       freq,
-      depart_time: deptTime,
+      depart_time:  deptTime,
       seats,
-      price:       Number(priceVal) || 0,
-      description: desc,
+      vehicle_type: vehicleType,
+      price:        Number(priceVal) || 0,
+      description:  desc,
     };
 
     try {
@@ -243,6 +246,37 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
                   }`}
                 >
                   {v === "7" ? "Daily" : `${v}×`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Vehicle type — two-way pill toggle, same visual language as the
+              frequency picker above. Stored as "car" | "bike" and sent
+              straight through in the payload below, so the icon shown on
+              the route card / accept page always reflects what's picked
+              here. */}
+          <div className="mb-4">
+            <label className={`text-xs font-bold mb-2 block ${dark ? "text-white/60" : "text-[#888]"}`}>🚘 Vehicle</label>
+            <div className="flex gap-2">
+              {[
+                { key: "car",  label: "🚗 Car" },
+                { key: "bike", label: "🏍️ Bike" },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setVehicleType(key)}
+                  className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-bold cursor-pointer transition-colors ${
+                    vehicleType === key
+                      ? dark
+                        ? "bg-white border-white text-black"
+                        : "bg-[#ff2d55] border-[#ff2d55] text-white"
+                      : dark
+                        ? "border-white/40 bg-black text-white/60 hover:border-white hover:text-white"
+                        : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                  }`}
+                >
+                  {label}
                 </button>
               ))}
             </div>
