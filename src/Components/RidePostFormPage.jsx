@@ -1,3 +1,4 @@
+// RidePostFormPage.jsx
 import { useState, useEffect } from "react";
 
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
@@ -39,12 +40,18 @@ function LimitNote() {
 //                  mount this component when true, so state resets naturally
 //                  between opens)
 //   editingRoute — route object to prefill for editing, or null to create
+//   currentUser  — { id, ... } object from your auth state, or null when
+//                  logged out. The form itself always opens (RideSharePage
+//                  no longer gates the "Post a Route" button), so a
+//                  logged-out visitor can browse and fill it out — this
+//                  prop drives the banner below and the hard stop in
+//                  handleSubmit.
 //   dark         — boolean
 //   showToast    — (msg: string) => void
 //   onClose      — () => void, called when the user backs out
 //   onSaved      — (route, isEdit: boolean) => void, called with the
 //                  server's route object after a successful save
-export default function RidePostFormPage({ open, editingRoute, dark, showToast, onClose, onSaved }) {
+export default function RidePostFormPage({ open, editingRoute, currentUser, dark, showToast, onClose, onSaved }) {
   // "partner"  → you have a vehicle and are offering to share your commute
   // "ride"     → you don't have a vehicle and are looking for someone
   //              driving your route. Vehicle/Seats don't apply in this
@@ -105,6 +112,11 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
   };
 
   const handleSubmit = async () => {
+    // Hard stop for logged-out visitors — checked first since a 401 from
+    // requireAuth on the backend would reject this anyway. The form stays
+    // fully filled out behind this error, so logging in and hitting submit
+    // again doesn't lose anything they typed.
+    if (!currentUser) { setFormError("⚠️ Please log in to post your route."); return; }
     if (!from)     { setFormError("⚠️ Please enter a starting point.");          return; }
     if (!to)       { setFormError("⚠️ Please enter a destination.");             return; }
     if (!freq)     { setFormError("⚠️ Please select weekday, weekend, or full week."); return; }
@@ -199,6 +211,20 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
         <div className={`w-full md:w-[400px] flex-shrink-0 overflow-y-auto p-7 border-l ${
           dark ? "bg-black border-white" : "bg-white border-[#eee]"
         }`}>
+
+          {/* Logged-out banner — the form stays fully usable so a visitor
+              can fill everything out and see what posting looks like, but
+              handleSubmit hard-stops before hitting the API (which would
+              401 anyway) until they log in. */}
+          {!currentUser && (
+            <div className={`mb-5 rounded-xl border px-4 py-3 text-xs font-semibold leading-relaxed ${
+              dark
+                ? "border-white/40 bg-white/5 text-white/80"
+                : "border-[#ffd7de] bg-[#fff0f3] text-[#ff2d55]"
+            }`}>
+              👋 You're not logged in. Feel free to fill this out — you'll just need to log in before it's posted.
+            </div>
+          )}
 
           {/* Offer a Ride / Need a Ride — top-level mode switch. Defaults
               to "partner" (the original layout). Switching to "ride" hides

@@ -1,3 +1,4 @@
+// RideSharePage.jsx
 import { useState, useEffect, useCallback, useMemo } from "react";
 import RidePostFormPage from "./RidePostFormPage";
 import RideAcceptPage from "./RideAcceptPage";
@@ -589,10 +590,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           </span>
         </p>
         <button
-          onClick={() => {
-            if (!currentUser) { showToast("👋 Please log in to post a route."); return; }
-            openForm(null);
-          }}
+          onClick={() => openForm(null)}
           className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold cursor-pointer border transition-all hover:-translate-y-0.5 ${
             dark
               ? "bg-white text-black border-white hover:shadow-[0_8px_24px_rgba(255,255,255,0.2)]"
@@ -1048,6 +1046,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         <RidePostFormPage
           open={formOpen}
           editingRoute={editingRoute}
+          currentUser={currentUser}
           dark={dark}
           showToast={showToast}
           onClose={closeForm}
