@@ -5,6 +5,30 @@ function initials(name = "") {
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
+// Frequency now comes off the post form as "weekday" | "weekend" | "full_week"
+// (previously a 1–7 number meaning "times a week"). Kept as a lookup so any
+// old/unrecognized value just falls back to showing itself instead of
+// breaking the chip.
+const FREQ_LABEL = {
+  weekday:   "Weekdays",
+  weekend:   "Weekends",
+  full_week: "Full Week",
+};
+
+// Vehicle icons for the "partner" (offering a ride) mode. Post form saves
+// `vehicle_types` as an array now, e.g. [] | ["car"] | ["bike"] | ["car","bike"],
+// with `vehicle_type` (a single string) kept around for older routes.
+const VEHICLE_META = {
+  car:  { icon: "🚗", label: "Car" },
+  bike: { icon: "🏍️", label: "Bike" },
+};
+
+function getVehicleTypes(route) {
+  if (Array.isArray(route.vehicle_types) && route.vehicle_types.length) return route.vehicle_types;
+  if (route.vehicle_type) return [route.vehicle_type];
+  return [];
+}
+
 // ─── Ride Accept Page ─────────────────────────────────────────────────────
 // Opens as a full-screen overlay on top of RideSharePage, the same way
 // RidePostFormPage does. This exists so that accepting a route never grows
@@ -12,9 +36,17 @@ function initials(name = "") {
 // here's the poster's contact" content lives here instead, in a fixed
 // layout of its own.
 //
+// Handles both post-form modes:
+//   "partner" — poster is offering their vehicle. Acceptor books seats and
+//               owes a per-seat contribution.
+//   "ride"    — poster has no vehicle and needs a lift. Acceptor is offering
+//               to be the driver, so there's no seat count to pick — it's
+//               framed as agreeing to drive them, and the price (if any) is
+//               what the poster is offering to pay, not "your share".
+//
 // Two steps:
-//   "review"    — pick seat count, see your contribution, add an optional
-//                 note, then Confirm.
+//   "review"    — pick seat count (partner mode only), see your contribution
+//                 / their offer, add an optional note, then Confirm.
 //   "confirmed" — the poster's contact info + chat button, shown after a
 //                 successful accept (or immediately, if reopened for a
 //                 route you already accepted).
@@ -52,18 +84,20 @@ export default function RideAcceptPage({
   const [error, setError]           = useState("");
   const [confirmedInfo, setConfirmedInfo] = useState(null);
 
+  const isRideMode = route?.mode === "ride";
+
   // Reset local state whenever a new route is opened (or the same route is
   // reopened) so stale seat counts / notes from a previous card never leak in.
   useEffect(() => {
     if (!open || !route) return;
-    const maxSeats = route.seats || 1;
+    const maxSeats = route.mode === "ride" ? 1 : (route.seats || 1);
     setStep(initialStep);
-    setSeats(Math.min(Math.max(initialSeats, 1), maxSeats));
+    setSeats(route.mode === "ride" ? 1 : Math.min(Math.max(initialSeats, 1), maxSeats));
     setNote(initialNote);
     setError("");
     setConfirmedInfo(
       initialStep === "confirmed"
-        ? { poster_contact: route.poster_contact, seats: initialSeats }
+        ? { poster_contact: route.poster_contact, seats: route.mode === "ride" ? 1 : initialSeats }
         : null
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,9 +106,12 @@ export default function RideAcceptPage({
   if (!open || !route) return null;
 
   const perSeat  = route.price || 0;
-  const maxSeats = route.seats || 1;
+  const maxSeats = isRideMode ? 1 : (route.seats || 1);
   const total    = perSeat * seats;
   const posterFirstName = route.poster_name?.split(" ")[0] || "poster";
+  const freqLabel = FREQ_LABEL[route.freq] || route.freq;
+  const vehicleTypes = getVehicleTypes(route);
+  const showGenderPref = route.gender_pref && route.gender_pref !== "no_preference";
 
   const adjustSeats = (delta) => {
     setSeats(s => Math.min(Math.max(s + delta, 1), maxSeats));
@@ -84,10 +121,11 @@ export default function RideAcceptPage({
     setSubmitting(true);
     setError("");
     try {
-      const result = await onConfirmAccept(route.id, seats, note.trim());
+      const seatsToSend = isRideMode ? 1 : seats;
+      const result = await onConfirmAccept(route.id, seatsToSend, note.trim());
       setConfirmedInfo({
         poster_contact: result?.poster_contact || route.poster_contact,
-        seats,
+        seats: seatsToSend,
       });
       setStep("confirmed");
     } catch (err) {
@@ -100,6 +138,10 @@ export default function RideAcceptPage({
 
   const contact     = confirmedInfo?.poster_contact || route.poster_contact;
   const bookedSeats = confirmedInfo?.seats ?? seats;
+
+  const headerTitle = step === "confirmed"
+    ? (isRideMode ? "You're all set! 🎉" : "You're in! 🎉")
+    : (isRideMode ? "Review & Offer" : "Review & Accept");
 
   return (
     <div className={`fixed inset-0 z-[5100] flex flex-col overflow-hidden ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
@@ -121,7 +163,7 @@ export default function RideAcceptPage({
           ← {step === "confirmed" ? "Close" : "Back"}
         </button>
         <p className={`text-lg font-black text-center truncate ${dark ? "text-white" : "text-[#111]"}`}>
-          {step === "confirmed" ? "You're in! 🎉" : "Review & Accept"}
+          {headerTitle}
         </p>
         <span />
       </div>
@@ -144,6 +186,13 @@ export default function RideAcceptPage({
                 <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{route.from_place}</p>
                 <p className={`text-xs mt-2 truncate ${dark ? "text-white/50" : "text-[#999]"}`}>{route.to_place}</p>
               </div>
+              {isRideMode && (
+                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border ${
+                  dark ? "border-white/40 text-white/70" : "border-[#ffd7de] text-[#ff2d55] bg-[#fff0f3]"
+                }`}>
+                  🙋 Needs a ride
+                </span>
+              )}
               {route.isDemo && (
                 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border border-purple-300 text-purple-600 bg-purple-50">
                   Sample
@@ -153,9 +202,11 @@ export default function RideAcceptPage({
 
             <div className="flex flex-wrap gap-2">
               {[
-                { icon: "📅", text: route.freq === "7" ? "Daily" : `${route.freq}× a week` },
+                { icon: "📅", text: freqLabel },
                 { icon: "🕐", text: route.depart_time || "—" },
-                { icon: "👥", text: `${route.seats} seat${route.seats > 1 ? "s" : ""} available` },
+                ...(!isRideMode ? [{ icon: "👥", text: `${route.seats} seat${route.seats > 1 ? "s" : ""} available` }] : []),
+                ...vehicleTypes.map(v => ({ icon: VEHICLE_META[v]?.icon || "🚘", text: VEHICLE_META[v]?.label || v })),
+                ...(showGenderPref ? [{ icon: "🚻", text: `${route.gender_pref === "male" ? "Male" : "Female"} only` }] : []),
               ].map(({ icon, text }) => (
                 <span
                   key={text}
@@ -182,62 +233,84 @@ export default function RideAcceptPage({
 
           {step === "review" ? (
             <>
-              {/* Seat picker */}
-              <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${
-                dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-sm"
-              }`}>
-                <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>
-                  How many seats do you need?
-                </p>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => adjustSeats(-1)}
-                    disabled={seats <= 1}
-                    aria-label="One fewer seat"
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                      dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                    }`}
-                  >
-                    −
-                  </button>
-                  <span className={`text-xl font-black w-8 text-center ${dark ? "text-white" : "text-[#111]"}`}>{seats}</span>
-                  <button
-                    onClick={() => adjustSeats(1)}
-                    disabled={seats >= maxSeats}
-                    aria-label="One more seat"
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                      dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                    }`}
-                  >
-                    +
-                  </button>
-                  <span className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
-                    {maxSeats} seat{maxSeats > 1 ? "s" : ""} available
-                  </span>
+              {/* Seat picker — only applies to "partner" routes, where the
+                  poster has a vehicle and you're claiming a seat in it. For
+                  "ride" mode there's no seat count: you're the one offering
+                  to drive the poster, so this section is skipped entirely. */}
+              {!isRideMode && (
+                <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${
+                  dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-sm"
+                }`}>
+                  <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>
+                    How many seats do you need?
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => adjustSeats(-1)}
+                      disabled={seats <= 1}
+                      aria-label="One fewer seat"
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                        dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                      }`}
+                    >
+                      −
+                    </button>
+                    <span className={`text-xl font-black w-8 text-center ${dark ? "text-white" : "text-[#111]"}`}>{seats}</span>
+                    <button
+                      onClick={() => adjustSeats(1)}
+                      disabled={seats >= maxSeats}
+                      aria-label="One more seat"
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                        dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                      }`}
+                    >
+                      +
+                    </button>
+                    <span className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
+                      {maxSeats} seat{maxSeats > 1 ? "s" : ""} available
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Contribution */}
+              {/* Contribution — framed as "your share" for partner mode
+                  (you're paying the driver), or as "what they're offering"
+                  for ride mode (the poster is the one paying, since you'd
+                  be doing the driving). */}
               <div className={`rounded-2xl border p-5 flex flex-col gap-2.5 ${
                 dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-sm"
               }`}>
                 {perSeat > 0 ? (
-                  <>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className={dark ? "text-white/60" : "text-[#888]"}>₹{perSeat} × {seats} seat{seats > 1 ? "s" : ""}</span>
-                      <span className={dark ? "text-white/60" : "text-[#888]"}>₹{total}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>Your share</span>
-                      <span className={`text-xl font-black ${dark ? "text-white" : "text-[#ff2d55]"}`}>₹{total}</span>
-                    </div>
-                    <p className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
-                      Pay {posterFirstName} directly when you meet — Padosi doesn't process payments.
-                    </p>
-                  </>
+                  isRideMode ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>
+                          {posterFirstName} is offering
+                        </span>
+                        <span className={`text-xl font-black ${dark ? "text-white" : "text-[#ff2d55]"}`}>₹{perSeat}</span>
+                      </div>
+                      <p className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
+                        Settle up directly when you meet — Padosi doesn't process payments.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className={dark ? "text-white/60" : "text-[#888]"}>₹{perSeat} × {seats} seat{seats > 1 ? "s" : ""}</span>
+                        <span className={dark ? "text-white/60" : "text-[#888]"}>₹{total}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>Your share</span>
+                        <span className={`text-xl font-black ${dark ? "text-white" : "text-[#ff2d55]"}`}>₹{total}</span>
+                      </div>
+                      <p className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
+                        Pay {posterFirstName} directly when you meet — Padosi doesn't process payments.
+                      </p>
+                    </>
+                  )
                 ) : (
                   <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#27ae60]"}`}>
-                    🎉 This is a free ride — no contribution needed.
+                    🎉 {isRideMode ? "No payment requested — just lending a hand." : "This is a free ride — no contribution needed."}
                   </p>
                 )}
               </div>
@@ -252,7 +325,7 @@ export default function RideAcceptPage({
                 <textarea
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  placeholder="e.g. I'll be waiting outside the main gate"
+                  placeholder={isRideMode ? "e.g. I can pick you up at 8 AM sharp" : "e.g. I'll be waiting outside the main gate"}
                   rows={3}
                   className={`w-full rounded-xl border px-3 py-2.5 text-sm resize-none focus:outline-none transition-colors ${
                     dark
@@ -273,8 +346,9 @@ export default function RideAcceptPage({
                 dark ? "bg-white/5 border-white/20" : "bg-[#f0fff4] border-[#b2f5c8]"
               }`}>
                 <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#27ae60]"}`}>
-                  ✅ Booked for {bookedSeats} seat{bookedSeats > 1 ? "s" : ""}
-                  {perSeat > 0 ? ` · ₹${perSeat * bookedSeats} to contribute` : " · Free ride"}
+                  {isRideMode
+                    ? `✅ You've offered to drive ${posterFirstName}${perSeat > 0 ? ` · ₹${perSeat} agreed` : " · Free ride"}`
+                    : `✅ Booked for ${bookedSeats} seat${bookedSeats > 1 ? "s" : ""}${perSeat > 0 ? ` · ₹${perSeat * bookedSeats} to contribute` : " · Free ride"}`}
                 </p>
                 <a
                   href={`mailto:${contact?.email || ""}?subject=Ride Share — ${route.from_place} to ${route.to_place}`}
@@ -336,7 +410,11 @@ export default function RideAcceptPage({
                   dark ? "border-white bg-white text-black hover:shadow-[0_6px_20px_rgba(255,255,255,0.2)]" : "border-[#ff2d55] bg-[#ff2d55] text-white hover:bg-[#e0002b] hover:shadow-[0_6px_20px_rgba(255,45,85,0.25)]"
                 }`}
               >
-                {submitting ? "Confirming…" : `Confirm ${seats} seat${seats > 1 ? "s" : ""}`}
+                {submitting
+                  ? "Confirming…"
+                  : isRideMode
+                    ? "Confirm & Offer Ride"
+                    : `Confirm ${seats} seat${seats > 1 ? "s" : ""}`}
               </button>
             </>
           ) : (
