@@ -350,19 +350,11 @@ export default function RideAcceptPage({
                     ? `✅ You've offered to drive ${posterFirstName}${perSeat > 0 ? ` · ₹${perSeat} agreed` : " · Free ride"}`
                     : `✅ Booked for ${bookedSeats} seat${bookedSeats > 1 ? "s" : ""}${perSeat > 0 ? ` · ₹${perSeat * bookedSeats} to contribute` : " · Free ride"}`}
                 </p>
-                <a
-                  href={`mailto:${contact?.email || ""}?subject=Ride Share — ${route.from_place} to ${route.to_place}`}
-                  className={`inline-flex items-center justify-center gap-2 text-sm font-bold py-2.5 px-3 rounded-lg border transition-colors ${
-                    dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                  }`}
-                >
-                  ✉️ Email {posterFirstName}
-                </a>
                 {contact?.phone && (
                   <a
                     href={`tel:${contact.phone}`}
                     className={`inline-flex items-center justify-center gap-2 text-sm font-bold py-2.5 px-3 rounded-lg border transition-colors ${
-                      dark ? "border-white/40 text-white/70 hover:border-white hover:text-white" : "border-[#ddd] text-[#555] bg-white hover:border-[#27ae60] hover:text-[#27ae60]"
+                      dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
                     }`}
                   >
                     📞 {contact.phone}

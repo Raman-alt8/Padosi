@@ -568,9 +568,22 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   return (
     <div className={`fixed inset-0 z-[5000] flex flex-col overflow-hidden ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
+      {/* ── Single scrolling column — header, search, mode toggle, sort/
+          filter bar, and the card grid all scroll together now, so the
+          header fully scrolls off screen instead of staying pinned.
+          Native scrollbar is hidden (scrolling still works fine via wheel/
+          touch/keyboard); the "Close menu" overlay button further down
+          stays `fixed`, so it still catches outside clicks regardless of
+          scroll position. ── */}
+      <div
+        className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+
       {/* ── Header — matches RentVehiclePage's real header exactly:
-          h-[80px], shrink-0, sticky top-0, z-10, text-xl font-black title. ── */}
-      <div className={`h-[80px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
+          h-[80px], text-xl font-black title. No longer sticky — it scrolls
+          away with the rest of the page. ── */}
+      <div className={`h-[80px] flex items-center justify-between px-6 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
@@ -775,7 +788,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       </div>
 
       {/* ── Route Cards ── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-10">
+      <div className="px-6 pb-10">
         {loading && (
           <div className="flex justify-center items-center py-20">
             <span className={`text-sm animate-pulse ${dark ? "text-white/40" : "text-[#bbb]"}`}>
@@ -1039,6 +1052,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
             })}
           </div>
         )}
+      </div>
+
       </div>
 
       {/* ── Post / Edit form (separate component) ── */}
