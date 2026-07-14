@@ -4,6 +4,12 @@ import { api } from "../utils";
 import { useSocket } from "./SocketContext";
 
 const LIMITS = { message: 2000 }; // same input-limiting convention as PostVehiclePage.jsx
+// Stand-in sender id for a logged-out visitor in a demo thread. Demo
+// conversations require no account (ChatPage now opens them for guests),
+// so currentUser can be null here — this gives "my" outgoing demo messages
+// a stable id to be created with and compared against, instead of reading
+// currentUser.id and crashing.
+const GUEST_ID = "guest";
 
 // isDemo: true for conversations MessageSellerButton built client-side for
 // isDemo listings. Those have no row in the conversations/messages tables
@@ -36,6 +42,12 @@ export default function ChatWindow({
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
   const replyTimeout = useRef(null);
+
+  // Real (non-demo) conversations still require login — ChatPage shows a
+  // guest prompt instead of ever mounting this component for them — so
+  // currentUser is only ever null on the isDemo path. Everywhere below
+  // that needs an id falls back to GUEST_ID for that case.
+  const myId = currentUser?.id ?? GUEST_ID;
 
   const messages = isDemo ? (demoMessages || []) : realMessages;
 
@@ -99,7 +111,7 @@ export default function ChatWindow({
       setRealMessages((prev) => [...prev, message]);
     };
     const handleTyping = ({ conversationId: cid, userId, isTyping }) => {
-      if (cid !== conversationId || userId === currentUser.id) return;
+      if (cid !== conversationId || userId === myId) return;
       setTypingUser(isTyping);
     };
 
@@ -109,7 +121,10 @@ export default function ChatWindow({
       socket.off("receive_message", handleReceive);
       socket.off("typing", handleTyping);
     };
-  }, [socket, conversationId, currentUser.id, isDemo]);
+    // myId (not currentUser.id) so this never dereferences a null
+    // currentUser — though in practice this branch only runs for
+    // non-demo threads, where currentUser is always present.
+  }, [socket, conversationId, myId, isDemo]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -132,7 +147,7 @@ export default function ChatWindow({
       const mine = {
         id: `demo-${Date.now()}`,
         conversation_id: targetConversationId,
-        sender_id: currentUser.id,
+        sender_id: myId,
         content: trimmed,
         created_at: new Date().toISOString(),
       };
@@ -190,7 +205,7 @@ export default function ChatWindow({
           <p className={`text-sm ${dark ? "text-[#888]" : "text-[#666]"}`}>Loading messages…</p>
         ) : (
           messages.map((m) => {
-            const mine = String(m.sender_id) === String(currentUser.id);
+            const mine = String(m.sender_id) === String(myId);
             return (
               <div key={m.id} className={`flex mb-2 ${mine ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${
