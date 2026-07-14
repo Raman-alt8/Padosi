@@ -70,6 +70,16 @@ const SORT_OPTIONS = [
   { key: "departure",  label: "Departure time" },
 ];
 
+// ── Browse mode — the two top-level ways to view the page ───────────────
+// "partner" = you have a vehicle, browsing/posting as someone offering a
+// ride. "ride" = you're looking for someone to share a ride with. This
+// drives the header toggle below and is also what every card's mode chip
+// reads off of.
+const BROWSE_MODES = [
+  { key: "partner", label: "🧑‍🤝‍🧑 Offering a ride" },
+  { key: "ride",    label: "🙋 Partner to share ride" },
+];
+
 // ── Temporary showcase routes ────────────────────────────────────────────────
 // Same raw-data → mapped-with-demoSellerFor split RentVehiclePage.jsx and
 // ServiceListingsAllPage.jsx both use: RAW_DEMO_ROUTES only carries
@@ -254,16 +264,23 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   // time, since opening Sort while Filter is open should close Filter.
   const [activeMenu, setActiveMenu]       = useState(null); // null | "filter" | "sort"
   const [sortBy, setSortBy]               = useState("newest");
-  const [filterMode, setFilterMode]       = useState("all"); // all | partner | ride
+  // filterMode now doubles as the page's primary browse mode (see the
+  // header toggle below) — defaults to "partner" ("Offering a ride")
+  // instead of "all", since the page is meant to be browsed one mode at a
+  // time rather than mixed together.
+  const [filterMode, setFilterMode]       = useState("partner"); // partner | ride
   const [filterVehicle, setFilterVehicle] = useState("all"); // all | car | bike
   const [filterFreq, setFilterFreq]       = useState("all"); // all | weekday | weekend | full_week
   const [filterGender, setFilterGender]   = useState("all"); // all | male | female | no_preference
 
-  const activeFilterCount = [filterMode, filterVehicle, filterFreq, filterGender]
+  // filterMode is intentionally excluded here — it's the top-level browse
+  // toggle now, not an "advanced filter" pill, so it shouldn't count toward
+  // the Filter button's badge or get wiped by "Clear all".
+  const activeFilterCount = [filterVehicle, filterFreq, filterGender]
     .filter(v => v !== "all").length;
 
   const clearFilters = () => {
-    setFilterMode("all"); setFilterVehicle("all"); setFilterFreq("all"); setFilterGender("all");
+    setFilterVehicle("all"); setFilterFreq("all"); setFilterGender("all");
   };
 
   // Small helper so filter-panel pills share one styling rule instead of
@@ -493,7 +510,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   // works off a copy.
   const filtered = useMemo(() => {
     const list = searchMatched.filter(r => {
-      if (filterMode !== "all" && modeOf(r) !== filterMode) return false;
+      if (modeOf(r) !== filterMode) return false;
       if (filterVehicle !== "all" && !vehicleTypesOf(r).includes(filterVehicle)) return false;
       if (filterFreq !== "all" && r.freq !== filterFreq) return false;
       if (filterGender !== "all" && (r.gender_pref || "") !== filterGender) return false;
@@ -587,7 +604,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       </div>
 
       {/* ── Search ── */}
-      <div className="px-6 py-4 max-w-[600px] mx-auto w-full">
+      <div className="px-6 pt-4 max-w-[600px] mx-auto w-full">
         <div className="relative">
           <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-sm ${dark ? "text-white/40" : "text-[#bbb]"}`}>🔍</span>
           <input
@@ -603,11 +620,34 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         </div>
       </div>
 
+      {/* ── Browse mode toggle — "Offering a ride" vs "Partner to share
+          ride". This is the primary way the page is browsed (and what a
+          logged-in poster is implicitly posting as via the mode picker
+          inside the form), so it lives here at the top level rather than
+          buried in the Filter dropdown. Defaults to "Offering a ride". ── */}
+      <div className="px-6 pt-3 max-w-[600px] mx-auto w-full">
+        <div className={`flex gap-2 p-1 rounded-2xl border ${dark ? "border-white bg-black" : "border-[#eee] bg-white"}`}>
+          {BROWSE_MODES.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilterMode(key)}
+              className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors ${
+                filterMode === key
+                  ? dark ? "bg-white text-black" : "bg-[#ff2d55] text-white"
+                  : dark ? "text-white/60 hover:text-white" : "text-[#777] hover:text-[#ff2d55]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ── Sort & Filter bar — sits outside the scrolling grid below so it
           stays visible while cards scroll. activeMenu keeps the two
           dropdowns mutually exclusive; the fixed inset-0 button renders
           only while a menu is open and closes it on any outside click. ── */}
-      <div className="px-6 pb-3 max-w-[1200px] mx-auto w-full relative">
+      <div className="px-6 pb-3 pt-3 max-w-[1200px] mx-auto w-full relative">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <span className={`text-xs font-semibold ${dark ? "text-white/40" : "text-[#aaa]"}`}>
             {filtered.length} route{filtered.length !== 1 ? "s" : ""} found
@@ -663,27 +703,20 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                   )}
                 </div>
 
-                <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Type</p>
-                <div className="flex gap-1.5 flex-wrap mb-3">
-                  {[
-                    { key: "all", label: "All" },
-                    { key: "partner", label: "🧑‍🤝‍🧑 Partner" },
-                    { key: "ride", label: "🙋 Ride" },
-                  ].map(({ key, label }) => (
-                    <button key={key} onClick={() => setFilterMode(key)} className={pillCls(filterMode === key)}>{label}</button>
-                  ))}
-                </div>
-
-                <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Vehicle</p>
-                <div className="flex gap-1.5 flex-wrap mb-3">
-                  {[
-                    { key: "all", label: "All" },
-                    { key: "car", label: "🚗 Car" },
-                    { key: "bike", label: "🏍️ Bike" },
-                  ].map(({ key, label }) => (
-                    <button key={key} onClick={() => setFilterVehicle(key)} className={pillCls(filterVehicle === key)}>{label}</button>
-                  ))}
-                </div>
+                {filterMode === "partner" && (
+                  <>
+                    <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Vehicle</p>
+                    <div className="flex gap-1.5 flex-wrap mb-3">
+                      {[
+                        { key: "all", label: "All" },
+                        { key: "car", label: "🚗 Car" },
+                        { key: "bike", label: "🏍️ Bike" },
+                      ].map(({ key, label }) => (
+                        <button key={key} onClick={() => setFilterVehicle(key)} className={pillCls(filterVehicle === key)}>{label}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Frequency</p>
                 <div className="flex gap-1.5 flex-wrap mb-3">
@@ -772,6 +805,34 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
               const genderTag = genderLabel(r.gender_pref);
               const saved     = isWishlisted("ride", r.id);
 
+              // Fixed per-mode tag set — every card in the same mode shows
+              // exactly the same number of tag slots, in the same order.
+              // Optional fields fall back to an explicit "Any ___" tag
+              // instead of just disappearing, so a card where the poster
+              // left vehicle/gender blank doesn't end up shorter (and look
+              // out of place) next to a card where they filled everything
+              // in. Partner and Ride cards can still differ from each
+              // other — they just stay uniform within themselves.
+              const vehicleTag = vehicles.length === 0
+                ? { icon: "🚘", text: "Any vehicle" }
+                : vehicles.length > 1
+                  ? { icon: "🚘", text: "Car & Bike" }
+                  : { icon: vehicles[0] === "car" ? "🚗" : "🏍️", text: vehicles[0] === "car" ? "Car" : "Bike" };
+
+              const tags = mode === "partner"
+                ? [
+                    { icon: "📅", text: freqLabel(r.freq) },
+                    { icon: "🕐", text: r.depart_time || "—" },
+                    { icon: "👥", text: `${r.seats} seat${r.seats > 1 ? "s" : ""}` },
+                    vehicleTag,
+                    { icon: "🚻", text: genderTag || "Any gender" },
+                  ]
+                : [
+                    { icon: "📅", text: freqLabel(r.freq) },
+                    { icon: "🕐", text: r.depart_time || "—" },
+                    { icon: "🚻", text: genderTag || "Any gender" },
+                  ];
+
               return (
                 <div
                   key={r.id}
@@ -834,18 +895,18 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     )}
                   </div>
 
-                  {/* Mode chip — "Offering a ride" (partner) vs "Needs a ride"
-                      (ride). Sits above the from/to row so it reads first,
-                      before the route itself. Colors follow the same static
-                      (non-dark-conditional) pattern the "Sample" badge above
-                      already uses. */}
+                  {/* Mode chip — "Offering a ride" (partner) vs "Partner to
+                      share ride" (ride) — sits above the from/to row so it
+                      reads first, before the route itself. Colors follow
+                      the same static (non-dark-conditional) pattern the
+                      "Sample" badge above already uses. */}
                   <div className="pr-11">
                     <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${
                       mode === "ride"
                         ? "border-blue-300 text-blue-600 bg-blue-50"
                         : "border-emerald-300 text-emerald-600 bg-emerald-50"
                     }`}>
-                      {mode === "ride" ? "🙋 Needs a ride" : "🧑‍🤝‍🧑 Offering a ride"}
+                      {mode === "ride" ? "🙋 Partner to share ride" : "🧑‍🤝‍🧑 Offering a ride"}
                     </span>
                   </div>
 
@@ -862,18 +923,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     </div>
                   </div>
 
-                  {/* Tags — frequency and time always show; seats only for
-                      partner mode (a ride-seeker isn't offering seats);
-                      one tag per vehicle type when the poster has one;
-                      gender preference only when explicitly set. */}
+                  {/* Tags — a fixed slot count per mode, see `tags` above,
+                      so every card in the same mode is the same height. */}
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { icon: "📅", text: freqLabel(r.freq) },
-                      { icon: "🕐", text: r.depart_time || "—" },
-                      ...(mode === "partner" ? [{ icon: "👥", text: `${r.seats} seat${r.seats > 1 ? "s" : ""}` }] : []),
-                      ...vehicles.map(v => ({ icon: v === "car" ? "🚗" : "🏍️", text: v === "car" ? "Car" : "Bike" })),
-                      ...(genderTag ? [{ icon: "🚻", text: genderTag }] : []),
-                    ].map(({ icon, text }, i) => (
+                    {tags.map(({ icon, text }, i) => (
                       <span
                         key={i}
                         className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold border ${
@@ -887,11 +940,13 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     ))}
                   </div>
 
-                  {r.description && (
-                    <p className={`text-xs line-clamp-2 leading-relaxed ${dark ? "text-white/50" : "text-[#999]"}`}>
-                      {r.description}
-                    </p>
-                  )}
+                  {/* Description — always rendered (with a fallback line
+                      when a poster left it blank) and given a min-height,
+                      so a one-line description and a two-line description
+                      take up the same vertical space within the same mode. */}
+                  <p className={`text-xs line-clamp-2 leading-relaxed min-h-[2.5rem] ${dark ? "text-white/50" : "text-[#999]"}`}>
+                    {r.description || "No additional details."}
+                  </p>
 
                   {/* Footer */}
                   <div className={`pt-3 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>

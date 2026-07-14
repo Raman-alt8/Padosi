@@ -200,13 +200,13 @@ export default function RidePostFormPage({ open, editingRoute, dark, showToast, 
           dark ? "bg-black border-white" : "bg-white border-[#eee]"
         }`}>
 
-          {/* Need a Partner / Need a Ride — top-level mode switch. Defaults
+          {/* Offer a Ride / Need a Ride — top-level mode switch. Defaults
               to "partner" (the original layout). Switching to "ride" hides
               the Vehicle and Seats sections below, since a ride-seeker
               isn't the one offering a vehicle. */}
           <div className="flex gap-2 mb-6">
             {[
-              { key: "partner", label: "🧑‍🤝‍🧑 Need a Partner" },
+              { key: "partner", label: "🧑‍🤝‍🧑 Offer a Ride" },
               { key: "ride",    label: "🙋 Need a Ride" },
             ].map(({ key, label }) => (
               <button
