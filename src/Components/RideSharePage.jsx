@@ -29,6 +29,47 @@ function HeartIcon({ filled }) {
   );
 }
 
+// ── Shared display helpers ───────────────────────────────────────────────
+// Pulled out of the card render so both the grid and the wishlist-entry
+// builder read frequency/vehicle/gender the same way, and so real routes
+// missing these newer fields (mode, vehicle_types, gender_pref) degrade
+// gracefully instead of crashing.
+
+// Handles the current weekday/weekend/full_week scheme, plus a fallback for
+// any older numeric freq value ("7", "5", ...) that might still be sitting
+// on a route from before this scheme existed.
+function freqLabel(freq) {
+  const map = { weekday: "Weekdays", weekend: "Weekends", full_week: "Full week" };
+  if (map[freq]) return map[freq];
+  if (freq === "7") return "Daily";
+  if (!freq) return "—";
+  return `${freq}× a week`;
+}
+
+function genderLabel(g) {
+  const map = { male: "Male only", female: "Female only", no_preference: "Any gender" };
+  return map[g] || null;
+}
+
+// Normalizes to an array regardless of whether the route carries the newer
+// vehicle_types array or an older single vehicle_type string.
+function vehicleTypesOf(r) {
+  if (Array.isArray(r.vehicle_types)) return r.vehicle_types;
+  if (r.vehicle_type) return [r.vehicle_type];
+  return [];
+}
+
+function modeOf(r) {
+  return r.mode === "ride" ? "ride" : "partner";
+}
+
+const SORT_OPTIONS = [
+  { key: "newest",     label: "Newest first" },
+  { key: "price_low",  label: "Price: Low to High" },
+  { key: "price_high", label: "Price: High to Low" },
+  { key: "departure",  label: "Departure time" },
+];
+
 // ── Temporary showcase routes ────────────────────────────────────────────────
 // Same raw-data → mapped-with-demoSellerFor split RentVehiclePage.jsx and
 // ServiceListingsAllPage.jsx both use: RAW_DEMO_ROUTES only carries
@@ -38,6 +79,11 @@ function HeartIcon({ filled }) {
 // generic "Demo Rider" name and a shared "__demo__" sentinel. Same route id
 // always resolves to the same poster, so accepting a demo route and hitting
 // Chat talks to a consistent named neighbour instead of a placeholder.
+//
+// Updated to also carry the newer fields (mode, vehicle_types, gender_pref,
+// and the weekday/weekend/full_week freq scheme) so the redesigned cards
+// and the new Filter panel have real variety to show off, without needing
+// the backend/migrations for those columns to exist yet.
 //
 // `poster_id` still can never collide with a real user id — demoSellerFor
 // builds it as `demo-seller-<routeId>`, a shape no real backend user id
@@ -60,89 +106,113 @@ const RAW_DEMO_ROUTES = [
     id: -1,
     from_place: "Vaishali Nagar",
     to_place: "MI Road",
-    freq: "5",
+    freq: "weekday",
     depart_time: "08:30",
     seats: 3,
     price: 40,
     description: "Sample ride — post your own route to replace this.",
     phone: "+91 90000 00003",
+    mode: "partner",
+    vehicle_types: ["car"],
+    gender_pref: "",
   },
   {
     id: -2,
     from_place: "Malviya Nagar",
     to_place: "Sindhi Camp",
-    freq: "7",
+    freq: "full_week",
     depart_time: "18:00",
     seats: 2,
     price: 0,
     description: "Another sample route so you can see how ride cards look.",
     phone: "+91 90000 00004",
+    mode: "partner",
+    vehicle_types: ["bike"],
+    gender_pref: "",
   },
   {
     id: -3,
     from_place: "Mansarovar",
     to_place: "Jaipur Railway Station",
-    freq: "7",
+    freq: "full_week",
     depart_time: "07:15",
     seats: 4,
     price: 30,
     description: "Daily office commute, AC car, music on request.",
     phone: "+91 90000 00009",
+    mode: "partner",
+    vehicle_types: ["car", "bike"],
+    gender_pref: "male",
   },
   {
     id: -4,
     from_place: "C-Scheme",
     to_place: "World Trade Park",
-    freq: "3",
+    freq: "weekend",
     depart_time: "10:00",
     seats: 2,
     price: 20,
-    description: "Weekend shopping run, happy to wait around 30 minutes.",
+    description: "Weekend shopping run, looking for someone already headed that way.",
     phone: "+91 90000 00010",
+    mode: "ride",
+    vehicle_types: [],
+    gender_pref: "female",
   },
   {
     id: -5,
     from_place: "Jagatpura",
     to_place: "Malviya Nagar Metro",
-    freq: "5",
+    freq: "weekday",
     depart_time: "09:00",
     seats: 3,
     price: 25,
     description: "Weekday college commute, punctual departure every time.",
     phone: "+91 90000 00011",
+    mode: "partner",
+    vehicle_types: ["car"],
+    gender_pref: "no_preference",
   },
   {
     id: -6,
     from_place: "Vidhyadhar Nagar",
     to_place: "Sanganer Airport",
-    freq: "2",
+    freq: "weekend",
     depart_time: "05:30",
     seats: 1,
     price: 150,
     description: "Early morning airport drop, occasional trips only.",
     phone: "+91 90000 00012",
+    mode: "partner",
+    vehicle_types: ["car"],
+    gender_pref: "",
   },
   {
     id: -7,
     from_place: "Tonk Road",
     to_place: "Amrapali Circle",
-    freq: "6",
+    freq: "full_week",
     depart_time: "19:30",
     seats: 3,
     price: 15,
     description: "Evening return commute, bike-friendly boot space.",
     phone: "+91 90000 00013",
+    mode: "partner",
+    vehicle_types: ["bike"],
+    gender_pref: "",
   },
   {
     id: -8,
     from_place: "Raja Park",
     to_place: "SMS Hospital",
-    freq: "4",
+    freq: "weekday",
     depart_time: "08:00",
     seats: 2,
     price: 20,
-    description: "Regular hospital visit route, quiet and non-smoking.",
+    description: "Regular hospital visit, looking for a lift rather than driving myself.",
     phone: "+91 90000 00014",
+    mode: "ride",
+    vehicle_types: [],
+    gender_pref: "no_preference",
   },
 ];
 
@@ -178,6 +248,33 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [routes, setRoutes]       = useState([]);
   const [loading, setLoading]     = useState(false);
   const [search, setSearch]       = useState("");
+
+  // ── Sort & Filter ────────────────────────────────────────────────────────
+  // activeMenu controls which dropdown (if any) is open — only one at a
+  // time, since opening Sort while Filter is open should close Filter.
+  const [activeMenu, setActiveMenu]       = useState(null); // null | "filter" | "sort"
+  const [sortBy, setSortBy]               = useState("newest");
+  const [filterMode, setFilterMode]       = useState("all"); // all | partner | ride
+  const [filterVehicle, setFilterVehicle] = useState("all"); // all | car | bike
+  const [filterFreq, setFilterFreq]       = useState("all"); // all | weekday | weekend | full_week
+  const [filterGender, setFilterGender]   = useState("all"); // all | male | female | no_preference
+
+  const activeFilterCount = [filterMode, filterVehicle, filterFreq, filterGender]
+    .filter(v => v !== "all").length;
+
+  const clearFilters = () => {
+    setFilterMode("all"); setFilterVehicle("all"); setFilterFreq("all"); setFilterGender("all");
+  };
+
+  // Small helper so filter-panel pills share one styling rule instead of
+  // repeating the ternary four times.
+  const pillCls = (active) => `px-2.5 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+    active
+      ? dark ? "bg-white border-white text-black" : "bg-[#ff2d55] border-[#ff2d55] text-white"
+      : dark
+        ? "border-white/30 bg-black text-white/60 hover:border-white hover:text-white"
+        : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+  }`;
 
   // Shared wishlist store — same context every other listing page reads
   // from, so a heart tapped here shows up on WishlistPage instantly.
@@ -379,14 +476,51 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     return [...routes, ...demo];
   }, [routes, demoDeclined, demoAccepted]);
 
-  // ── Filtering ────────────────────────────────────────────────────────────────
-  const filtered = visibleRoutes.filter(r => {
+  // ── Search ───────────────────────────────────────────────────────────────
+  const searchMatched = visibleRoutes.filter(r => {
     const q = search.toLowerCase();
     return !q
       || r.from_place.toLowerCase().includes(q)
       || r.to_place.toLowerCase().includes(q)
       || r.description.toLowerCase().includes(q);
   });
+
+  // ── Filter + Sort ────────────────────────────────────────────────────────
+  // Applied on top of the search results. Filtering reads mode/vehicle/freq/
+  // gender straight off each route via the helpers above, so real routes
+  // that predate these fields just don't match a non-"all" filter instead
+  // of throwing. Sorting never mutates visibleRoutes/searchMatched — always
+  // works off a copy.
+  const filtered = useMemo(() => {
+    const list = searchMatched.filter(r => {
+      if (filterMode !== "all" && modeOf(r) !== filterMode) return false;
+      if (filterVehicle !== "all" && !vehicleTypesOf(r).includes(filterVehicle)) return false;
+      if (filterFreq !== "all" && r.freq !== filterFreq) return false;
+      if (filterGender !== "all" && (r.gender_pref || "") !== filterGender) return false;
+      return true;
+    });
+
+    const sorted = [...list];
+    switch (sortBy) {
+      case "price_low":
+        sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      case "price_high":
+        sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case "departure":
+        sorted.sort((a, b) => (a.depart_time || "").localeCompare(b.depart_time || ""));
+        break;
+      case "newest":
+      default:
+        // Already newest-first (new routes are prepended in handleFormSaved,
+        // demo cards pinned to the end) — no re-sort needed.
+        break;
+    }
+    return sorted;
+  }, [searchMatched, filterMode, filterVehicle, filterFreq, filterGender, sortBy]);
+
+  const hasActiveQuery = !!search || activeFilterCount > 0;
 
   // Builds the shared wishlist-entry shape (see WishlistContext.jsx's header
   // comment for the full field list) from a ride route. Real routes already
@@ -398,9 +532,9 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     title: `${r.from_place} → ${r.to_place}`,
     subtitle: r.poster_name ? `Posted by ${r.poster_name}` : undefined,
     meta: [
-      `📅 ${r.freq === "7" ? "Daily" : `${r.freq}× a week`}`,
+      `📅 ${freqLabel(r.freq)}`,
       `🕐 ${r.depart_time || "—"}`,
-      `👥 ${r.seats} seat${r.seats > 1 ? "s" : ""}`,
+      ...(modeOf(r) === "partner" ? [`👥 ${r.seats} seat${r.seats > 1 ? "s" : ""}`] : []),
     ],
     price: r.price > 0 ? r.price : null,
     priceUnit: "/seat",
@@ -469,6 +603,146 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         </div>
       </div>
 
+      {/* ── Sort & Filter bar — sits outside the scrolling grid below so it
+          stays visible while cards scroll. activeMenu keeps the two
+          dropdowns mutually exclusive; the fixed inset-0 button renders
+          only while a menu is open and closes it on any outside click. ── */}
+      <div className="px-6 pb-3 max-w-[1200px] mx-auto w-full relative">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <span className={`text-xs font-semibold ${dark ? "text-white/40" : "text-[#aaa]"}`}>
+            {filtered.length} route{filtered.length !== 1 ? "s" : ""} found
+          </span>
+
+          <div className="flex gap-2 relative">
+            <button
+              onClick={() => setActiveMenu(m => (m === "filter" ? null : "filter"))}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                activeMenu === "filter"
+                  ? dark ? "bg-white text-black border-white" : "bg-[#ff2d55] text-white border-[#ff2d55]"
+                  : dark
+                    ? "border-white text-white bg-black hover:bg-white/10"
+                    : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
+              }`}
+            >
+              ▤ Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            </button>
+            <button
+              onClick={() => setActiveMenu(m => (m === "sort" ? null : "sort"))}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold cursor-pointer border transition-colors ${
+                activeMenu === "sort"
+                  ? dark ? "bg-white text-black border-white" : "bg-[#ff2d55] text-white border-[#ff2d55]"
+                  : dark
+                    ? "border-white text-white bg-black hover:bg-white/10"
+                    : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
+              }`}
+            >
+              ⇅ Sort
+            </button>
+
+            {activeMenu && (
+              <button
+                aria-label="Close menu"
+                onClick={() => setActiveMenu(null)}
+                className="fixed inset-0 z-[15] cursor-default"
+              />
+            )}
+
+            {activeMenu === "filter" && (
+              <div className={`absolute right-0 top-full mt-2 w-[280px] z-20 rounded-2xl border p-4 ${
+                dark ? "bg-black border-white shadow-[0_12px_32px_rgba(0,0,0,0.6)]" : "bg-white border-[#eee] shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={clearFilters}
+                      className={`text-xs font-bold cursor-pointer ${dark ? "text-white/60 hover:text-white" : "text-[#ff2d55] hover:text-[#e0002b]"}`}
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Type</p>
+                <div className="flex gap-1.5 flex-wrap mb-3">
+                  {[
+                    { key: "all", label: "All" },
+                    { key: "partner", label: "🧑‍🤝‍🧑 Partner" },
+                    { key: "ride", label: "🙋 Ride" },
+                  ].map(({ key, label }) => (
+                    <button key={key} onClick={() => setFilterMode(key)} className={pillCls(filterMode === key)}>{label}</button>
+                  ))}
+                </div>
+
+                <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Vehicle</p>
+                <div className="flex gap-1.5 flex-wrap mb-3">
+                  {[
+                    { key: "all", label: "All" },
+                    { key: "car", label: "🚗 Car" },
+                    { key: "bike", label: "🏍️ Bike" },
+                  ].map(({ key, label }) => (
+                    <button key={key} onClick={() => setFilterVehicle(key)} className={pillCls(filterVehicle === key)}>{label}</button>
+                  ))}
+                </div>
+
+                <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Frequency</p>
+                <div className="flex gap-1.5 flex-wrap mb-3">
+                  {[
+                    { key: "all", label: "All" },
+                    { key: "weekday", label: "Weekday" },
+                    { key: "weekend", label: "Weekend" },
+                    { key: "full_week", label: "Full Week" },
+                  ].map(({ key, label }) => (
+                    <button key={key} onClick={() => setFilterFreq(key)} className={pillCls(filterFreq === key)}>{label}</button>
+                  ))}
+                </div>
+
+                <p className={`text-xs font-bold mb-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>Gender preference</p>
+                <div className="flex gap-1.5 flex-wrap mb-4">
+                  {[
+                    { key: "all", label: "All" },
+                    { key: "male", label: "Male" },
+                    { key: "female", label: "Female" },
+                    { key: "no_preference", label: "Any" },
+                  ].map(({ key, label }) => (
+                    <button key={key} onClick={() => setFilterGender(key)} className={pillCls(filterGender === key)}>{label}</button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setActiveMenu(null)}
+                  className={`w-full py-2 rounded-xl text-xs font-bold cursor-pointer border transition-colors ${
+                    dark ? "bg-white text-black border-white" : "bg-[#ff2d55] text-white border-[#ff2d55]"
+                  }`}
+                >
+                  Done
+                </button>
+              </div>
+            )}
+
+            {activeMenu === "sort" && (
+              <div className={`absolute right-0 top-full mt-2 w-[220px] z-20 rounded-2xl border p-2 ${
+                dark ? "bg-black border-white shadow-[0_12px_32px_rgba(0,0,0,0.6)]" : "bg-white border-[#eee] shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+              }`}>
+                {SORT_OPTIONS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => { setSortBy(key); setActiveMenu(null); }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                      sortBy === key
+                        ? dark ? "bg-white text-black" : "bg-[#fff0f3] text-[#ff2d55]"
+                        : dark ? "text-white/70 hover:bg-white/10" : "text-[#555] hover:bg-[#f6f7fb]"
+                    }`}
+                  >
+                    {sortBy === key ? "✓ " : ""}{label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* ── Route Cards ── */}
       <div className="flex-1 overflow-y-auto px-6 pb-10">
         {loading && (
@@ -485,15 +759,17 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
               <div className="col-span-3 text-center py-16 flex flex-col items-center gap-3">
                 <span className="text-5xl">🛣️</span>
                 <strong className={`text-base ${dark ? "text-white/40" : "text-[#bbb]"}`}>
-                  {search ? "No routes match your search." : "No routes posted yet."}
+                  {hasActiveQuery ? "No routes match your search or filters." : "No routes posted yet."}
                 </strong>
                 <span className={`text-sm ${dark ? "text-white/30" : "text-[#ccc]"}`}>
-                  {search ? "Try a different keyword." : "Be the first — post your route!"}
+                  {hasActiveQuery ? "Try a different keyword or clear a filter." : "Be the first — post your route!"}
                 </span>
               </div>
             ) : filtered.map(r => {
               const isOwner   = r.poster_id === currentUser?.id;
-              const freqLabel = r.freq === "7" ? "Daily" : `${r.freq}× a week`;
+              const mode      = modeOf(r);
+              const vehicles  = vehicleTypesOf(r);
+              const genderTag = genderLabel(r.gender_pref);
               const saved     = isWishlisted("ride", r.id);
 
               return (
@@ -507,13 +783,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                 >
                   {/* Top-right stack: wishlist heart (+ "remove from view" close
                       button for accepted routes) on the first row, and the
-                      "Your route" / "Sample" badge stacked directly beneath it.
-                      Keeping both in this one absolute-positioned column (instead
-                      of putting the badge inline in the from/to row below) is
-                      what stops the badge from landing on top of the heart
-                      button or the route title — they now share one reserved
-                      corner instead of two separate things both reaching for
-                      the same top-right space. */}
+                      "Your route" / "Sample" badge stacked directly beneath it. */}
                   <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
                     <div className="flex items-center gap-1.5">
                       <button
@@ -564,6 +834,21 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     )}
                   </div>
 
+                  {/* Mode chip — "Offering a ride" (partner) vs "Needs a ride"
+                      (ride). Sits above the from/to row so it reads first,
+                      before the route itself. Colors follow the same static
+                      (non-dark-conditional) pattern the "Sample" badge above
+                      already uses. */}
+                  <div className="pr-11">
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${
+                      mode === "ride"
+                        ? "border-blue-300 text-blue-600 bg-blue-50"
+                        : "border-emerald-300 text-emerald-600 bg-emerald-50"
+                    }`}>
+                      {mode === "ride" ? "🙋 Needs a ride" : "🧑‍🤝‍🧑 Offering a ride"}
+                    </span>
+                  </div>
+
                   {/* Route from → to */}
                   <div className="flex items-center gap-2.5 pr-11">
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -577,15 +862,20 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     </div>
                   </div>
 
-                  {/* Tags */}
+                  {/* Tags — frequency and time always show; seats only for
+                      partner mode (a ride-seeker isn't offering seats);
+                      one tag per vehicle type when the poster has one;
+                      gender preference only when explicitly set. */}
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { icon: "📅", text: freqLabel },
+                      { icon: "📅", text: freqLabel(r.freq) },
                       { icon: "🕐", text: r.depart_time || "—" },
-                      { icon: "👥", text: `${r.seats} seat${r.seats > 1 ? "s" : ""}` },
-                    ].map(({ icon, text }) => (
+                      ...(mode === "partner" ? [{ icon: "👥", text: `${r.seats} seat${r.seats > 1 ? "s" : ""}` }] : []),
+                      ...vehicles.map(v => ({ icon: v === "car" ? "🚗" : "🏍️", text: v === "car" ? "Car" : "Bike" })),
+                      ...(genderTag ? [{ icon: "🚻", text: genderTag }] : []),
+                    ].map(({ icon, text }, i) => (
                       <span
-                        key={text}
+                        key={i}
                         className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold border ${
                           dark
                             ? "border-white/40 text-white/70"
