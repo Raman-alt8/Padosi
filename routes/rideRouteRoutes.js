@@ -18,14 +18,43 @@ const rideRouteValidation = [
     .notEmpty().withMessage('Destination is required.')
     .isLength({ max: 200 }).withMessage('Destination is too long.'),
 
+  body('mode')
+    .isIn(['partner', 'ride']).withMessage('Mode must be partner or ride.'),
+
   body('freq')
-    .isInt({ min: 1, max: 7 }).withMessage('Frequency must be 1–7.'),
+    .isIn(['weekday', 'weekend', 'full_week'])
+    .withMessage('Frequency must be weekday, weekend, or full week.'),
 
   body('depart_time')
     .matches(/^\d{2}:\d{2}$/).withMessage('Departure time must be HH:MM.'),
 
-  body('seats')
-    .isInt({ min: 1, max: 8 }).withMessage('Seats must be between 1 and 8.'),
+  // Required for "partner" (offering a ride), must be absent/null for
+  // "ride" (requesting one) — mirrors what RidePostFormPage sends, since a
+  // ride-seeker isn't the one offering seats.
+  body('seats').custom((value, { req }) => {
+    if (req.body.mode === 'ride') {
+      if (value !== null && value !== undefined) {
+        throw new Error('Seats should not be set for a ride request.');
+      }
+      return true;
+    }
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 1 || n > 8) {
+      throw new Error('Seats must be between 1 and 8.');
+    }
+    return true;
+  }),
+
+  body('vehicle_types')
+    .optional()
+    .isArray().withMessage('Vehicle types must be a list.')
+    .custom(arr => arr.every(v => ['car', 'bike'].includes(v)))
+    .withMessage('Vehicle types can only be car or bike.'),
+
+  body('gender_pref')
+    .optional({ nullable: true })
+    .isIn(['male', 'female', 'no_preference'])
+    .withMessage('Invalid gender preference.'),
 
   body('price')
     .isFloat({ min: 0 }).withMessage('Price must be 0 or more.'),
@@ -33,7 +62,7 @@ const rideRouteValidation = [
   body('description')
     .trim()
     .notEmpty().withMessage('Description is required.')
-    .isLength({ max: 400 }).withMessage('Description must be 400 characters or fewer.'),
+    .isLength({ max: 250 }).withMessage('Description must be 250 characters or fewer.'),
 ];
 
 // GET /api/ride-routes
@@ -44,9 +73,12 @@ router.get('/', requireAuth, async (req, res) => {
          r.id,
          r.from_place,
          r.to_place,
+         r.mode,
          r.freq,
+         r.gender_pref,
          r.depart_time,
          r.seats,
+         r.vehicle_types,
          r.price,
          r.description,
          r.created_at,
@@ -61,7 +93,13 @@ router.get('/', requireAuth, async (req, res) => {
        ORDER BY r.created_at DESC`,
       [req.user.id]
     );
-    res.json({ routes: rows });
+
+    const routes = rows.map(r => ({
+      ...r,
+      vehicle_types: JSON.parse(r.vehicle_types || '[]'),
+    }));
+
+    res.json({ routes });
   } catch (err) {
     console.error('Get ride-routes error:', err);
     res.status(500).json({ error: 'Could not load routes.' });
@@ -75,14 +113,29 @@ router.post('/', requireAuth, rideRouteValidation, async (req, res) => {
     return res.status(400).json({ error: errors.array()[0].msg });
   }
 
-  const { from_place, to_place, freq, depart_time, seats, price, description } = req.body;
+  const {
+    from_place, to_place, mode, freq, gender_pref,
+    depart_time, seats, vehicle_types, price, description,
+  } = req.body;
 
   try {
     const result = await db.runAsync(
       `INSERT INTO ride_routes
-         (poster_id, from_place, to_place, freq, depart_time, seats, price, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, from_place, to_place, freq, depart_time, Number(seats), Number(price), description]
+         (poster_id, from_place, to_place, mode, freq, gender_pref, depart_time, seats, vehicle_types, price, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.user.id,
+        from_place,
+        to_place,
+        mode,
+        freq,
+        gender_pref || null,
+        depart_time,
+        seats === null || seats === undefined ? null : Number(seats),
+        JSON.stringify(vehicle_types || []),
+        Number(price),
+        description,
+      ]
     );
 
     const route = await db.getAsync(
@@ -91,6 +144,7 @@ router.post('/', requireAuth, rideRouteValidation, async (req, res) => {
        WHERE r.id = ?`,
       [result.lastID]
     );
+    route.vehicle_types = JSON.parse(route.vehicle_types || '[]');
 
     res.status(201).json({ route });
   } catch (err) {
@@ -106,7 +160,10 @@ router.put('/:id', requireAuth, rideRouteValidation, async (req, res) => {
     return res.status(400).json({ error: errors.array()[0].msg });
   }
 
-  const { from_place, to_place, freq, depart_time, seats, price, description } = req.body;
+  const {
+    from_place, to_place, mode, freq, gender_pref,
+    depart_time, seats, vehicle_types, price, description,
+  } = req.body;
   const routeId = req.params.id;
 
   try {
@@ -120,10 +177,23 @@ router.put('/:id', requireAuth, rideRouteValidation, async (req, res) => {
 
     await db.runAsync(
       `UPDATE ride_routes
-       SET from_place = ?, to_place = ?, freq = ?, depart_time = ?,
-           seats = ?, price = ?, description = ?
+       SET from_place = ?, to_place = ?, mode = ?, freq = ?, gender_pref = ?, depart_time = ?,
+           seats = ?, vehicle_types = ?, price = ?, description = ?
        WHERE id = ? AND poster_id = ?`,
-      [from_place, to_place, freq, depart_time, Number(seats), Number(price), description, routeId, req.user.id]
+      [
+        from_place,
+        to_place,
+        mode,
+        freq,
+        gender_pref || null,
+        depart_time,
+        seats === null || seats === undefined ? null : Number(seats),
+        JSON.stringify(vehicle_types || []),
+        Number(price),
+        description,
+        routeId,
+        req.user.id,
+      ]
     );
 
     const route = await db.getAsync(
@@ -132,6 +202,7 @@ router.put('/:id', requireAuth, rideRouteValidation, async (req, res) => {
        WHERE r.id = ?`,
       [routeId]
     );
+    route.vehicle_types = JSON.parse(route.vehicle_types || '[]');
 
     res.json({ route });
   } catch (err) {

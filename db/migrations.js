@@ -145,6 +145,33 @@ function runMigrations(db) {
     });
   });
 
+  // ── Ride routes: mode, gender_pref, vehicle_types ───────────────────────
+  // These three columns were added after ride_routes already existed in
+  // production, so they arrive as ALTER TABLE statements rather than being
+  // baked into a CREATE TABLE. Nested for the same db.run() ordering reason
+  // as vehicles/photo_urls and users/username above — each ALTER must wait
+  // for the previous one to actually finish before firing, or a fresh
+  // database can hit "no such column" errors.
+  db.run(`ALTER TABLE ride_routes ADD COLUMN mode TEXT DEFAULT 'partner'`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add mode column to ride_routes:', err);
+    }
+
+    db.run(`ALTER TABLE ride_routes ADD COLUMN gender_pref TEXT`, err2 => {
+      if (err2 && !err2.message.includes('duplicate column')) {
+        console.error('Could not add gender_pref column to ride_routes:', err2);
+      }
+
+      // Stored as a JSON-encoded array (e.g. '["car","bike"]'), same
+      // pattern as vehicles.photo_urls — SQLite has no native array type.
+      db.run(`ALTER TABLE ride_routes ADD COLUMN vehicle_types TEXT DEFAULT '[]'`, err3 => {
+        if (err3 && !err3.message.includes('duplicate column')) {
+          console.error('Could not add vehicle_types column to ride_routes:', err3);
+        }
+      });
+    });
+  });
+
   // ── Chat: conversations + messages ──────────────────────────────────────
   // A conversation is scoped to one listing + one buyer + one seller, so the
   // same two users messaging about two different listings get two separate
