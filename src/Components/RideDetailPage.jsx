@@ -1,4 +1,5 @@
 // RideDetailPage.jsx
+import RouteMiniMap from "./RouteMiniMap";
 import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 
 function HeartIcon({ filled }) {
@@ -10,12 +11,15 @@ function HeartIcon({ filled }) {
 }
 
 // ─── Ride Detail Page ─────────────────────────────────────────────────────
-// Full-screen overlay opened by tapping a route card anywhere outside its
-// interactive controls (see stopPropagation calls added to those controls
-// in RideSharePage). Shows the same info as the card, uncramped, plus the
-// same actions — it never reimplements accept/decline/edit/delete itself,
-// just calls back up to RideSharePage's existing handlers, so there's one
-// source of truth for what each action actually does.
+// Full-screen overlay opened by tapping a route card. Same source of truth
+// as before — every action just calls back up into RideSharePage's
+// existing handlers — but visually reworked: a route mini-map up top, info
+// laid out as labeled tiles instead of a pill row, and — the main gap this
+// revision fixes — an actual "you're confirmed" banner when
+// my_response==="accepted", instead of the accepted state only showing up
+// as a different footer button. The footer's own accepted-state button was
+// dropped since the banner's "View contact" button now covers that; the
+// footer just keeps "Remove from view" so there's no duplicate CTA.
 //
 // Props:
 //   open, route, currentUser, dark
@@ -48,25 +52,34 @@ export default function RideDetailPage({
   const vehicles  = vehicleTypesOf(route);
   const genderTag = genderLabel(route.gender_pref);
   const saved     = isWishlisted("ride", route.id);
+  const accepted  = route.my_response === "accepted";
 
-  const vehicleTag = vehicles.length === 0
-    ? { icon: "🚘", text: "Any vehicle" }
+  // Mode-driven accent — same blue/emerald split the card chips already
+  // use, now also driving the top accent bar and the mini-map's pins.
+  const modeAccent = mode === "ride" ? "#2563eb" : "#059669";
+
+  const vehicleValue = vehicles.length === 0
+    ? "Any vehicle"
     : vehicles.length > 1
-      ? { icon: "🚘", text: "Car & Bike" }
-      : { icon: vehicles[0] === "car" ? "🚗" : "🏍️", text: vehicles[0] === "car" ? "Car" : "Bike" };
+      ? "Car & Bike"
+      : vehicles[0] === "car" ? "Car" : "Bike";
 
-  const tags = mode === "partner"
+  // Info tiles — same underlying fields as the card's tag row, but shown as
+  // labeled tiles (icon + label + value) rather than compact pills, since
+  // a detail page has the room to be legible rather than dense. Last tile
+  // in each mode spans both columns so an odd count doesn't leave a gap.
+  const infoTiles = mode === "partner"
     ? [
-        { icon: "📅", text: freqLabel(route.freq) },
-        { icon: "🕐", text: route.depart_time || "—" },
-        { icon: "👥", text: `${route.seats} seat${route.seats > 1 ? "s" : ""}` },
-        vehicleTag,
-        { icon: "🚻", text: genderTag || "Any gender" },
+        { icon: "📅", label: "Frequency",  value: freqLabel(route.freq) },
+        { icon: "🕐", label: "Departure",  value: route.depart_time || "—" },
+        { icon: "👥", label: "Seats",      value: `${route.seats} seat${route.seats > 1 ? "s" : ""}` },
+        { icon: "🚘", label: "Vehicle",    value: vehicleValue },
+        { icon: "🚻", label: "Gender preference", value: genderTag || "Any gender", span2: true },
       ]
     : [
-        { icon: "📅", text: freqLabel(route.freq) },
-        { icon: "🕐", text: route.depart_time || "—" },
-        { icon: "🚻", text: genderTag || "Any gender" },
+        { icon: "📅", label: "Frequency", value: freqLabel(route.freq) },
+        { icon: "🕐", label: "Departure", value: route.depart_time || "—" },
+        { icon: "🚻", label: "Gender preference", value: genderTag || "Any gender", span2: true },
       ];
 
   return (
@@ -103,6 +116,10 @@ export default function RideDetailPage({
         </button>
       </div>
 
+      {/* Thin mode-accent bar — quick visual read of partner vs ride mode
+          before you even reach the chip below. */}
+      <div className="h-1 w-full shrink-0" style={{ background: `linear-gradient(90deg, ${modeAccent}, transparent)` }} />
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
         <div className="max-w-[560px] mx-auto flex flex-col gap-5">
@@ -129,34 +146,67 @@ export default function RideDetailPage({
             )}
           </div>
 
-          <div className={`rounded-2xl border p-5 ${dark ? "bg-black border-white" : "bg-white border-[#eee]"}`}>
-            <div className="flex items-start gap-3">
-              <div className="flex flex-col items-center gap-1 pt-1.5 flex-shrink-0">
-                <span className={`w-3 h-3 rounded-full ${dark ? "bg-white" : "bg-[#ff2d55]"}`} />
-                <span className={`w-0.5 h-8 ${dark ? "bg-white/30" : "bg-[#eee]"}`} />
-                <span className={`w-3 h-3 rounded-full border-2 ${dark ? "border-white" : "border-[#ff2d55]"}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-base font-bold ${dark ? "text-white" : "text-[#111]"}`}>{route.from_place}</p>
-                <p className={`text-sm mt-4 ${dark ? "text-white/50" : "text-[#999]"}`}>{route.to_place}</p>
-              </div>
-              <span className={`text-lg font-black whitespace-nowrap ${dark ? "text-white" : "text-[#111]"}`}>
-                {route.price > 0 ? `₹${route.price}` : "Free"}
-                <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
-              </span>
+          {/* Route mini-map */}
+          <RouteMiniMap from={route.from_place} to={route.to_place} dark={dark} accent={modeAccent} />
+
+          {/* Route + price strip — compact now that the map carries the
+              visual weight; this just confirms the text and shows price. */}
+          <div className={`flex items-center justify-between gap-3 rounded-2xl border p-4 ${dark ? "bg-black border-white" : "bg-white border-[#eee]"}`}>
+            <div className="min-w-0">
+              <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>
+                {route.from_place} <span className={dark ? "text-white/30" : "text-[#ccc]"}>→</span> {route.to_place}
+              </p>
             </div>
+            <span className={`text-lg font-black whitespace-nowrap ${dark ? "text-white" : "text-[#111]"}`}>
+              {route.price > 0 ? `₹${route.price}` : "Free"}
+              <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
+            </span>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {tags.map(({ icon, text }, i) => (
-              <span
-                key={i}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold border ${
-                  dark ? "border-white/40 text-white/70" : "border-[#eee] text-[#888] bg-[#f6f7fb]"
+          {/* Accepted banner — the main fix: this is now the visual tell
+              that you're confirmed on this route, not just a swapped
+              footer button. Its own "View contact" button opens
+              RideAcceptPage straight to the confirmed step. */}
+          {accepted && (
+            <div className={`rounded-2xl border p-4 flex items-center gap-3 ${
+              dark ? "bg-emerald-500/10 border-emerald-400/40" : "bg-emerald-50 border-emerald-200"
+            }`}>
+              <span className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-lg shrink-0">✓</span>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-black ${dark ? "text-emerald-300" : "text-emerald-700"}`}>
+                  You're confirmed on this route
+                </p>
+                <p className={`text-xs mt-0.5 ${dark ? "text-emerald-400/70" : "text-emerald-600/80"}`}>
+                  {route.accepted_seats ? `${route.accepted_seats} seat${route.accepted_seats > 1 ? "s" : ""} reserved` : "Reserved"} — contact details are ready.
+                </p>
+              </div>
+              <button
+                onClick={() => onAccept(route)}
+                className={`shrink-0 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer transition-colors ${
+                  dark ? "bg-emerald-400 text-black hover:bg-emerald-300" : "bg-emerald-600 text-white hover:bg-emerald-700"
                 }`}
               >
-                {icon} {text}
-              </span>
+                View contact
+              </button>
+            </div>
+          )}
+
+          {/* Info tiles */}
+          <div className="grid grid-cols-2 gap-3">
+            {infoTiles.map(({ icon, label, value, span2 }) => (
+              <div
+                key={label}
+                className={`rounded-xl border p-3 ${span2 ? "col-span-2" : ""} ${
+                  dark ? "border-white/15 bg-white/5" : "border-[#eee] bg-[#f9fafc]"
+                }`}
+              >
+                <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 ${dark ? "text-white/40" : "text-[#aaa]"}`}>
+                  {label}
+                </p>
+                <p className={`text-sm font-bold flex items-center gap-1.5 ${dark ? "text-white" : "text-[#111]"}`}>
+                  <span>{icon}</span> {value}
+                </p>
+              </div>
             ))}
           </div>
 
@@ -181,7 +231,7 @@ export default function RideDetailPage({
         </div>
       </div>
 
-      {/* Actions — mirrors the card footer logic, fixed to the bottom */}
+      {/* Actions */}
       <div className={`shrink-0 px-6 py-4 border-t ${dark ? "bg-black border-white" : "bg-white border-[#eee]"}`}>
         <div className="max-w-[560px] mx-auto">
           {isOwner ? (
@@ -203,23 +253,15 @@ export default function RideDetailPage({
                 🗑️ Remove
               </button>
             </div>
-          ) : route.my_response === "accepted" ? (
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => onAccept(route)}
-                className={`w-full inline-flex items-center justify-center gap-2 text-sm font-bold py-3 px-3 rounded-xl border transition-colors ${
-                  dark ? "bg-white/5 border-white/20 text-white/80 hover:border-white hover:text-white" : "bg-[#f0fff4] border-[#b2f5c8] text-[#27ae60] hover:border-[#27ae60]"
-                }`}
-              >
-                ✅ Accepted — View contact &amp; chat
-              </button>
-              <button
-                onClick={() => { onHideAccepted(route.id); onClose(); }}
-                className={`text-xs font-semibold cursor-pointer self-center ${dark ? "text-white/40 hover:text-white" : "text-[#bbb] hover:text-[#777]"}`}
-              >
-                Remove from view
-              </button>
-            </div>
+          ) : accepted ? (
+            <button
+              onClick={() => { onHideAccepted(route.id); onClose(); }}
+              className={`w-full text-sm py-3 rounded-xl font-bold cursor-pointer border transition-colors ${
+                dark ? "border-white/40 text-white/60 bg-black hover:border-white hover:text-white" : "border-[#eee] text-[#aaa] bg-white hover:border-[#ddd] hover:text-[#999]"
+              }`}
+            >
+              Remove from view
+            </button>
           ) : (
             <div className="flex gap-2">
               <button
