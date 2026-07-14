@@ -1,5 +1,5 @@
 // RideSharePage.jsx
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import RidePostFormPage from "./RidePostFormPage";
 import RideAcceptPage from "./RideAcceptPage";
 import { useWishlist } from "./WishlistContext";
@@ -293,6 +293,31 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         ? "border-white/30 bg-black text-white/60 hover:border-white hover:text-white"
         : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
   }`;
+
+  // ── Toolbar hide-on-scroll ────────────────────────────────────────────
+  // The search bar / mode toggle / sort & filter bar sit in a `sticky top-0`
+  // wrapper inside the scrolling column below the (separately pinned)
+  // header. Scrolling down past a small threshold slides it up out of view
+  // (via a transform, not display:none, so the transition animates);
+  // scrolling back up — even a little — brings it right back. Small jitters
+  // under 10px are ignored so it doesn't flicker on every scroll tick, and
+  // it's always forced visible again near the very top of the page.
+  const [hideToolbar, setHideToolbar]   = useState(false);
+  const lastScrollTopRef                = useRef(0);
+
+  const handleContentScroll = (e) => {
+    const current = e.target.scrollTop;
+    const last     = lastScrollTopRef.current;
+
+    if (current < 50) {
+      setHideToolbar(false);
+    } else if (current > last + 10) {
+      setHideToolbar(true);   // scrolling down
+    } else if (current < last - 10) {
+      setHideToolbar(false);  // scrolling up
+    }
+    lastScrollTopRef.current = current;
+  };
 
   // Shared wishlist store — same context every other listing page reads
   // from, so a heart tapped here shows up on WishlistPage instantly.
@@ -601,15 +626,31 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         </button>
       </div>
 
-      {/* ── Scrolling column — search, mode toggle, sort/filter bar, and
-          the card grid scroll together underneath the pinned header above,
-          so this whole toolbar smoothly slides out of view as you scroll
-          (native browser scrolling, so the motion is already smooth).
-          Scrollbar hidden; scrolling still works fine via wheel/touch/
-          keyboard. ── */}
+      {/* ── Scrolling column — sits underneath the pinned header. Contains
+          the hide-on-scroll toolbar (search/toggle/sort&filter, see below)
+          and the card grid. Scrollbar hidden; scrolling still works fine
+          via wheel/touch/keyboard. ── */}
       <div
+        onScroll={handleContentScroll}
         className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+
+      {/* ── Toolbar: search + mode toggle + sort/filter — sticky within the
+          scrolling column so it stays pinned right under the header while
+          shown, then slides up out of view (a transform, not display:none,
+          so the motion actually animates) once `hideToolbar` flips true on
+          scroll-down; scrolling back up brings it right back. Needs its own
+          opaque background since cards scroll directly beneath it while
+          it's pinned. ── */}
+      <div
+        className={`sticky top-0 z-10 transition-all duration-300 ease-in-out transform ${
+          dark ? "bg-black" : "bg-[#f6f7fb]"
+        } ${
+          hideToolbar
+            ? "-translate-y-full opacity-0 pointer-events-none"
+            : "translate-y-0 opacity-100"
+        }`}
       >
 
       {/* ── Search ── */}
@@ -783,6 +824,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
             )}
           </div>
         </div>
+      </div>
+
       </div>
 
       {/* ── Route Cards ── */}
