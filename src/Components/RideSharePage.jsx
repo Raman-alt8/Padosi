@@ -2,15 +2,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import RidePostFormPage from "./RidePostFormPage";
 import RideAcceptPage from "./RideAcceptPage";
+import RideDetailPage from "./RideDetailPage";
 import { useWishlist } from "./WishlistContext";
 import { demoSellerFor } from "./demoIdentities";
+import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
 const API_BASE = import.meta.env.VITE_API_URL || "";
-
-function initials(name = "") {
-  return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
-}
 
 // Deterministic placeholder email built from a demo seller's name, e.g.
 // "Rohan Mehta" -> "rohan.mehta@example.com". Only ever used for demo
@@ -30,40 +28,6 @@ function HeartIcon({ filled }) {
   );
 }
 
-// ── Shared display helpers ───────────────────────────────────────────────
-// Pulled out of the card render so both the grid and the wishlist-entry
-// builder read frequency/vehicle/gender the same way, and so real routes
-// missing these newer fields (mode, vehicle_types, gender_pref) degrade
-// gracefully instead of crashing.
-
-// Handles the current weekday/weekend/full_week scheme, plus a fallback for
-// any older numeric freq value ("7", "5", ...) that might still be sitting
-// on a route from before this scheme existed.
-function freqLabel(freq) {
-  const map = { weekday: "Weekdays", weekend: "Weekends", full_week: "Full week" };
-  if (map[freq]) return map[freq];
-  if (freq === "7") return "Daily";
-  if (!freq) return "—";
-  return `${freq}× a week`;
-}
-
-function genderLabel(g) {
-  const map = { male: "Male only", female: "Female only", no_preference: "Any gender" };
-  return map[g] || null;
-}
-
-// Normalizes to an array regardless of whether the route carries the newer
-// vehicle_types array or an older single vehicle_type string.
-function vehicleTypesOf(r) {
-  if (Array.isArray(r.vehicle_types)) return r.vehicle_types;
-  if (r.vehicle_type) return [r.vehicle_type];
-  return [];
-}
-
-function modeOf(r) {
-  return r.mode === "ride" ? "ride" : "partner";
-}
-
 const SORT_OPTIONS = [
   { key: "newest",     label: "Newest first" },
   { key: "price_low",  label: "Price: Low to High" },
@@ -80,6 +44,14 @@ const BROWSE_MODES = [
   { key: "partner", label: "🧑‍🤝‍🧑 Offering a ride" },
   { key: "ride",    label: "🙋 Partner to share ride" },
 ];
+
+// ── Toolbar hide-on-scroll thresholds ─────────────────────────────────────
+// Hiding on scroll-down stays sensitive (10px) so the toolbar tucks away
+// quickly once you start reading cards. Revealing on scroll-up needs 3x
+// that (30px) — a small upward jitter while reading no longer snaps it back;
+// you have to actually mean to scroll up before it reappears.
+const HIDE_THRESHOLD   = 10;
+const REVEAL_THRESHOLD = 30;
 
 // ── Temporary showcase routes ────────────────────────────────────────────────
 // Same raw-data → mapped-with-demoSellerFor split RentVehiclePage.jsx and
@@ -261,22 +233,13 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [search, setSearch]       = useState("");
 
   // ── Sort & Filter ────────────────────────────────────────────────────────
-  // activeMenu controls which dropdown (if any) is open — only one at a
-  // time, since opening Sort while Filter is open should close Filter.
   const [activeMenu, setActiveMenu]       = useState(null); // null | "filter" | "sort"
   const [sortBy, setSortBy]               = useState("newest");
-  // filterMode now doubles as the page's primary browse mode (see the
-  // header toggle below) — defaults to "partner" ("Offering a ride")
-  // instead of "all", since the page is meant to be browsed one mode at a
-  // time rather than mixed together.
   const [filterMode, setFilterMode]       = useState("partner"); // partner | ride
   const [filterVehicle, setFilterVehicle] = useState("all"); // all | car | bike
   const [filterFreq, setFilterFreq]       = useState("all"); // all | weekday | weekend | full_week
   const [filterGender, setFilterGender]   = useState("all"); // all | male | female | no_preference
 
-  // filterMode is intentionally excluded here — it's the top-level browse
-  // toggle now, not an "advanced filter" pill, so it shouldn't count toward
-  // the Filter button's badge or get wiped by "Clear all".
   const activeFilterCount = [filterVehicle, filterFreq, filterGender]
     .filter(v => v !== "all").length;
 
@@ -284,8 +247,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     setFilterVehicle("all"); setFilterFreq("all"); setFilterGender("all");
   };
 
-  // Small helper so filter-panel pills share one styling rule instead of
-  // repeating the ternary four times.
   const pillCls = (active) => `px-2.5 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
     active
       ? dark ? "bg-white border-white text-black" : "bg-[#ff2d55] border-[#ff2d55] text-white"
@@ -295,13 +256,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   }`;
 
   // ── Toolbar hide-on-scroll ────────────────────────────────────────────
-  // The search bar / mode toggle / sort & filter bar sit in a `sticky top-0`
-  // wrapper inside the scrolling column below the (separately pinned)
-  // header. Scrolling down past a small threshold slides it up out of view
-  // (via a transform, not display:none, so the transition animates);
-  // scrolling back up — even a little — brings it right back. Small jitters
-  // under 10px are ignored so it doesn't flicker on every scroll tick, and
-  // it's always forced visible again near the very top of the page.
+  // Scrolling down past HIDE_THRESHOLD slides the toolbar up (transform,
+  // not display:none, so it animates); scrolling up past REVEAL_THRESHOLD
+  // brings it back. The two thresholds are intentionally different sizes —
+  // see the constants above.
   const [hideToolbar, setHideToolbar]   = useState(false);
   const lastScrollTopRef                = useRef(0);
 
@@ -311,10 +269,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
     if (current < 50) {
       setHideToolbar(false);
-    } else if (current > last + 10) {
+    } else if (current > last + HIDE_THRESHOLD) {
       setHideToolbar(true);   // scrolling down
-    } else if (current < last - 10) {
-      setHideToolbar(false);  // scrolling up
+    } else if (current < last - REVEAL_THRESHOLD) {
+      setHideToolbar(false);  // scrolling up — needs 3x the movement to undo a hide
     }
     lastScrollTopRef.current = current;
   };
@@ -324,22 +282,33 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const { isWishlisted, toggleWishlist } = useWishlist();
 
   // Locally-scoped, "this account only" state for demo cards — mirrors
-  // ServiceListingsAllPage's declinedIndexes/acceptedIndexes. Declining a
-  // demo card hides it just for this viewer; accepting one flips its footer
-  // to show the (fake) poster contact info. Neither ever calls the API.
+  // ServiceListingsAllPage's declinedIndexes/acceptedIndexes.
   const [demoDeclined, setDemoDeclined] = useState(() => new Set());
   const [demoAccepted, setDemoAccepted] = useState(() => new Set());
 
   // ── Accept overlay state ────────────────────────────────────────────────
-  // Accepting a route no longer expands the card in place (which used to
-  // stretch every card sharing that grid row). Instead it opens
-  // RideAcceptPage as a full-screen overlay, same pattern as formOpen below.
-  // acceptStep carries whether we're opening it fresh ("review") or just
-  // reopening an already-accepted route to see contact info again
-  // ("confirmed") — decided once, in openAccept, from the route clicked.
   const [acceptOpen, setAcceptOpen]   = useState(false);
   const [acceptRoute, setAcceptRoute] = useState(null);
   const [acceptStep, setAcceptStep]   = useState("review");
+
+  // ── Detail overlay state ─────────────────────────────────────────────────
+  // Opened by tapping a card anywhere outside its interactive controls.
+  // Shows the same route full-screen; its own action buttons call straight
+  // back into the same handlers the card footer uses (openAccept,
+  // handleDecline, openForm, handleDelete, handleHideAccepted), so there's
+  // one source of truth for what each action does.
+  const [detailOpen, setDetailOpen]   = useState(false);
+  const [detailRoute, setDetailRoute] = useState(null);
+
+  const openDetail = (route) => {
+    setDetailRoute(route);
+    setDetailOpen(true);
+  };
+
+  const closeDetail = () => {
+    setDetailOpen(false);
+    setDetailRoute(null);
+  };
 
   // ── Open / close ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -367,14 +336,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   }, [currentUser, showToast]);
 
-  // Fetch whenever the page opens
   useEffect(() => {
     if (open) fetchRoutes();
   }, [open, fetchRoutes]);
 
-  // If any routes come back with my_response='accepted' but no contact info yet,
-  // re-fetch the contact so the panel shows correctly on reload. Demo routes
-  // never enter `routes`, so they're untouched by this effect.
   useEffect(() => {
     routes.forEach(r => {
       if (r.my_response === "accepted" && !r.poster_contact) {
@@ -413,11 +378,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   };
 
-  // ── Accept overlay open/close ────────────────────────────────────────────
-  // Clicking "Accept" on a not-yet-accepted card opens the review step.
-  // Clicking the "View contact & chat" button on an already-accepted card
-  // opens straight to the confirmed step so the poster's info shows
-  // immediately, without re-asking for seats.
   const openAccept = (route) => {
     setAcceptRoute(route);
     setAcceptStep(route.my_response === "accepted" ? "confirmed" : "review");
@@ -429,13 +389,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     setAcceptRoute(null);
   };
 
-  // ── Confirm accept (called by RideAcceptPage) ────────────────────────────
-  // Does the actual accept — API call for real routes, local-state-only for
-  // demo routes — and returns { poster_contact } so RideAcceptPage can show
-  // its confirmed step. Throws on failure so RideAcceptPage's own inline
-  // error banner can display the message.
   const handleConfirmAccept = async (routeId, seats, note) => {
-    // Demo card — flip local state only, never touch the API.
     if (routeId < 0) {
       setDemoAccepted(prev => new Set(prev).add(routeId));
       const demoRoute = DEMO_ROUTES.find(d => d.id === routeId);
@@ -457,9 +411,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     return { poster_contact: data.poster };
   };
 
-  // ── Decline ─────────────────────────────────────────────────────────────────
   const handleDecline = async (routeId) => {
-    // Demo card — hide locally only, never touch the API.
     if (routeId < 0) {
       setDemoDeclined(prev => new Set(prev).add(routeId));
       return;
@@ -477,7 +429,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   };
 
-  // ── Hide an accepted route from this user's screen (local only) ─────────────
   const handleHideAccepted = (routeId) => {
     if (routeId < 0) {
       setDemoDeclined(prev => new Set(prev).add(routeId));
@@ -486,9 +437,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     setRoutes(prev => prev.filter(r => r.id !== routeId));
   };
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
   const handleDelete = async (routeId) => {
-    if (routeId < 0) return; // demo card — nothing to delete
+    if (routeId < 0) return;
     try {
       const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}`, {
         method: "DELETE",
@@ -507,7 +457,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   };
 
-  // ── Merge real + demo routes ─────────────────────────────────────────────────
   const visibleRoutes = useMemo(() => {
     const demo = DEMO_ROUTES
       .filter(d => !demoDeclined.has(d.id))
@@ -515,11 +464,9 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         ...d,
         my_response: demoAccepted.has(d.id) ? "accepted" : undefined,
       }));
-    // Demo cards pinned to the end so they never crowd out real routes.
     return [...routes, ...demo];
   }, [routes, demoDeclined, demoAccepted]);
 
-  // ── Search ───────────────────────────────────────────────────────────────
   const searchMatched = visibleRoutes.filter(r => {
     const q = search.toLowerCase();
     return !q
@@ -528,12 +475,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       || r.description.toLowerCase().includes(q);
   });
 
-  // ── Filter + Sort ────────────────────────────────────────────────────────
-  // Applied on top of the search results. Filtering reads mode/vehicle/freq/
-  // gender straight off each route via the helpers above, so real routes
-  // that predate these fields just don't match a non-"all" filter instead
-  // of throwing. Sorting never mutates visibleRoutes/searchMatched — always
-  // works off a copy.
   const filtered = useMemo(() => {
     const list = searchMatched.filter(r => {
       if (modeOf(r) !== filterMode) return false;
@@ -556,8 +497,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         break;
       case "newest":
       default:
-        // Already newest-first (new routes are prepended in handleFormSaved,
-        // demo cards pinned to the end) — no re-sort needed.
         break;
     }
     return sorted;
@@ -565,10 +504,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
   const hasActiveQuery = !!search || activeFilterCount > 0;
 
-  // Builds the shared wishlist-entry shape (see WishlistContext.jsx's header
-  // comment for the full field list) from a ride route. Real routes already
-  // carry a stable `.id` from the API; demo routes use their negative
-  // sentinel ids (-1, -2), so both key correctly without ever colliding.
   const buildWishlistEntry = (r) => ({
     type: "ride",
     id: r.id,
@@ -593,8 +528,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   return (
     <div className={`fixed inset-0 z-[5000] flex flex-col overflow-hidden ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
-      {/* ── Header — pinned in place, sits outside the scrolling column
-          below so it never moves, no matter how far the page is scrolled. ── */}
+      {/* ── Header ── */}
       <div className={`h-[80px] shrink-0 flex items-center justify-between px-6 sticky top-0 z-10 border-b ${
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
@@ -626,25 +560,16 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         </button>
       </div>
 
-      {/* ── Scrolling column — sits underneath the pinned header. Contains
-          the hide-on-scroll toolbar (search/toggle/sort&filter, see below)
-          and the card grid. Scrollbar hidden; scrolling still works fine
-          via wheel/touch/keyboard. ── */}
+      {/* ── Scrolling column ── */}
       <div
         onScroll={handleContentScroll}
         className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
 
-      {/* ── Toolbar: search + mode toggle + sort/filter — sticky within the
-          scrolling column so it stays pinned right under the header while
-          shown, then slides up out of view (a transform, not display:none,
-          so the motion actually animates) once `hideToolbar` flips true on
-          scroll-down; scrolling back up brings it right back. Needs its own
-          opaque background since cards scroll directly beneath it while
-          it's pinned. ── */}
+      {/* ── Toolbar ── */}
       <div
-        className={`sticky top-0 z-10 transition-all duration-300 ease-in-out transform ${
+        className={`sticky top-0 z-20 transition-all duration-300 ease-in-out transform ${
           dark ? "bg-black" : "bg-[#f6f7fb]"
         } ${
           hideToolbar
@@ -670,11 +595,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         </div>
       </div>
 
-      {/* ── Browse mode toggle — "Offering a ride" vs "Partner to share
-          ride". This is the primary way the page is browsed (and what a
-          logged-in poster is implicitly posting as via the mode picker
-          inside the form), so it lives here at the top level rather than
-          buried in the Filter dropdown. Defaults to "Offering a ride". ── */}
+      {/* ── Browse mode toggle ── */}
       <div className="px-6 pt-3 max-w-[600px] mx-auto w-full">
         <div className={`flex gap-2 p-1 rounded-2xl border ${dark ? "border-white bg-black" : "border-[#eee] bg-white"}`}>
           {BROWSE_MODES.map(({ key, label }) => (
@@ -693,10 +614,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         </div>
       </div>
 
-      {/* ── Sort & Filter bar — sits outside the scrolling grid below so it
-          stays visible while cards scroll. activeMenu keeps the two
-          dropdowns mutually exclusive; the fixed inset-0 button renders
-          only while a menu is open and closes it on any outside click. ── */}
+      {/* ── Sort & Filter bar ── */}
       <div className="px-6 pb-3 pt-3 max-w-[1200px] mx-auto w-full relative">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <span className={`text-xs font-semibold ${dark ? "text-white/40" : "text-[#aaa]"}`}>
@@ -857,14 +775,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
               const genderTag = genderLabel(r.gender_pref);
               const saved     = isWishlisted("ride", r.id);
 
-              // Fixed per-mode tag set — every card in the same mode shows
-              // exactly the same number of tag slots, in the same order.
-              // Optional fields fall back to an explicit "Any ___" tag
-              // instead of just disappearing, so a card where the poster
-              // left vehicle/gender blank doesn't end up shorter (and look
-              // out of place) next to a card where they filled everything
-              // in. Partner and Ride cards can still differ from each
-              // other — they just stay uniform within themselves.
               const vehicleTag = vehicles.length === 0
                 ? { icon: "🚘", text: "Any vehicle" }
                 : vehicles.length > 1
@@ -888,19 +798,18 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
               return (
                 <div
                   key={r.id}
-                  className={`relative rounded-2xl border p-5 pt-4 flex flex-col gap-3.5 hover:-translate-y-1 transition-all ${
+                  onClick={() => openDetail(r)}
+                  className={`relative rounded-2xl border p-5 pt-4 flex flex-col gap-3.5 cursor-pointer hover:-translate-y-1 transition-all ${
                     dark
                       ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
                       : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
                   }`}
                 >
-                  {/* Top-right stack: wishlist heart (+ "remove from view" close
-                      button for accepted routes) on the first row, and the
-                      "Your route" / "Sample" badge stacked directly beneath it. */}
+                  {/* Top-right stack */}
                   <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => toggleWishlist(buildWishlistEntry(r))}
+                        onClick={(e) => { e.stopPropagation(); toggleWishlist(buildWishlistEntry(r)); }}
                         aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
                         aria-pressed={saved}
                         title={saved ? "Remove from wishlist" : "Save to wishlist"}
@@ -917,7 +826,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
                       {!isOwner && r.my_response === "accepted" && (
                         <button
-                          onClick={() => handleHideAccepted(r.id)}
+                          onClick={(e) => { e.stopPropagation(); handleHideAccepted(r.id); }}
                           aria-label="Remove this route from your view"
                           title="Remove from view"
                           className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-colors ${
@@ -947,11 +856,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     )}
                   </div>
 
-                  {/* Mode chip — "Offering a ride" (partner) vs "Partner to
-                      share ride" (ride) — sits above the from/to row so it
-                      reads first, before the route itself. Colors follow
-                      the same static (non-dark-conditional) pattern the
-                      "Sample" badge above already uses. */}
                   <div className="pr-11">
                     <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${
                       mode === "ride"
@@ -962,7 +866,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     </span>
                   </div>
 
-                  {/* Route from → to */}
                   <div className="flex items-center gap-2.5 pr-11">
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
                       <span className={`w-2.5 h-2.5 rounded-full ${dark ? "bg-white" : "bg-[#ff2d55]"}`} />
@@ -975,8 +878,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     </div>
                   </div>
 
-                  {/* Tags — a fixed slot count per mode, see `tags` above,
-                      so every card in the same mode is the same height. */}
                   <div className="flex flex-wrap gap-2">
                     {tags.map(({ icon, text }, i) => (
                       <span
@@ -992,10 +893,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     ))}
                   </div>
 
-                  {/* Description — always rendered (with a fallback line
-                      when a poster left it blank) and given a min-height,
-                      so a one-line description and a two-line description
-                      take up the same vertical space within the same mode. */}
                   <p className={`text-xs line-clamp-2 leading-relaxed min-h-[2.5rem] ${dark ? "text-white/50" : "text-[#999]"}`}>
                     {r.description || "No additional details."}
                   </p>
@@ -1003,7 +900,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                   {/* Footer */}
                   <div className={`pt-3 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>
 
-                    {/* Poster row */}
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <div className="flex items-center gap-2">
                         <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center ${
@@ -1021,11 +917,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                       </span>
                     </div>
 
-                    {/* Actions */}
                     {isOwner ? (
                       <div className="flex gap-2">
                         <button
-                          onClick={() => openForm(r)}
+                          onClick={(e) => { e.stopPropagation(); openForm(r); }}
                           className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
                             dark
                               ? "border-white text-white bg-black hover:bg-white hover:text-black"
@@ -1035,7 +930,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                           ✏️ Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(r.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}
                           className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
                             dark
                               ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
@@ -1047,13 +942,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                       </div>
 
                     ) : r.my_response === "accepted" ? (
-                      // Accepted — a single compact button instead of the old
-                      // inline mailto/tel/chat block. Opening RideAcceptPage
-                      // (initialStep="confirmed", via openAccept below) shows
-                      // that same contact info full-screen, without the card
-                      // itself ever growing taller than its neighbours.
                       <button
-                        onClick={() => openAccept(r)}
+                        onClick={(e) => { e.stopPropagation(); openAccept(r); }}
                         className={`w-full inline-flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-3 rounded-xl border transition-colors ${
                           dark
                             ? "bg-white/5 border-white/20 text-white/80 hover:border-white hover:text-white"
@@ -1066,7 +956,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                     ) : (
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleDecline(r.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDecline(r.id); }}
                           className={`flex-1 text-xs py-2.5 rounded-xl font-bold cursor-pointer border transition-colors ${
                             dark
                               ? "border-white/40 text-white/60 bg-black hover:border-white hover:text-white"
@@ -1076,7 +966,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                           ✕ Decline
                         </button>
                         <button
-                          onClick={() => openAccept(r)}
+                          onClick={(e) => { e.stopPropagation(); openAccept(r); }}
                           className={`flex-1 text-xs py-2.5 rounded-xl font-bold cursor-pointer border transition-all hover:-translate-y-0.5 ${
                             dark
                               ? "border-white bg-white text-black hover:shadow-[0_6px_20px_rgba(255,255,255,0.2)]"
@@ -1097,7 +987,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
       </div>
 
-      {/* ── Post / Edit form (separate component) ── */}
       {formOpen && (
         <RidePostFormPage
           open={formOpen}
@@ -1110,10 +999,6 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         />
       )}
 
-      {/* ── Accept / review overlay (separate component) ──
-          Same pattern as the form above: rendered on top of everything,
-          so picking seats or viewing an accepted route's contact info
-          never resizes the card grid behind it. */}
       {acceptOpen && acceptRoute && (
         <RideAcceptPage
           open={acceptOpen}
@@ -1126,6 +1011,24 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           initialStep={acceptStep}
           initialSeats={acceptRoute.accepted_seats || 1}
           initialNote={acceptRoute.accepted_note || ""}
+        />
+      )}
+
+      {detailOpen && detailRoute && (
+        <RideDetailPage
+          open={detailOpen}
+          route={detailRoute}
+          currentUser={currentUser}
+          dark={dark}
+          onClose={closeDetail}
+          onEdit={(route) => { closeDetail(); openForm(route); }}
+          onDelete={handleDelete}
+          onAccept={(route) => { closeDetail(); openAccept(route); }}
+          onDecline={handleDecline}
+          onHideAccepted={handleHideAccepted}
+          isWishlisted={isWishlisted}
+          toggleWishlist={toggleWishlist}
+          buildWishlistEntry={buildWishlistEntry}
         />
       )}
     </div>
