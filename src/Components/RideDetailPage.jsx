@@ -147,7 +147,7 @@ export default function RideDetailPage({
           </div>
 
           {/* Route mini-map */}
-          <RouteMiniMap from={route.from_place} to={route.to_place} dark={dark} accent={modeAccent} />
+          <RouteMiniMap from={route.from_place} to={route.to_place} dark={dark} mode={mode} />
 
           {/* Route + price strip — compact now that the map carries the
               visual weight; this just confirms the text and shows price. */}
