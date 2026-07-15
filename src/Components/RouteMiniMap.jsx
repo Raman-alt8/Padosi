@@ -1,39 +1,39 @@
 // RouteMiniMap.jsx
 // Small decorative route visualizer for RideDetailPage. Not a real map —
-// Padosi has no maps API/key configured — but a stylized abstract route:
-// layered glow+dash path, a dot that travels the route, glowing/pulsing
-// pins, faint background roads, and a one-time "draw in" on open. All
-// animation is native SVG (<animate>/<animateMotion>), no CSS keyframes,
-// so the component stays a single self-contained file like the rest of
-// Components/. Colors are derived from `mode` so the whole visual (path
-// gradient, pin glow, moving dot) shares one palette per mode instead of
-// a single flat accent hex.
-export default function RouteMiniMap({ from, to, dark, mode = "partner" }) {
-  // Two-tone gradient per mode — same partner=emerald / ride=blue split
-  // the rest of the page's chips use, extended into a second stop for
-  // richness (emerald→cyan / blue→purple).
-  const [colorA, colorB] = mode === "ride"
-    ? ["#3b82f6", "#a855f7"]
-    : ["#059669", "#06b6d4"];
+// Padosi has no maps API/key configured — but styled to read as a
+// navigation preview rather than an illustration: single mode-accent color
+// throughout (no more two-tone gradient — matches the "one accent per
+// page" direction below), a thicker layered path with a soft ambient glow,
+// a larger dot traveling the route, and START/DESTINATION labels that
+// fade + rise in on mount instead of appearing instantly.
+import { useState, useEffect } from "react";
 
-  const routeD = "M 40 120 C 110 120 130 80 180 75 C 230 70 260 45 360 35";
+export default function RouteMiniMap({ from, to, dark, mode = "partner" }) {
+  const isRide = mode === "ride";
+  const ACCENT = isRide ? (dark ? "#60a5fa" : "#2563eb") : (dark ? "#34d399" : "#059669");
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  const routeD = "M 40 130 C 110 130 140 90 190 82 C 240 74 270 50 360 30";
 
   return (
-    <div className={`relative rounded-2xl border overflow-hidden ${dark ? "border-white/20" : "border-[#eee]"}`}>
-      <svg viewBox="0 0 400 160" className="w-full h-[160px] block" preserveAspectRatio="none">
+    <div className={`relative rounded-2xl overflow-hidden ${dark ? "" : "shadow-sm"}`}>
+      <svg viewBox="0 0 400 190" className="w-full h-[190px] block" preserveAspectRatio="none">
         <defs>
           <linearGradient id="rdm-bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={dark ? "#000000" : "#fafbff"} />
+            <stop offset="0%" stopColor={dark ? "#141414" : "#fafbff"} />
             <stop offset="100%" stopColor={dark ? "#0a0a0a" : "#eef0fa"} />
           </linearGradient>
 
-          <linearGradient id="rdm-route-grad" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stopColor={colorA} />
-            <stop offset="100%" stopColor={colorB} />
-          </linearGradient>
+          <radialGradient id="rdm-glow" cx="55%" cy="55%" r="65%">
+            <stop offset="0%" stopColor={ACCENT} stopOpacity={dark ? "0.14" : "0.10"} />
+            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+          </radialGradient>
 
-          {/* Fades the route path (not the pins) near the left/right
-              edges instead of letting it cut off abruptly. */}
           <linearGradient id="rdm-edge-grad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#000" stopOpacity="0" />
             <stop offset="8%" stopColor="#fff" stopOpacity="1" />
@@ -41,77 +41,77 @@ export default function RouteMiniMap({ from, to, dark, mode = "partner" }) {
             <stop offset="100%" stopColor="#000" stopOpacity="0" />
           </linearGradient>
           <mask id="rdm-edge-mask">
-            <rect x="0" y="0" width="400" height="160" fill="url(#rdm-edge-grad)" />
+            <rect x="0" y="0" width="400" height="190" fill="url(#rdm-edge-grad)" />
           </mask>
 
-          {/* One-time left-to-right reveal for the "draw in on open"
-              effect — a growing clip rect instead of stroke-dashoffset,
-              so the road-dash pattern below doesn't get distorted by it. */}
           <clipPath id="rdm-reveal">
-            <rect x="0" y="0" width="0" height="160">
+            <rect x="0" y="0" width="0" height="190">
               <animate attributeName="width" from="0" to="400" dur="1.3s" begin="0s" fill="freeze" calcMode="spline" keySplines="0.25 0.1 0.25 1" />
             </rect>
           </clipPath>
         </defs>
 
-        <rect width="400" height="160" fill="url(#rdm-bg)" />
+        <rect width="400" height="190" fill="url(#rdm-bg)" />
+        <rect width="400" height="190" fill="url(#rdm-glow)" />
 
-        {/* Faint abstract background roads — replaces the old dot grid.
-            Static, low-opacity, purely atmospheric. */}
-        <g stroke={dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"} strokeWidth="1.5" fill="none">
-          <path d="M -10 40 C 100 20, 220 60, 410 30" />
-          <path d="M -10 140 C 120 160, 260 110, 410 150" />
-          <path d="M -10 90 C 90 70, 300 100, 410 70" />
+        {/* Faint abstract background roads — atmosphere only */}
+        <g stroke={dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"} strokeWidth="1.5" fill="none">
+          <path d="M -10 50 C 110 25, 230 65, 410 35" />
+          <path d="M -10 155 C 130 175, 270 125, 410 165" />
         </g>
 
-        {/* Compass, low-opacity corner flourish */}
-        <text x="374" y="24" fontSize="16" opacity="0.12" textAnchor="middle">🧭</text>
-
-        {/* Route path — masked at edges, clipped for the draw-in reveal */}
         <g mask="url(#rdm-edge-mask)">
           <g clipPath="url(#rdm-reveal)">
-            {/* Wide faint underlay — the "layered" feel */}
-            <path d={routeD} fill="none" stroke="url(#rdm-route-grad)" strokeOpacity="0.12" strokeWidth="10" strokeLinecap="round" />
-            {/* Road-dash line on top, rounded caps */}
-            <path d={routeD} fill="none" stroke="url(#rdm-route-grad)" strokeWidth="3" strokeLinecap="round" strokeDasharray="16 9" />
+            {/* Wide soft underlay — the "layered" road feel */}
+            <path d={routeD} fill="none" stroke={ACCENT} strokeOpacity="0.16" strokeWidth="15" strokeLinecap="round" />
+            {/* Thicker road-dash line on top */}
+            <path d={routeD} fill="none" stroke={ACCENT} strokeWidth="4.5" strokeLinecap="round" strokeDasharray="20 11" />
           </g>
 
-          {/* Moving dot — starts once the draw-in finishes */}
-          <circle r="4" fill={dark ? "#ffffff" : "#ffffff"} stroke="url(#rdm-route-grad)" strokeWidth="2">
+          {/* Larger moving dot */}
+          <circle r="6" fill={dark ? "#0a0a0a" : "#ffffff"} stroke={ACCENT} strokeWidth="3">
             <animateMotion path={routeD} dur="4.5s" begin="1.3s" repeatCount="indefinite" rotate="auto" />
           </circle>
         </g>
 
-        {/* Start pin — layered glow: soft wide ring → color → white core */}
-        <circle cx="40" cy="120" r="16" fill={colorA} opacity="0.15" />
-        <circle cx="40" cy="120" r="9" fill={colorA} />
-        <circle cx="40" cy="120" r="3" fill="#ffffff" />
+        {/* Start pin — glow → solid → white core */}
+        <circle cx="40" cy="130" r="20" fill={ACCENT} opacity="0.16" />
+        <circle cx="40" cy="130" r="10" fill={ACCENT} />
+        <circle cx="40" cy="130" r="3.5" fill="#ffffff" />
 
-        {/* End pin — layered glow + a gentle expanding pulse ring */}
-        <circle cx="360" cy="35" r="16" fill={colorB} opacity="0.12" />
-        <circle cx="360" cy="35" r="9" fill={colorB} opacity="0">
-          <animate attributeName="r" values="9;17;9" dur="2.4s" repeatCount="indefinite" />
-          <animate attributeName="opacity" values="0.45;0;0.45" dur="2.4s" repeatCount="indefinite" />
+        {/* Destination pin — pulsing glow → ring → solid core */}
+        <circle cx="360" cy="30" r="20" fill={ACCENT} opacity="0.14" />
+        <circle cx="360" cy="30" r="10" fill={ACCENT} opacity="0">
+          <animate attributeName="r" values="10;20;10" dur="2.4s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.4;0;0.4" dur="2.4s" repeatCount="indefinite" />
         </circle>
-        <circle cx="360" cy="35" r="8" fill={dark ? "#000000" : "#ffffff"} stroke={colorB} strokeWidth="2.5" />
-        <circle cx="360" cy="35" r="3" fill={colorB} />
+        <circle cx="360" cy="30" r="9" fill={dark ? "#0a0a0a" : "#ffffff"} stroke={ACCENT} strokeWidth="3" />
+        <circle cx="360" cy="30" r="3.5" fill={ACCENT} />
       </svg>
 
-      {/* Floating labels — Apple-Maps-callout style: blurred backing,
-          shadow, tiny lift, pin icon. */}
-      <div className="absolute left-[6%] bottom-4 max-w-[42%]">
-        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl truncate backdrop-blur-sm shadow-md -translate-y-0.5 ${
-          dark ? "bg-black/60 text-white border border-white/20" : "bg-white/85 text-[#111] border border-white/60"
-        }`}>
-          📍 {from}
-        </span>
+      {/* Floating labels — eyebrow + place name, fade/rise in on mount */}
+      <div
+        className={`absolute left-[6%] bottom-4 max-w-[42%] transition-all duration-700 ease-out ${
+          mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+        }`}
+      >
+        <div className={`px-3 py-2 rounded-xl backdrop-blur-sm shadow-md ${dark ? "bg-black/60" : "bg-white/85"}`}>
+          <p className={`text-[9px] font-bold uppercase tracking-wider ${dark ? "text-white/50" : "text-[#999]"}`}>Start</p>
+          <p className={`text-[12px] font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{from}</p>
+        </div>
       </div>
-      <div className="absolute right-[6%] top-4 max-w-[42%] text-right">
-        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl truncate backdrop-blur-sm shadow-md -translate-y-0.5 ${
-          dark ? "bg-black/60 text-white border border-white/20" : "bg-white/85 text-[#111] border border-white/60"
-        }`}>
-          📍 {to}
-        </span>
+      <div
+        className="absolute right-[6%] top-4 max-w-[42%] text-right transition-all duration-700 ease-out"
+        style={{
+          opacity: mounted ? 1 : 0,
+          transform: mounted ? "translateY(0)" : "translateY(-6px)",
+          transitionDelay: mounted ? "150ms" : "0ms",
+        }}
+      >
+        <div className={`px-3 py-2 rounded-xl backdrop-blur-sm shadow-md inline-block ${dark ? "bg-black/60" : "bg-white/85"}`}>
+          <p className={`text-[9px] font-bold uppercase tracking-wider ${dark ? "text-white/50" : "text-[#999]"}`}>Destination</p>
+          <p className={`text-[12px] font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{to}</p>
+        </div>
       </div>
     </div>
   );
