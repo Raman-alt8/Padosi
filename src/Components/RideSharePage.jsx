@@ -317,7 +317,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     const targetScrollTop = shouldRestore ? preservedScrollTopRef.current : 0;
 
     if (!shouldRestore || !toolbarWasVisibleRef.current) {
-      setHideToolbar(true);
+      setHideToolbar(false);
     } else {
       setHideToolbar(false);
     }
