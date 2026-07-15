@@ -60,6 +60,7 @@ const BROWSE_MODES = [
 // you have to actually mean to scroll up before it reappears.
 const HIDE_THRESHOLD   = 10;
 const REVEAL_THRESHOLD = 30;
+const REOPEN_RESTORE_MS = 10000;
 
 // ── Temporary showcase routes ────────────────────────────────────────────────
 // Same raw-data → mapped-with-demoSellerFor split RentVehiclePage.jsx and
@@ -271,6 +272,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [hideToolbar, setHideToolbar]   = useState(false);
   const lastScrollTopRef                = useRef(0);
   const scrollContainerRef              = useRef(null);
+  const preservedScrollTopRef           = useRef(0);
+  const lastCloseTimeRef                = useRef(0);
 
   const handleContentScroll = (e) => {
     const current = e.target.scrollTop;
@@ -286,6 +289,18 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     lastScrollTopRef.current = current;
   };
 
+  const rememberCurrentScroll = () => {
+    if (scrollContainerRef.current) {
+      preservedScrollTopRef.current = scrollContainerRef.current.scrollTop;
+    }
+    lastCloseTimeRef.current = Date.now();
+  };
+
+  const handleCloseRideShare = () => {
+    rememberCurrentScroll();
+    setOpen(false);
+  };
+
   useEffect(() => {
     if (!open) {
       setHideToolbar(false);
@@ -295,9 +310,15 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
     setHideToolbar(false);
     lastScrollTopRef.current = 0;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
-    }
+
+    const shouldRestore = Date.now() - lastCloseTimeRef.current <= REOPEN_RESTORE_MS;
+    const targetScrollTop = shouldRestore ? preservedScrollTopRef.current : 0;
+
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = targetScrollTop;
+      }
+    });
   }, [open]);
 
   // Shared wishlist store — same context every other listing page reads
@@ -556,7 +577,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         dark ? "bg-black border-white" : "bg-white border-[#eee]"
       }`}>
         <button
-          onClick={() => setOpen(false)}
+          onClick={handleCloseRideShare}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors ${
             dark
               ? "bg-black border-white text-white hover:bg-white hover:text-black"
