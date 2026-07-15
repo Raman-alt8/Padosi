@@ -9,7 +9,7 @@ import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./ride
 import {
   accentText, accentDot, accentChipCls, accentSolidBtn, accentBannerCls,
   cardCls, tileCls, JourneyConnector,
-} from "./rideVisuals";
+} from "./temp123";
 
 // Mode-accent colors, card surfaces, and the JourneyConnector now live in
 // ./rideVisuals so RideAcceptPage can share the exact same visual language
