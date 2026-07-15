@@ -274,6 +274,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const scrollContainerRef              = useRef(null);
   const preservedScrollTopRef           = useRef(0);
   const lastCloseTimeRef                = useRef(0);
+  const toolbarWasVisibleRef            = useRef(false);
 
   const handleContentScroll = (e) => {
     const current = e.target.scrollTop;
@@ -281,10 +282,13 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
     if (current < 50) {
       setHideToolbar(false);
+      toolbarWasVisibleRef.current = true;
     } else if (current > last + HIDE_THRESHOLD) {
       setHideToolbar(true);   // scrolling down
+      toolbarWasVisibleRef.current = false;
     } else if (current < last - REVEAL_THRESHOLD) {
       setHideToolbar(false);  // scrolling up — needs 3x the movement to undo a hide
+      toolbarWasVisibleRef.current = true;
     }
     lastScrollTopRef.current = current;
   };
@@ -294,6 +298,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       preservedScrollTopRef.current = scrollContainerRef.current.scrollTop;
     }
     lastCloseTimeRef.current = Date.now();
+    toolbarWasVisibleRef.current = !hideToolbar;
   };
 
   const handleCloseRideShare = () => {
@@ -308,11 +313,16 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       return;
     }
 
-    setHideToolbar(false);
-    lastScrollTopRef.current = 0;
-
     const shouldRestore = Date.now() - lastCloseTimeRef.current <= REOPEN_RESTORE_MS;
     const targetScrollTop = shouldRestore ? preservedScrollTopRef.current : 0;
+
+    if (!shouldRestore || !toolbarWasVisibleRef.current) {
+      setHideToolbar(true);
+    } else {
+      setHideToolbar(false);
+    }
+
+    lastScrollTopRef.current = 0;
 
     requestAnimationFrame(() => {
       if (scrollContainerRef.current) {
