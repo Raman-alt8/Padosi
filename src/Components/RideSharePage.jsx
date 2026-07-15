@@ -28,6 +28,14 @@ function HeartIcon({ filled }) {
   );
 }
 
+async function readJsonSafely(res) {
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
 const SORT_OPTIONS = [
   { key: "newest",     label: "Newest first" },
   { key: "price_low",  label: "Price: Low to High" },
@@ -262,6 +270,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   // see the constants above.
   const [hideToolbar, setHideToolbar]   = useState(false);
   const lastScrollTopRef                = useRef(0);
+  const scrollContainerRef              = useRef(null);
 
   const handleContentScroll = (e) => {
     const current = e.target.scrollTop;
@@ -276,6 +285,20 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
     lastScrollTopRef.current = current;
   };
+
+  useEffect(() => {
+    if (!open) {
+      setHideToolbar(false);
+      lastScrollTopRef.current = 0;
+      return;
+    }
+
+    setHideToolbar(false);
+    lastScrollTopRef.current = 0;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [open]);
 
   // Shared wishlist store — same context every other listing page reads
   // from, so a heart tapped here shows up on WishlistPage instantly.
@@ -326,7 +349,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to load routes");
-      const data = await res.json();
+      const data = await readJsonSafely(res);
       setRoutes(data.routes || []);
     } catch (err) {
       console.error(err);
@@ -347,7 +370,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           method: "POST",
           credentials: "include",
         })
-          .then(res => res.json())
+          .then(res => readJsonSafely(res))
           .then(data => {
             if (data.poster) {
               setRoutes(prev => prev.map(x =>
@@ -401,7 +424,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seats, note }),
     });
-    const data = await res.json();
+    const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(data.error || "Could not accept this route. Please try again.");
     setRoutes(prev => prev.map(r =>
       r.id === routeId
@@ -421,7 +444,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         method: "POST",
         credentials: "include",
       });
-      if (!res.ok) { const d = await res.json(); showToast(`⚠️ ${d.error}`); return; }
+      if (!res.ok) { const d = await readJsonSafely(res); showToast(`⚠️ ${d.error}`); return; }
       setRoutes(prev => prev.filter(r => r.id !== routeId));
     } catch (err) {
       console.error(err);
@@ -445,7 +468,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         credentials: "include",
       });
       if (!res.ok) {
-        const data = await res.json();
+        const data = await readJsonSafely(res);
         showToast(`⚠️ ${data.error || "Could not remove route."}`);
         return;
       }
@@ -468,11 +491,11 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   }, [routes, demoDeclined, demoAccepted]);
 
   const searchMatched = visibleRoutes.filter(r => {
-    const q = search.toLowerCase();
-    return !q
-      || r.from_place.toLowerCase().includes(q)
-      || r.to_place.toLowerCase().includes(q)
-      || r.description.toLowerCase().includes(q);
+    const q = String(search || "").trim().toLowerCase();
+    if (!q) return true;
+    const haystacks = [r.from_place, r.to_place, r.description]
+      .map(value => String(value || "").toLowerCase());
+    return haystacks.some(text => text.includes(q));
   });
 
   const filtered = useMemo(() => {
@@ -562,6 +585,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
       {/* ── Scrolling column ── */}
       <div
+        ref={scrollContainerRef}
         onScroll={handleContentScroll}
         className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
