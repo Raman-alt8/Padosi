@@ -3,7 +3,7 @@ import RouteMiniMap from "./RouteMiniMap";
 import {
   IconArrowLeft, IconArrowRight, IconArrowDown, IconHeart,
   IconClock, IconUsers, IconUserRound, IconCar, IconBike,
-  IconStar, IconShieldCheck, IconPencil, IconTrash, IconCheck,
+  IconPencil, IconTrash, IconCheck,
 } from "./RideIcons";
 import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 
@@ -64,25 +64,16 @@ function JourneyConnector({ height, dark, isRide }) {
   );
 }
 
-function formatJoined(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  if (isNaN(d)) return String(value);
-  return d.getFullYear();
-}
-
 // ─── Ride Detail Page ─────────────────────────────────────────────────────
 // Full-screen overlay opened by tapping a route card. Every action still
 // calls back into RideSharePage's existing handlers — no props changed in
 // this revision, only the internal layout/visuals — so RideSharePage.jsx
 // needs zero changes to pick this up.
 //
-// A few fields render only when present on `route` and are otherwise
-// silently omitted, since they don't exist in Padosi's schema yet:
-// distance_km, duration_mins, poster_rating, poster_ride_count,
-// poster_joined_at, poster_verified. Wire them up backend-side whenever —
-// this page degrades gracefully without them, same pattern
-// vehicleTypesOf/freqLabel already use for older/missing route fields.
+// Poster rating, ride count, joined date, verified-driver badge, and the
+// estimated distance/duration line were all dropped — none of those fields
+// are set by RidePostFormPage or exist in the ride_routes schema
+// (db/migrations.js), so they'd always render empty anyway.
 export default function RideDetailPage({
   open,
   route,
@@ -130,9 +121,6 @@ export default function RideDetailPage({
     : [
         { icon: IconUserRound, label: "Gender", value: genderTag || "Any gender" },
       ];
-
-  const hasTravelInfo = !!(route.distance_km || route.duration_mins);
-  const hasPosterMeta = !!(route.poster_rating || route.poster_ride_count || route.poster_joined_at || route.poster_verified);
 
   const ctaLabel = mode === "partner" ? "Reserve Seat" : "Accept Ride";
 
@@ -214,15 +202,6 @@ export default function RideDetailPage({
           {/* ── Route preview map ── */}
           <RouteMiniMap from={route.from_place} to={route.to_place} dark={dark} mode={mode} />
 
-          {hasTravelInfo && (
-            <div className={`flex items-center justify-center gap-3 mt-3 text-xs font-semibold ${dark ? "text-white/40" : "text-[#aaa]"}`}>
-              {route.distance_km && <span>{route.distance_km} km</span>}
-              {route.distance_km && route.duration_mins && <span className="opacity-40">·</span>}
-              {route.duration_mins && <span>~{route.duration_mins} mins</span>}
-              <span className="opacity-50">(estimated)</span>
-            </div>
-          )}
-
           <JourneyConnector height={accepted ? 24 : 32} dark={dark} isRide={isRide} />
 
           {/* ── Accepted banner ── */}
@@ -294,29 +273,7 @@ export default function RideDetailPage({
             </span>
             <div className="min-w-0">
               <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>{route.poster_name}</p>
-
-              {route.poster_verified ? (
-                <p className={`text-xs mt-0.5 flex items-center gap-1 ${accentText(dark, isRide)}`}>
-                  <IconShieldCheck className="w-3.5 h-3.5" /> Verified driver
-                </p>
-              ) : (
-                <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>Neighbourhood poster</p>
-              )}
-
-              {hasPosterMeta && (
-                <div className={`flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-1 text-xs ${dark ? "text-white/50" : "text-[#888]"}`}>
-                  {route.poster_rating && (
-                    <span className="inline-flex items-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <IconStar key={i} filled={i <= Math.round(route.poster_rating)} className="w-3 h-3 text-amber-400" />
-                      ))}
-                      <span className="ml-0.5 font-semibold">{route.poster_rating.toFixed(1)}</span>
-                    </span>
-                  )}
-                  {route.poster_ride_count && <span>{route.poster_ride_count} rides</span>}
-                  {formatJoined(route.poster_joined_at) && <span>Joined {formatJoined(route.poster_joined_at)}</span>}
-                </div>
-              )}
+              <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>Neighbourhood poster</p>
             </div>
           </div>
         </div>
