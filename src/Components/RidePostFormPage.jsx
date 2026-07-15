@@ -35,6 +35,16 @@ function LimitNote() {
 // form state, word-limited inputs, map preview, and the create/update API
 // call — RideSharePage just mounts it conditionally and reacts to onSaved.
 //
+// Rendered as a `fixed inset-0` overlay (same pattern as RideDetailPage.jsx)
+// rather than `absolute inset-0`, and at the same z-[5500] layer. `absolute`
+// only covers the nearest *positioned* ancestor and depends on that
+// ancestor's scroll/height, so if RideSharePage's own toolbar (search bar,
+// mode toggle, Filter/Sort) sits in a different stacking context or the
+// ancestor doesn't span the full page, that toolbar can paint on top of
+// this form instead of underneath it. `fixed` pins the overlay to the
+// viewport itself regardless of what the parent is doing, so it always
+// fully covers the page it's opened over.
+//
 // Props:
 //   open         — boolean, whether the form is showing (parent should only
 //                  mount this component when true, so state resets naturally
@@ -175,7 +185,7 @@ export default function RidePostFormPage({ open, editingRoute, currentUser, dark
   if (!open) return null;
 
   return (
-    <div className={`absolute inset-0 z-10 flex flex-col ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
+    <div className={`fixed inset-0 z-[5500] flex flex-col ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
 
       {/* Form header */}
       <div className={`h-[70px] flex items-center justify-between px-6 flex-shrink-0 border-b ${
