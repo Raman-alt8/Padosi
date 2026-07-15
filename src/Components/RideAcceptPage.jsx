@@ -1,40 +1,28 @@
 import { useState, useEffect } from "react";
 import MessageSellerButton from "./MessageSellerButton";
+import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
+import { IconArrowLeft, IconArrowRight, IconUsers, IconCheck } from "./RideIcons";
+import {
+  accentText, accentDot, accentChipCls, accentSolidBtn, accentBannerCls,
+  accentFocusBorder, cardCls, tileCls, JourneyConnector, SectionEyebrow,
+} from "./rideVisuals";
 
-function initials(name = "") {
-  return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
-}
-
-// Frequency now comes off the post form as "weekday" | "weekend" | "full_week"
-// (previously a 1–7 number meaning "times a week"). Kept as a lookup so any
-// old/unrecognized value just falls back to showing itself instead of
-// breaking the chip.
-const FREQ_LABEL = {
-  weekday:   "Weekdays",
-  weekend:   "Weekends",
-  full_week: "Full Week",
-};
-
-// Vehicle icons for the "partner" (offering a ride) mode. Post form saves
-// `vehicle_types` as an array now, e.g. [] | ["car"] | ["bike"] | ["car","bike"],
-// with `vehicle_type` (a single string) kept around for older routes.
+// Vehicle emoji for the route-summary chip strip. Kept local (not folded
+// into rideHelpers) because it's purely presentational — the actual vehicle
+// list comes from the shared vehicleTypesOf() helper.
 const VEHICLE_META = {
   car:  { icon: "🚗", label: "Car" },
   bike: { icon: "🏍️", label: "Bike" },
 };
 
-function getVehicleTypes(route) {
-  if (Array.isArray(route.vehicle_types) && route.vehicle_types.length) return route.vehicle_types;
-  if (route.vehicle_type) return [route.vehicle_type];
-  return [];
-}
-
 // ─── Ride Accept Page ─────────────────────────────────────────────────────
-// Opens as a full-screen overlay on top of RideSharePage, the same way
-// RidePostFormPage does. This exists so that accepting a route never grows
-// the card it was clicked from — all the "how many seats / what's my share /
-// here's the poster's contact" content lives here instead, in a fixed
-// layout of its own.
+// Full-screen overlay on top of RideSharePage, same pattern as
+// RidePostFormPage / RideDetailPage. Now shares its visual language
+// (accent colors, card surfaces, JourneyConnector, SectionEyebrow) with
+// RideDetailPage via ./rideVisuals, so accepting a ride reads as a
+// continuation of the same flow instead of a differently-styled page.
+// No functional change from the previous version — same props, same
+// state, same handlers, only the render layer changed.
 //
 // Handles both post-form modes:
 //   "partner" — poster is offering their vehicle. Acceptor books seats and
@@ -59,10 +47,7 @@ function getVehicleTypes(route) {
 //   showToast       — (msg: string) => void
 //   onClose         — () => void, called on Back/Cancel/Done
 //   onConfirmAccept — async (routeId, seats, note) => { poster_contact }
-//                     Left to the parent so the real API call / demo
-//                     local-state logic stays in one place (RideSharePage).
-//   initialStep     — "review" | "confirmed" — "confirmed" when reopening
-//                     an already-accepted route just to see contact info.
+//   initialStep     — "review" | "confirmed"
 //   initialSeats    — seat count to preselect (previously booked count, or 1)
 //   initialNote     — note to preselect, if any
 export default function RideAcceptPage({
@@ -84,7 +69,7 @@ export default function RideAcceptPage({
   const [error, setError]           = useState("");
   const [confirmedInfo, setConfirmedInfo] = useState(null);
 
-  const isRideMode = route?.mode === "ride";
+  const isRideMode = modeOf(route) === "ride";
 
   // Reset local state whenever a new route is opened (or the same route is
   // reopened) so stale seat counts / notes from a previous card never leak in.
@@ -109,9 +94,9 @@ export default function RideAcceptPage({
   const maxSeats = isRideMode ? 1 : (route.seats || 1);
   const total    = perSeat * seats;
   const posterFirstName = route.poster_name?.split(" ")[0] || "poster";
-  const freqLabel = FREQ_LABEL[route.freq] || route.freq;
-  const vehicleTypes = getVehicleTypes(route);
-  const showGenderPref = route.gender_pref && route.gender_pref !== "no_preference";
+  const freqText = freqLabel(route.freq);
+  const vehicleTypes = vehicleTypesOf(route);
+  const genderTag = genderLabel(route.gender_pref);
 
   const adjustSeats = (delta) => {
     setSeats(s => Math.min(Math.max(s + delta, 1), maxSeats));
@@ -144,88 +129,84 @@ export default function RideAcceptPage({
     : (isRideMode ? "Review & Offer" : "Review & Accept");
 
   return (
-    <div className={`fixed inset-0 z-[5100] flex flex-col overflow-hidden ${dark ? "bg-black" : "bg-[#f6f7fb]"}`}>
+    <div className={`fixed inset-0 z-[5100] flex flex-col overflow-hidden ${dark ? "bg-[#111111]" : "bg-[#f6f7fb]"}`}>
 
-      {/* ── Header — same h-[80px]/sticky/border pattern as RideSharePage,
-          but a 3-column grid so the title stays truly centered without a
-          second real button on the right. ── */}
-      <div className={`h-[80px] shrink-0 grid grid-cols-[auto_1fr_auto] items-center gap-2 px-6 sticky top-0 z-10 border-b ${
-        dark ? "bg-black border-white" : "bg-white border-[#eee]"
+      {/* Header — same 72px/border pattern as RideDetailPage, so the two
+          overlays read as one flow rather than two different apps. */}
+      <div className={`h-[72px] shrink-0 grid grid-cols-[auto_1fr_auto] items-center gap-2 px-5 border-b ${
+        dark ? "bg-[#111111] border-white/10" : "bg-white border-[#eee]"
       }`}>
         <button
           onClick={onClose}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold cursor-pointer border transition-colors justify-self-start ${
-            dark
-              ? "bg-black border-white text-white hover:bg-white hover:text-black"
-              : "bg-white border-[#ddd] text-[#333] hover:border-[#ff2d55] hover:text-[#ff2d55]"
+          className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-bold cursor-pointer transition-colors justify-self-start ${
+            dark ? "text-white/70 hover:bg-white/10" : "text-[#333] hover:bg-black/5"
           }`}
         >
-          ← {step === "confirmed" ? "Close" : "Back"}
+          <IconArrowLeft className="w-4 h-4" />
+          {step === "confirmed" ? "Close" : "Back"}
         </button>
-        <p className={`text-lg font-black text-center truncate ${dark ? "text-white" : "text-[#111]"}`}>
+        <p className={`text-base font-bold text-center truncate ${dark ? "text-white" : "text-[#111]"}`}>
           {headerTitle}
         </p>
         <span />
       </div>
 
-      {/* ── Body ── */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-[560px] mx-auto flex flex-col gap-5">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-5 py-6 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+        <div className="max-w-[560px] mx-auto flex flex-col">
 
-          {/* Route summary — always visible, same visual language as the card */}
-          <div className={`rounded-2xl border p-5 flex flex-col gap-3.5 ${
-            dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-sm"
-          }`}>
+          {/* Mode + sample badges — identical copy/treatment to
+              RideDetailPage so the same route reads the same way here. */}
+          <div className="flex items-center gap-2 flex-wrap mb-4">
+            <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${accentChipCls(dark, isRideMode)}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${accentDot(isRideMode)}`} />
+              {isRideMode ? "Partner to share ride" : "Offering a ride"}
+            </span>
+            {route.isDemo && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-600">
+                Sample
+              </span>
+            )}
+          </div>
+
+          {/* Route summary */}
+          <div className={`rounded-2xl p-4 flex flex-col gap-3.5 ${cardCls(dark)}`}>
             <div className="flex items-center gap-2.5">
               <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                <span className={`w-2.5 h-2.5 rounded-full ${dark ? "bg-white" : "bg-[#ff2d55]"}`} />
-                <span className={`w-0.5 h-5 ${dark ? "bg-white/30" : "bg-[#eee]"}`} />
-                <span className={`w-2.5 h-2.5 rounded-full border-2 ${dark ? "border-white" : "border-[#ff2d55]"}`} />
+                <span className={`w-2.5 h-2.5 rounded-full ${accentDot(isRideMode)}`} />
+                <span className={`w-0.5 h-5 ${dark ? "bg-white/15" : "bg-black/10"}`} />
+                <span className={`w-2.5 h-2.5 rounded-full border-2 ${dark ? "border-white/40" : "border-black/20"}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{route.from_place}</p>
                 <p className={`text-xs mt-2 truncate ${dark ? "text-white/50" : "text-[#999]"}`}>{route.to_place}</p>
               </div>
-              {isRideMode && (
-                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border ${
-                  dark ? "border-white/40 text-white/70" : "border-[#ffd7de] text-[#ff2d55] bg-[#fff0f3]"
-                }`}>
-                  🙋 Needs a ride
-                </span>
-              )}
-              {route.isDemo && (
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border border-purple-300 text-purple-600 bg-purple-50">
-                  Sample
-                </span>
-              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
               {[
-                { icon: "📅", text: freqLabel },
+                { icon: "📅", text: freqText },
                 { icon: "🕐", text: route.depart_time || "—" },
                 ...(!isRideMode ? [{ icon: "👥", text: `${route.seats} seat${route.seats > 1 ? "s" : ""} available` }] : []),
                 ...vehicleTypes.map(v => ({ icon: VEHICLE_META[v]?.icon || "🚘", text: VEHICLE_META[v]?.label || v })),
-                ...(showGenderPref ? [{ icon: "🚻", text: `${route.gender_pref === "male" ? "Male" : "Female"} only` }] : []),
+                ...(genderTag ? [{ icon: "🚻", text: `${genderTag} only` }] : []),
               ].map(({ icon, text }) => (
                 <span
                   key={text}
-                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold border ${
-                    dark ? "border-white/40 text-white/70" : "border-[#eee] text-[#888] bg-[#f6f7fb]"
-                  }`}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold ${tileCls(dark)}`}
                 >
                   {icon} {text}
                 </span>
               ))}
             </div>
 
-            <div className={`flex items-center gap-2 pt-3 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>
-              <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center ${
-                dark ? "border-white text-white" : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
+            <div className={`flex items-center gap-2 pt-3 border-t ${dark ? "border-white/10" : "border-black/5"}`}>
+              <span className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
+                dark ? "bg-white/10 text-white" : "bg-[#f0f0f5] text-[#555]"
               }`}>
                 {initials(route.poster_name || "")}
               </span>
-              <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
+              <span className={`text-xs font-semibold ${dark ? "text-white/60" : "text-[#777]"}`}>
                 Posted by {route.poster_name}
               </span>
             </div>
@@ -233,53 +214,48 @@ export default function RideAcceptPage({
 
           {step === "review" ? (
             <>
-              {/* Seat picker — only applies to "partner" routes, where the
-                  poster has a vehicle and you're claiming a seat in it. For
-                  "ride" mode there's no seat count: you're the one offering
-                  to drive the poster, so this section is skipped entirely. */}
+              {/* Seats — only applies to "partner" routes, where the poster
+                  has a vehicle and you're claiming a seat in it. Skipped
+                  entirely for "ride" mode, where you're the one offering
+                  to drive the poster. */}
               {!isRideMode && (
-                <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${
-                  dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-sm"
-                }`}>
-                  <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>
-                    How many seats do you need?
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => adjustSeats(-1)}
-                      disabled={seats <= 1}
-                      aria-label="One fewer seat"
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                        dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                      }`}
-                    >
-                      −
-                    </button>
-                    <span className={`text-xl font-black w-8 text-center ${dark ? "text-white" : "text-[#111]"}`}>{seats}</span>
-                    <button
-                      onClick={() => adjustSeats(1)}
-                      disabled={seats >= maxSeats}
-                      aria-label="One more seat"
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                        dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                      }`}
-                    >
-                      +
-                    </button>
-                    <span className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
+                <>
+                  <JourneyConnector height={32} dark={dark} isRide={isRideMode} />
+                  <SectionEyebrow dark={dark} isRide={isRideMode}>Seats</SectionEyebrow>
+                  <div className={`rounded-2xl p-4 flex items-center gap-4 ${cardCls(dark)}`}>
+                    <IconUsers className={`w-6 h-6 shrink-0 ${accentText(dark, isRideMode)}`} />
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => adjustSeats(-1)}
+                        disabled={seats <= 1}
+                        aria-label="One fewer seat"
+                        className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${tileCls(dark)} ${accentText(dark, isRideMode)}`}
+                      >
+                        −
+                      </button>
+                      <span className={`text-xl font-black w-6 text-center ${dark ? "text-white" : "text-[#111]"}`}>{seats}</span>
+                      <button
+                        onClick={() => adjustSeats(1)}
+                        disabled={seats >= maxSeats}
+                        aria-label="One more seat"
+                        className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${tileCls(dark)} ${accentText(dark, isRideMode)}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <span className={`text-xs ml-auto ${dark ? "text-white/40" : "text-[#aaa]"}`}>
                       {maxSeats} seat{maxSeats > 1 ? "s" : ""} available
                     </span>
                   </div>
-                </div>
+                </>
               )}
 
-              {/* Contribution — framed as "your share" for partner mode
-                  (you're paying the driver), or as "what they're offering"
-                  for ride mode (the poster is the one paying, since you'd
-                  be doing the driving). */}
-              <div className={`rounded-2xl border p-5 flex flex-col gap-2.5 ${
-                dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-sm"
-              }`}>
+              {/* Payment — "your share" for partner mode (you pay the
+                  driver), or "what they're offering" for ride mode (the
+                  poster pays, since you'd be doing the driving). */}
+              <JourneyConnector height={32} dark={dark} isRide={isRideMode} />
+              <SectionEyebrow dark={dark} isRide={isRideMode}>Payment</SectionEyebrow>
+              <div className={`rounded-2xl p-4 flex flex-col gap-2.5 ${cardCls(dark)}`}>
                 {perSeat > 0 ? (
                   isRideMode ? (
                     <>
@@ -287,7 +263,7 @@ export default function RideAcceptPage({
                         <span className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>
                           {posterFirstName} is offering
                         </span>
-                        <span className={`text-xl font-black ${dark ? "text-white" : "text-[#ff2d55]"}`}>₹{perSeat}</span>
+                        <span className={`text-xl font-black ${accentText(dark, isRideMode)}`}>₹{perSeat}</span>
                       </div>
                       <p className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
                         Settle up directly when you meet — Padosi doesn't process payments.
@@ -296,12 +272,12 @@ export default function RideAcceptPage({
                   ) : (
                     <>
                       <div className="flex items-center justify-between text-sm">
-                        <span className={dark ? "text-white/60" : "text-[#888]"}>₹{perSeat} × {seats} seat{seats > 1 ? "s" : ""}</span>
-                        <span className={dark ? "text-white/60" : "text-[#888]"}>₹{total}</span>
+                        <span className={dark ? "text-white/50" : "text-[#999]"}>₹{perSeat} × {seats} seat{seats > 1 ? "s" : ""}</span>
+                        <span className={dark ? "text-white/50" : "text-[#999]"}>₹{total}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>Your share</span>
-                        <span className={`text-xl font-black ${dark ? "text-white" : "text-[#ff2d55]"}`}>₹{total}</span>
+                        <span className={`text-xl font-black ${accentText(dark, isRideMode)}`}>₹{total}</span>
                       </div>
                       <p className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
                         Pay {posterFirstName} directly when you meet — Padosi doesn't process payments.
@@ -309,16 +285,16 @@ export default function RideAcceptPage({
                     </>
                   )
                 ) : (
-                  <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#27ae60]"}`}>
+                  <p className={`text-sm font-bold ${accentText(dark, isRideMode)}`}>
                     🎉 {isRideMode ? "No payment requested — just lending a hand." : "This is a free ride — no contribution needed."}
                   </p>
                 )}
               </div>
 
               {/* Note to poster */}
-              <div className={`rounded-2xl border p-5 flex flex-col gap-2 ${
-                dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-sm"
-              }`}>
+              <JourneyConnector height={32} dark={dark} isRide={isRideMode} />
+              <SectionEyebrow dark={dark} isRide={isRideMode}>Message</SectionEyebrow>
+              <div className={`rounded-2xl p-4 flex flex-col gap-2 ${cardCls(dark)}`}>
                 <label className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>
                   Add a note for {posterFirstName} <span className="font-normal opacity-60">(optional)</span>
                 </label>
@@ -327,35 +303,42 @@ export default function RideAcceptPage({
                   onChange={e => setNote(e.target.value)}
                   placeholder={isRideMode ? "e.g. I can pick you up at 8 AM sharp" : "e.g. I'll be waiting outside the main gate"}
                   rows={3}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-sm resize-none focus:outline-none transition-colors ${
+                  className={`w-full rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none transition-colors border ${
                     dark
-                      ? "bg-black border-white/40 text-white placeholder-white/30 focus:border-white"
-                      : "bg-white border-[#ddd] text-[#111] placeholder-[#bbb] focus:border-[#ff2d55]"
+                      ? `bg-[#242424] border-white/10 text-white placeholder-white/30 ${accentFocusBorder(dark, isRideMode)}`
+                      : `bg-[#f9fafc] border-transparent text-[#111] placeholder-[#bbb] ${accentFocusBorder(dark, isRideMode)}`
                   }`}
                 />
               </div>
 
               {error && (
-                <p className="text-xs font-semibold text-[#e0002b]">⚠️ {error}</p>
+                <p className="mt-3 text-xs font-semibold text-[#e0002b]">⚠️ {error}</p>
               )}
             </>
           ) : (
             <>
-              {/* Confirmed — contact + chat */}
-              <div className={`rounded-2xl p-5 border flex flex-col gap-2.5 ${
-                dark ? "bg-white/5 border-white/20" : "bg-[#f0fff4] border-[#b2f5c8]"
-              }`}>
-                <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#27ae60]"}`}>
-                  {isRideMode
-                    ? `✅ You've offered to drive ${posterFirstName}${perSeat > 0 ? ` · ₹${perSeat} agreed` : " · Free ride"}`
-                    : `✅ Booked for ${bookedSeats} seat${bookedSeats > 1 ? "s" : ""}${perSeat > 0 ? ` · ₹${perSeat * bookedSeats} to contribute` : " · Free ride"}`}
-                </p>
+              {/* Confirmed banner — same accentBannerCls treatment as the
+                  "Ride confirmed" banner on RideDetailPage. */}
+              <JourneyConnector height={32} dark={dark} isRide={isRideMode} />
+              <div className={`rounded-2xl border-l-4 overflow-hidden ${accentBannerCls(dark, isRideMode)}`}>
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  <IconCheck className={`w-5 h-5 shrink-0 ${accentText(dark, isRideMode)}`} />
+                  <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>
+                    {isRideMode
+                      ? `You've offered to drive ${posterFirstName}${perSeat > 0 ? ` · ₹${perSeat} agreed` : " · Free ride"}`
+                      : `Booked for ${bookedSeats} seat${bookedSeats > 1 ? "s" : ""}${perSeat > 0 ? ` · ₹${perSeat * bookedSeats} to contribute` : " · Free ride"}`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Contact + chat */}
+              <JourneyConnector height={32} dark={dark} isRide={isRideMode} />
+              <SectionEyebrow dark={dark} isRide={isRideMode}>Contact {posterFirstName}</SectionEyebrow>
+              <div className={`rounded-2xl p-4 flex flex-col gap-2.5 ${cardCls(dark)}`}>
                 {contact?.phone && (
                   <a
                     href={`tel:${contact.phone}`}
-                    className={`inline-flex items-center justify-center gap-2 text-sm font-bold py-2.5 px-3 rounded-lg border transition-colors ${
-                      dark ? "border-white text-white hover:bg-white hover:text-black" : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                    }`}
+                    className={`inline-flex items-center justify-center gap-2 text-sm font-bold py-2.5 px-3 rounded-lg cursor-pointer transition-colors ${tileCls(dark)} ${dark ? "text-white hover:bg-white/10" : "text-[#555] hover:bg-black/5"}`}
                   >
                     📞 {contact.phone}
                   </a>
@@ -368,12 +351,10 @@ export default function RideAcceptPage({
                   isDemo={route.isDemo}
                   dark={dark}
                   label={`💬 Chat with ${posterFirstName}`}
-                  className={`inline-flex items-center justify-center gap-2 text-sm font-bold py-2.5 px-3 rounded-lg border cursor-pointer transition-colors ${
-                    dark ? "border-white/40 text-white/70 hover:border-white hover:text-white" : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
-                  }`}
+                  className={`inline-flex items-center justify-center gap-2 text-sm font-bold py-2.5 px-3 rounded-lg cursor-pointer transition-colors ${accentSolidBtn(dark, isRideMode)}`}
                 />
               </div>
-              <p className={`text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
+              <p className={`mt-3 text-xs ${dark ? "text-white/40" : "text-[#aaa]"}`}>
                 Reminder: settle your share directly with {posterFirstName} — Padosi just makes the introduction.
               </p>
             </>
@@ -381,16 +362,16 @@ export default function RideAcceptPage({
         </div>
       </div>
 
-      {/* ── Footer CTA — fixed, so nothing above it ever resizes the overlay ── */}
-      <div className={`shrink-0 border-t px-6 py-4 ${dark ? "bg-black border-white" : "bg-white border-[#eee]"}`}>
-        <div className="max-w-[560px] mx-auto flex gap-3">
+      {/* Footer CTA — fixed, so nothing above it ever resizes the overlay */}
+      <div className={`shrink-0 px-5 py-4 border-t ${dark ? "bg-[#111111] border-white/10" : "bg-white border-[#eee]"}`}>
+        <div className="max-w-[560px] mx-auto">
           {step === "review" ? (
-            <>
+            <div className="flex gap-2">
               <button
                 onClick={onClose}
                 disabled={submitting}
-                className={`flex-1 text-sm py-3 rounded-xl font-bold cursor-pointer border transition-colors disabled:opacity-50 ${
-                  dark ? "border-white/40 text-white/70 bg-black hover:border-white hover:text-white" : "border-[#eee] text-[#aaa] bg-white hover:border-[#ddd] hover:text-[#999]"
+                className={`px-4 inline-flex items-center justify-center text-sm py-3 rounded-xl font-bold cursor-pointer transition-colors disabled:opacity-50 ${
+                  dark ? "text-white/50 hover:text-white hover:bg-white/5" : "text-[#aaa] hover:text-[#777] hover:bg-black/5"
                 }`}
               >
                 Cancel
@@ -398,23 +379,22 @@ export default function RideAcceptPage({
               <button
                 onClick={handleConfirm}
                 disabled={submitting}
-                className={`flex-1 text-sm py-3 rounded-xl font-bold cursor-pointer border transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 ${
-                  dark ? "border-white bg-white text-black hover:shadow-[0_6px_20px_rgba(255,255,255,0.2)]" : "border-[#ff2d55] bg-[#ff2d55] text-white hover:bg-[#e0002b] hover:shadow-[0_6px_20px_rgba(255,45,85,0.25)]"
-                }`}
+                className={`flex-1 flex items-center justify-between px-5 py-3.5 rounded-xl font-bold cursor-pointer transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 ${accentSolidBtn(dark, isRideMode)}`}
               >
-                {submitting
-                  ? "Confirming…"
-                  : isRideMode
-                    ? "Confirm & Offer Ride"
-                    : `Confirm ${seats} seat${seats > 1 ? "s" : ""}`}
+                <span>
+                  {submitting
+                    ? "Confirming…"
+                    : isRideMode
+                      ? "Confirm & Offer Ride"
+                      : `Confirm ${seats} seat${seats > 1 ? "s" : ""}`}
+                </span>
+                {!submitting && <IconArrowRight className="w-4 h-4" />}
               </button>
-            </>
+            </div>
           ) : (
             <button
               onClick={onClose}
-              className={`flex-1 text-sm py-3 rounded-xl font-bold cursor-pointer border transition-all hover:-translate-y-0.5 ${
-                dark ? "border-white bg-white text-black hover:shadow-[0_6px_20px_rgba(255,255,255,0.2)]" : "border-[#ff2d55] bg-[#ff2d55] text-white hover:bg-[#e0002b] hover:shadow-[0_6px_20px_rgba(255,45,85,0.25)]"
-              }`}
+              className={`w-full flex items-center justify-center px-5 py-3.5 rounded-xl font-bold cursor-pointer transition-all hover:-translate-y-0.5 ${accentSolidBtn(dark, isRideMode)}`}
             >
               Done
             </button>
