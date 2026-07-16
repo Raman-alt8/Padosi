@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { initials, freqLabel } from "./rideHelpers";
 
+// Same pattern RideSharePage.jsx uses — Vite exposes VITE_API_URL from .env
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 function BackIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -51,7 +54,7 @@ export default function RideResponsesPage({ route, dark, onBack }) {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`/api/ride-routes/${route.id}/responses`, {
+        const res = await fetch(`${API_BASE}/api/ride-routes/${route.id}/responses`, {
           credentials: "include",
         });
         const data = await res.json();

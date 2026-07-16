@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import RidePostFormPage from "./RidePostFormPage";
 import RideAcceptPage from "./RideAcceptPage";
 import RideDetailPage from "./RideDetailPage";
+import RideResponsesPage from "./RideResponsesPage";
 import RideCard from "./RideCard";
 import { useWishlist } from "../WishlistContext";
 import { freqLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
@@ -207,6 +208,23 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const closeDetail = () => {
     setDetailOpen(false);
     setDetailRoute(null);
+  };
+
+  // ── Responses page state ─────────────────────────────────────────────────
+  // Opened by tapping a card that's the poster's own AND has at least one
+  // acceptance — see RideCard's handleCardClick, which routes there instead
+  // of openDetail in that case.
+  const [responsesOpen, setResponsesOpen]   = useState(false);
+  const [responsesRoute, setResponsesRoute] = useState(null);
+
+  const openResponses = (route) => {
+    setResponsesRoute(route);
+    setResponsesOpen(true);
+  };
+
+  const closeResponses = () => {
+    setResponsesOpen(false);
+    setResponsesRoute(null);
   };
 
   // ── Open / close ────────────────────────────────────────────────────────────
@@ -528,6 +546,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                 onAccept={openAccept}
                 onDecline={handleDecline}
                 onHideAccepted={handleHideAccepted}
+                onViewResponses={openResponses}
               />
             ))}
           </div>
@@ -578,6 +597,14 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           isWishlisted={isWishlisted}
           toggleWishlist={toggleWishlist}
           buildWishlistEntry={buildWishlistEntry}
+        />
+      )}
+
+      {responsesOpen && responsesRoute && (
+        <RideResponsesPage
+          route={responsesRoute}
+          dark={dark}
+          onBack={closeResponses}
         />
       )}
     </div>
