@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import MessageSellerButton from "./MessageSellerButton";
+import MessageSellerButton from "../MessageSellerButton";
 import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 import { IconArrowLeft, IconArrowRight, IconUsers, IconCheck } from "./RideIcons";
 import {

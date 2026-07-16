@@ -4,8 +4,8 @@ import RidePostFormPage from "./RidePostFormPage";
 import RideAcceptPage from "./RideAcceptPage";
 import RideDetailPage from "./RideDetailPage";
 import RideCard from "./RideCard";
-import { useWishlist } from "./WishlistContext";
-import { demoSellerFor } from "./demoIdentities";
+import { useWishlist } from "../WishlistContext";
+import { demoSellerFor } from "../demoIdentities";
 import { freqLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 
 // Base URL for API calls — Vite exposes VITE_API_URL from .env
