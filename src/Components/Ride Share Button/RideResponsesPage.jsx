@@ -72,7 +72,7 @@ export default function RideResponsesPage({ route, dark, onBack }) {
   }, [route.id]);
 
   return (
-    <div className={`min-h-screen ${dark ? "bg-black text-white" : "bg-[#fafafa] text-[#111]"}`}>
+    <div className={`fixed inset-0 z-[5500] overflow-y-auto ${dark ? "bg-black text-white" : "bg-[#fafafa] text-[#111]"}`}>
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
