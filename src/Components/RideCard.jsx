@@ -32,6 +32,8 @@ function HeartIcon({ filled }) {
 //   onAccept          — (route) => void — opens the accept overlay
 //   onDecline         — (routeId) => void
 //   onHideAccepted    — (routeId) => void
+//   onViewResponses   — (route) => void — opens the poster-facing "who
+//                        accepted this route" page
 export default function RideCard({
   route: r,
   currentUser,
@@ -45,12 +47,18 @@ export default function RideCard({
   onAccept,
   onDecline,
   onHideAccepted,
+  onViewResponses,
 }) {
   const isOwner   = r.poster_id === currentUser?.id;
   const mode      = modeOf(r);
   const vehicles  = vehicleTypesOf(r);
   const genderTag = genderLabel(r.gender_pref);
   const saved     = isWishlisted("ride", r.id);
+
+  // Only meaningful for the poster's own routes — how many people have
+  // accepted so far. Drives the "N accepted" badge/button below and which
+  // page tapping the card opens.
+  const acceptedCount = isOwner ? (r.accepted_count || 0) : 0;
 
   const vehicleTag = vehicles.length === 0
     ? { icon: "🚘", text: "Any vehicle" }
@@ -72,9 +80,20 @@ export default function RideCard({
         { icon: "🚻", text: genderTag || "Any gender" },
       ];
 
+  // Owner cards with at least one acceptance open straight into the
+  // responses page instead of the normal read-only detail view — that's
+  // the page a poster actually wants when tapping their own card.
+  const handleCardClick = () => {
+    if (isOwner && acceptedCount > 0) {
+      onViewResponses(r);
+    } else {
+      onOpenDetail(r);
+    }
+  };
+
   return (
     <div
-      onClick={() => onOpenDetail(r)}
+      onClick={handleCardClick}
       className={`relative rounded-2xl border p-5 pt-4 flex flex-col gap-3.5 cursor-pointer hover:-translate-y-1 transition-all ${
         dark
           ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
@@ -123,6 +142,15 @@ export default function RideCard({
               : "border-[#ff2d55] text-[#ff2d55] bg-[#fff0f3]"
           }`}>
             Your route
+          </span>
+        )}
+        {isOwner && acceptedCount > 0 && (
+          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border ${
+            dark
+              ? "border-white/60 text-white bg-black/60"
+              : "border-[#b2f5c8] text-[#27ae60] bg-[#f0fff4]"
+          }`}>
+            🎉 {acceptedCount} accepted
           </span>
         )}
         {r.isDemo && (
@@ -194,27 +222,41 @@ export default function RideCard({
         </div>
 
         {isOwner ? (
-          <div className="flex gap-2">
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(r); }}
-              className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
-                dark
-                  ? "border-white text-white bg-black hover:bg-white hover:text-black"
-                  : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
-              }`}
-            >
-              ✏️ Edit
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}
-              className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
-                dark
-                  ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
-                  : "border-[#eee] text-[#bbb] bg-white hover:border-[#ddd] hover:text-[#999]"
-              }`}
-            >
-              🗑️ Remove
-            </button>
+          <div className="flex flex-col gap-2">
+            {acceptedCount > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onViewResponses(r); }}
+                className={`w-full inline-flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-3 rounded-xl border transition-colors ${
+                  dark
+                    ? "bg-white/5 border-white/20 text-white/80 hover:border-white hover:text-white"
+                    : "bg-[#f0fff4] border-[#b2f5c8] text-[#27ae60] hover:border-[#27ae60]"
+                }`}
+              >
+                🎉 {acceptedCount} accepted — View responses
+              </button>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(r); }}
+                className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
+                  dark
+                    ? "border-white text-white bg-black hover:bg-white hover:text-black"
+                    : "border-[#ddd] text-[#555] bg-white hover:border-[#ff2d55] hover:text-[#ff2d55]"
+                }`}
+              >
+                ✏️ Edit
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}
+                className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
+                  dark
+                    ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
+                    : "border-[#eee] text-[#bbb] bg-white hover:border-[#ddd] hover:text-[#999]"
+                }`}
+              >
+                🗑️ Remove
+              </button>
+            </div>
           </div>
 
         ) : r.my_response === "accepted" ? (

@@ -84,7 +84,9 @@ router.get('/', requireAuth, async (req, res) => {
          r.created_at,
          r.poster_id,
          u.full_name       AS poster_name,
-         rr.response       AS my_response
+         rr.response       AS my_response,
+         (SELECT COUNT(*) FROM ride_route_responses rr2
+           WHERE rr2.route_id = r.id AND rr2.response = 'accepted') AS accepted_count
        FROM ride_routes r
        JOIN users u ON u.id = r.poster_id
        LEFT JOIN ride_route_responses rr
@@ -97,12 +99,49 @@ router.get('/', requireAuth, async (req, res) => {
     const routes = rows.map(r => ({
       ...r,
       vehicle_types: JSON.parse(r.vehicle_types || '[]'),
+      accepted_count: Number(r.accepted_count) || 0,
     }));
 
     res.json({ routes });
   } catch (err) {
     console.error('Get ride-routes error:', err);
     res.status(500).json({ error: 'Could not load routes.' });
+  }
+});
+
+// GET /api/ride-routes/:id/responses
+// Poster-only: lists everyone who has accepted this route, with contact
+// info, so the poster can see who to expect / reach out to. 403s for
+// anyone who isn't the poster, same ownership check the PUT/DELETE routes
+// use.
+router.get('/:id/responses', requireAuth, async (req, res) => {
+  const routeId = req.params.id;
+
+  try {
+    const route = await db.getAsync(
+      'SELECT id, poster_id FROM ride_routes WHERE id = ?',
+      [routeId]
+    );
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found.' });
+    }
+    if (route.poster_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the route poster can view responses.' });
+    }
+
+    const responses = await db.allAsync(
+      `SELECT u.id, u.full_name, u.email, u.phone
+       FROM ride_route_responses rr
+       JOIN users u ON u.id = rr.user_id
+       WHERE rr.route_id = ? AND rr.response = 'accepted'
+       ORDER BY rr.rowid DESC`,
+      [routeId]
+    );
+
+    res.json({ responses });
+  } catch (err) {
+    console.error('Get ride-route responses error:', err);
+    res.status(500).json({ error: 'Could not load responses.' });
   }
 });
 
