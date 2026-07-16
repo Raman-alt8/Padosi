@@ -60,6 +60,12 @@ export default function RideCard({
   // page tapping the card opens.
   const acceptedCount = isOwner ? (r.accepted_count || 0) : 0;
 
+  // A card of the poster's own that has at least one acceptance gets a
+  // distinct celebratory treatment (accent border/glow + top strip) so it
+  // reads as "something happened here" at a glance in the grid, separate
+  // from the plain "Your route" cards with no responses yet.
+  const hasAccepted = isOwner && acceptedCount > 0;
+
   const vehicleTag = vehicles.length === 0
     ? { icon: "🚘", text: "Any vehicle" }
     : vehicles.length > 1
@@ -94,12 +100,26 @@ export default function RideCard({
   return (
     <div
       onClick={handleCardClick}
-      className={`relative rounded-2xl border p-5 pt-4 flex flex-col gap-3.5 cursor-pointer hover:-translate-y-1 transition-all ${
-        dark
-          ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
-          : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
+      className={`relative overflow-hidden rounded-2xl border p-5 pt-4 flex flex-col gap-3.5 cursor-pointer hover:-translate-y-1 transition-all ${
+        hasAccepted
+          ? dark
+            ? "bg-black border-white shadow-[0_6px_24px_rgba(255,255,255,0.14)] hover:shadow-[0_14px_36px_rgba(255,255,255,0.2)] ring-1 ring-white/40"
+            : "bg-white border-[#b2f5c8] shadow-[0_6px_22px_rgba(39,174,96,0.16)] hover:shadow-[0_14px_34px_rgba(39,174,96,0.22)] ring-1 ring-[#b2f5c8]"
+          : dark
+            ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
+            : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
       }`}
     >
+      {/* Celebratory top strip — only for owner cards with an acceptance.
+          Absolutely positioned, so it doesn't affect card height/layout. */}
+      {hasAccepted && (
+        <div className={`absolute top-0 left-0 right-0 h-1 ${
+          dark
+            ? "bg-gradient-to-r from-white/20 via-white to-white/20"
+            : "bg-gradient-to-r from-[#b2f5c8] via-[#27ae60] to-[#b2f5c8]"
+        }`} />
+      )}
+
       {/* Top-right stack */}
       <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
         <div className="flex items-center gap-1.5">
