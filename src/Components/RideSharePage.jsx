@@ -264,17 +264,28 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         : "border-[#ddd] bg-white text-[#777] hover:border-[#ff2d55] hover:text-[#ff2d55]"
   }`;
 
-  // ── Toolbar hide-on-scroll ────────────────────────────────────────────
+  // ── Toolbar hide-on-scroll + reopen restore ───────────────────────────
   // Scrolling down past HIDE_THRESHOLD slides the toolbar up (transform,
   // not display:none, so it animates); scrolling up past REVEAL_THRESHOLD
   // brings it back. The two thresholds are intentionally different sizes —
   // see the constants above.
+  //
+  // On close we snapshot the scroll position + whether the toolbar was
+  // visible; on reopen within REOPEN_RESTORE_MS we put both back. Two refs
+  // drive that restore:
+  //   pendingRestoreRef  — "there's a restore to apply" flag, consumed once
+  //   restoreTargetRef   — the scrollTop to restore to
+  //   sawLoadingRef      — "we've observed a real loading:true tick since
+  //                         open" — see the effect below for why this matters
   const [hideToolbar, setHideToolbar]   = useState(false);
   const lastScrollTopRef                = useRef(0);
   const scrollContainerRef              = useRef(null);
   const preservedScrollTopRef           = useRef(0);
   const lastCloseTimeRef                = useRef(0);
   const toolbarWasVisibleRef            = useRef(false);
+  const pendingRestoreRef               = useRef(false);
+  const restoreTargetRef                = useRef(0);
+  const sawLoadingRef                   = useRef(false);
 
   const handleContentScroll = (e) => {
     const current = e.target.scrollTop;
@@ -306,30 +317,58 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     setOpen(false);
   };
 
+  // Fires whenever the panel opens or closes. Decides — immediately, not
+  // via the next scroll event — whether we're restoring a previous session
+  // and what the toolbar should look like right away. Forcing the toolbar
+  // visible here unconditionally (the old bug) is what caused the
+  // one-frame flash: it would show, then the very next scroll event (fired
+  // by the RAF below jumping scrollTop from 0 to the restored value) would
+  // immediately hide it again. Setting the correct value up front avoids
+  // that round-trip entirely.
   useEffect(() => {
     if (!open) {
       setHideToolbar(false);
       lastScrollTopRef.current = 0;
+      pendingRestoreRef.current = false;
+      sawLoadingRef.current = false;
       return;
     }
 
     const shouldRestore = Date.now() - lastCloseTimeRef.current <= REOPEN_RESTORE_MS;
-    const targetScrollTop = shouldRestore ? preservedScrollTopRef.current : 0;
 
-    if (!shouldRestore || !toolbarWasVisibleRef.current) {
-      setHideToolbar(false);
-    } else {
-      setHideToolbar(false);
-    }
+    setHideToolbar(shouldRestore && !toolbarWasVisibleRef.current);
 
-    lastScrollTopRef.current = 0;
+    pendingRestoreRef.current = shouldRestore;
+    restoreTargetRef.current  = shouldRestore ? preservedScrollTopRef.current : 0;
+    sawLoadingRef.current = false;
+  }, [open]);
+
+  // Applies the actual scrollTop restore — separately from the effect
+  // above, and gated on `loading`. Reason: signed-in users' routes arrive
+  // via an async fetch (see fetchRoutes below), so right when the panel
+  // opens the list is still the short "Loading routes…" placeholder.
+  // Setting scrollTop against that gets silently clamped back toward 0 by
+  // the browser, and nothing would ever retry it. Guests never fetch
+  // (fetchRoutes no-ops without a currentUser) so `loading` stays false
+  // the whole time and this fires immediately — same as before. Signed-in
+  // users wait out one real loading:true → false cycle first, so the
+  // restore lands on the fully-rendered list instead of the placeholder.
+  useEffect(() => {
+    if (!open) return;
+    if (loading) { sawLoadingRef.current = true; return; }
+    if (!pendingRestoreRef.current) return;
+    if (currentUser && !sawLoadingRef.current) return;
+
+    pendingRestoreRef.current = false;
+    const targetScrollTop = restoreTargetRef.current;
+    lastScrollTopRef.current = targetScrollTop;
 
     requestAnimationFrame(() => {
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = targetScrollTop;
       }
     });
-  }, [open]);
+  }, [open, loading, currentUser]);
 
   // Shared wishlist store — same context every other listing page reads
   // from, so a heart tapped here shows up on WishlistPage instantly.
