@@ -123,19 +123,17 @@ export default function RideResponsesPage({ route, dark, onBack }) {
       <div className="max-w-2xl mx-auto px-4 py-6">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex flex-col gap-5 mb-6">
           <button
             onClick={onBack}
             aria-label="Back"
-            className={`w-9 h-9 rounded-full flex items-center justify-center border cursor-pointer transition-colors flex-shrink-0 ${
-              dark
-                ? "border-white/30 text-white hover:bg-white/10"
-                : "border-[#eee] text-[#555] hover:bg-[#f0f0f0]"
+            className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+              dark ? "text-white/70 hover:bg-white/10" : "text-[#333] hover:bg-black/5"
             }`}
           >
             <IconArrowLeft className="w-5 h-5" />
           </button>
-          <p className={`text-base font-bold ${dark ? "text-white" : "text-[#111]"}`}>Responses</p>
+          <p className={`text-xl font-bold ${dark ? "text-white" : "text-[#111]"}`}>Ride Responses</p>
         </div>
 
         {/* Hero: journey connector + chips + response count, all one section */}
