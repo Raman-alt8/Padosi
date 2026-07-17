@@ -86,15 +86,12 @@ export default function RideCard({
         { icon: "🚻", text: genderTag || "Any gender" },
       ];
 
-  // Owner cards with at least one acceptance open straight into the
-  // responses page instead of the normal read-only detail view — that's
-  // the page a poster actually wants when tapping their own card.
+  // Tapping the card body always opens the normal read-only detail view.
+  // The one exception is the explicit "N accepted — View responses" button
+  // in the footer below, which stops propagation and calls onViewResponses
+  // directly — so that's the only way into the responses page.
   const handleCardClick = () => {
-    if (isOwner && acceptedCount > 0) {
-      onViewResponses(r);
-    } else {
-      onOpenDetail(r);
-    }
+    onOpenDetail(r);
   };
 
   return (
