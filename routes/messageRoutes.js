@@ -26,10 +26,22 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   try {
+    // Look up the conversation regardless of which side of buyer/seller
+    // each participant was on when it was created. Without the OR here,
+    // the poster messaging the accepter creates (buyer=poster,
+    // seller=accepter), and the accepter messaging back — where buyerId is
+    // now *their* own id — searches for (buyer=accepter, seller=poster),
+    // never finds the first row, and creates a second one. Same pair of
+    // people + same listing should always resolve to the same thread no
+    // matter who started it.
     let convo = await db.getAsync(
       `SELECT * FROM conversations
-       WHERE listing_type = ? AND listing_id = ? AND buyer_id = ? AND seller_id = ?`,
-      [listing_type, String(listing_id), buyerId, seller_id]
+       WHERE listing_type = ? AND listing_id = ?
+         AND (
+           (buyer_id = ? AND seller_id = ?) OR
+           (buyer_id = ? AND seller_id = ?)
+         )`,
+      [listing_type, String(listing_id), buyerId, seller_id, seller_id, buyerId]
     );
 
     if (!convo) {
