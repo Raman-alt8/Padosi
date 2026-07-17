@@ -119,22 +119,30 @@ export default function RideResponsesPage({ route, dark, onBack }) {
   }`;
 
   return (
-    <div className={`fixed inset-0 z-[5500] overflow-y-auto ${dark ? "bg-black text-white" : "bg-[#fafafa] text-[#111]"}`}>
-      <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className={`fixed inset-0 z-[5500] flex flex-col overflow-hidden ${dark ? "bg-[#111111]" : "bg-[#f6f7fb]"}`}>
 
-        {/* Header */}
-        <div className="flex flex-col gap-5 mb-6">
-          <button
-            onClick={onBack}
-            aria-label="Back"
-            className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-              dark ? "text-white/70 hover:bg-white/10" : "text-[#333] hover:bg-black/5"
-            }`}
-          >
-            <IconArrowLeft className="w-5 h-5" />
-          </button>
-          <p className={`text-xl font-bold ${dark ? "text-white" : "text-[#111]"}`}>Ride Responses</p>
-        </div>
+      {/* Header — same treatment as RideDetailPage's */}
+      <div className={`h-[72px] shrink-0 flex items-center justify-between px-5 border-b ${
+        dark ? "bg-[#111111] border-white/10" : "bg-white border-[#eee]"
+      }`}>
+        <button
+          onClick={onBack}
+          aria-label="Back"
+          className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+            dark ? "text-white/70 hover:bg-white/10" : "text-[#333] hover:bg-black/5"
+          }`}
+        >
+          <IconArrowLeft className="w-5 h-5" />
+        </button>
+        <p className={`text-base font-bold ${dark ? "text-white" : "text-[#111]"}`}>Ride Responses</p>
+        {/* Balances the back button so the title sits dead-center — no
+            equivalent action (like RideDetailPage's Save button) here. */}
+        <div className="w-10 h-10" />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-5 py-6 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+        <div className="max-w-[560px] mx-auto flex flex-col">
 
         {/* Hero: journey connector + chips + response count, all one section */}
         <div className={`rounded-2xl p-5 mb-6 ${cardCls(dark)}`}>
@@ -229,7 +237,7 @@ export default function RideResponsesPage({ route, dark, onBack }) {
                     </span>
                     {/* Name dominates; email sits much lighter beneath it */}
                     <div className="min-w-0">
-                      <p className="text-sm font-bold truncate">{p.full_name}</p>
+                      <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{p.full_name}</p>
                       <p className={`text-xs truncate ${dark ? "text-white/55" : "text-black/55"}`}>{p.email}</p>
                     </div>
                   </div>
@@ -273,6 +281,7 @@ export default function RideResponsesPage({ route, dark, onBack }) {
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );
