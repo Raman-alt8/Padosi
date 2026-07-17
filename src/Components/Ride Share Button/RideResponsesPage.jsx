@@ -1,18 +1,13 @@
 // RideResponsesPage.jsx
 import { useEffect, useState } from "react";
 import { initials, freqLabel, modeOf } from "./rideHelpers";
+import { accentText, accentChipCls, cardCls } from "./rideVisuals";
+import { IconArrowLeft, IconUsers } from "./RideIcons";
 
 // Same pattern RideSharePage.jsx uses — Vite exposes VITE_API_URL from .env
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
-function BackIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
+// Phone/mail aren't in RideIcons, so these stay local — same shape as before.
 function PhoneIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -35,11 +30,11 @@ function MailIcon() {
 function ResponseCardSkeleton({ dark }) {
   const shimmer = dark ? "bg-white/10" : "bg-[#eee]";
   return (
-    <div className={`flex flex-col gap-3`}>
+    <div className="flex flex-col gap-3">
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className={`rounded-2xl border p-4 animate-pulse ${
+          className={`rounded-2xl border p-5 animate-pulse ${
             dark ? "bg-black border-white/10" : "bg-white border-[#eee]"
           }`}
         >
@@ -58,6 +53,17 @@ function ResponseCardSkeleton({ dark }) {
   );
 }
 
+// Greener, higher-saturation "success" palette for the accepted-state
+// accents on this page (badge, left bar, call button) — distinct from the
+// route's own mode-accent color (accentText/accentChipCls below), since
+// "accepted" is always a success signal regardless of which mode the route is.
+const successAccent = (dark) => ({
+  text:   dark ? "text-[#3ddc84]" : "text-[#0f9d58]",
+  border: dark ? "border-[#3ddc84]/50" : "border-[#9be8b9]",
+  bg:     dark ? "bg-[#3ddc84]/10" : "bg-[#e7faf0]",
+  bar:    "bg-[#25d366]",
+});
+
 // ─── Ride Responses Page ───────────────────────────────────────────────────
 // Poster-facing page. RideCard already routes here (see its onViewResponses
 // call) whenever the poster taps the explicit "N accepted — View responses"
@@ -68,7 +74,7 @@ function ResponseCardSkeleton({ dark }) {
 // Props:
 //   route   — the route object the card was opened from (needs at least
 //             .id, .from_place, .to_place, .freq, .depart_time, .price,
-//             and — for the "seats available" footer line — .mode/.seats)
+//             .mode — and, for the "seats left" footer figure, .seats)
 //   dark    — boolean, theme flag
 //   onBack  — () => void, closes this page and returns to the grid
 export default function RideResponsesPage({ route, dark, onBack }) {
@@ -100,18 +106,24 @@ export default function RideResponsesPage({ route, dark, onBack }) {
     return () => { cancelled = true; };
   }, [route.id]);
 
-  const count = responses.length;
-  const isPartner = modeOf(route) === "partner";
-  const seatsLeft = isPartner && route.seats != null
+  const count      = responses.length;
+  const isRide     = modeOf(route) === "ride";
+  const isPartner  = modeOf(route) === "partner";
+  const seatsLeft  = isPartner && route.seats != null
     ? Math.max(0, Number(route.seats) - count)
     : null;
+  const success = successAccent(dark);
+
+  const chipCls = `inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold border ${
+    dark ? "border-white/40 text-white/70" : "border-[#eee] text-[#888] bg-[#f6f7fb]"
+  }`;
 
   return (
     <div className={`fixed inset-0 z-[5500] overflow-y-auto ${dark ? "bg-black text-white" : "bg-[#fafafa] text-[#111]"}`}>
       <div className="max-w-2xl mx-auto px-4 py-6">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-6">
           <button
             onClick={onBack}
             aria-label="Back"
@@ -121,26 +133,23 @@ export default function RideResponsesPage({ route, dark, onBack }) {
                 : "border-[#eee] text-[#555] hover:bg-[#f0f0f0]"
             }`}
           >
-            <BackIcon />
+            <IconArrowLeft className="w-5 h-5" />
           </button>
-          <p className={`text-xs font-bold uppercase tracking-wide ${dark ? "text-white/50" : "text-[#999]"}`}>
-            Route responses
-          </p>
+          <p className={`text-base font-bold ${dark ? "text-white" : "text-[#111]"}`}>Responses</p>
         </div>
 
-        {/* Hero: journey connector + response count, same visual language
-            as RideCard's own from/to block */}
-        <div className={`rounded-2xl border p-5 mb-5 ${
-          dark ? "bg-black border-white" : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)]"
-        }`}>
-          <p className={`text-xs font-bold uppercase tracking-wide mb-4 ${dark ? "text-white/50" : "text-[#999]"}`}>
-            Who accepted your ride
+        {/* Hero: journey connector + chips + response count, all one section */}
+        <div className={`rounded-2xl p-5 mb-6 ${cardCls(dark)}`}>
+          <p className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide mb-4 ${
+            dark ? "text-white/50" : "text-[#999]"
+          }`}>
+            <IconUsers className="w-3.5 h-3.5" /> Who accepted your ride
           </p>
 
           <div className="flex items-center gap-2.5 mb-4">
             <div className="flex flex-col items-center gap-1 flex-shrink-0">
               <span className={`w-2.5 h-2.5 rounded-full ${dark ? "bg-white" : "bg-[#ff2d55]"}`} />
-              <span className={`w-0.5 h-6 ${dark ? "bg-white/30" : "bg-[#eee]"}`} />
+              <span className={`w-0.5 h-6 ${dark ? "bg-white/20" : "bg-[#eee]"}`} />
               <span className={`w-2.5 h-2.5 rounded-full border-2 ${dark ? "border-white" : "border-[#ff2d55]"}`} />
             </div>
             <div className="flex-1 min-w-0">
@@ -149,30 +158,22 @@ export default function RideResponsesPage({ route, dark, onBack }) {
             </div>
           </div>
 
-          {!loading && !error && count > 0 && (
-            <p className={`text-lg font-black ${dark ? "text-white" : "text-[#27ae60]"}`}>
-              {count} {count === 1 ? "person" : "people"} accepted
-            </p>
-          )}
-        </div>
+          <div className="flex flex-wrap gap-2 mb-5">
+            <span className={chipCls}>📅 {freqLabel(route.freq)}</span>
+            <span className={chipCls}>🕐 {route.depart_time || "—"}</span>
+            <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold ${accentChipCls(dark, isRide)}`}>
+              {route.price > 0 ? `₹${route.price}/seat` : "Free"}
+            </span>
+          </div>
 
-        {/* Route summary chips */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <span className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold border ${
-            dark ? "border-white/40 text-white/70" : "border-[#eee] text-[#888] bg-[#f6f7fb]"
-          }`}>
-            📅 {freqLabel(route.freq)}
-          </span>
-          <span className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold border ${
-            dark ? "border-white/40 text-white/70" : "border-[#eee] text-[#888] bg-[#f6f7fb]"
-          }`}>
-            🕐 {route.depart_time || "—"}
-          </span>
-          <span className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold border ${
-            dark ? "border-white text-white bg-white/10" : "border-[#ff2d55]/30 text-[#ff2d55] bg-[#fff0f3]"
-          }`}>
-            {route.price > 0 ? `₹${route.price}/seat` : "Free"}
-          </span>
+          {!loading && !error && count > 0 && (
+            <div className={`pt-4 border-t ${dark ? "border-white/10" : "border-black/5"}`}>
+              <p className={`text-4xl font-black leading-none ${accentText(dark, isRide)}`}>{count}</p>
+              <p className={`text-xs font-bold uppercase tracking-wide mt-1.5 ${dark ? "text-white/50" : "text-[#999]"}`}>
+                {count === 1 ? "Person accepted" : "People accepted"}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Body */}
@@ -190,32 +191,33 @@ export default function RideResponsesPage({ route, dark, onBack }) {
             <strong className={`text-base ${dark ? "text-white/40" : "text-[#bbb]"}`}>
               No responses yet
             </strong>
-            <span className={`text-sm ${dark ? "text-white/30" : "text-[#ccc]"}`}>
-              People who accept your ride will appear here.
+            <span className={`text-sm max-w-[240px] ${dark ? "text-white/30" : "text-[#ccc]"}`}>
+              Share your ride and people nearby will appear here.
             </span>
           </div>
         )}
 
         {!loading && !error && count > 0 && (
           <>
+            <p className={`text-[11px] font-bold uppercase tracking-wider mb-2.5 ${accentText(dark, isRide)}`}>
+              Accepted Riders
+            </p>
+
             <div className="flex flex-col gap-3">
               {responses.map((p) => (
                 <div
                   key={p.id}
-                  className={`relative overflow-hidden rounded-2xl border p-4 pl-5 transition-all hover:-translate-y-0.5 ${
+                  className={`relative overflow-hidden rounded-2xl border p-5 pl-6 transition-all hover:-translate-y-0.5 ${
                     dark
                       ? "bg-black border-white/20 hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]"
                       : "bg-white border-[#eee] shadow-[0_2px_10px_rgba(0,0,0,0.04)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.08)]"
                   }`}
                 >
-                  {/* Accent bar — this route has at least one acceptance,
-                      same green/white accent RideCard uses for that state */}
-                  <span className={`absolute top-0 left-0 bottom-0 w-1 ${dark ? "bg-white" : "bg-[#27ae60]"}`} />
+                  {/* Accent bar — vivid success green */}
+                  <span className={`absolute top-0 left-0 bottom-0 w-1 ${success.bar}`} />
 
-                  {/* Status badge */}
-                  <span className={`absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
-                    dark ? "border-white/60 text-white bg-black/60" : "border-[#b2f5c8] text-[#27ae60] bg-[#f0fff4]"
-                  }`}>
+                  {/* Status badge — more saturated "WhatsApp" green */}
+                  <span className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${success.border} ${success.text} ${success.bg}`}>
                     Accepted ✓
                   </span>
 
@@ -227,9 +229,10 @@ export default function RideResponsesPage({ route, dark, onBack }) {
                     }`}>
                       {initials(p.full_name || "")}
                     </span>
+                    {/* Name dominates; email sits much lighter beneath it */}
                     <div className="min-w-0">
                       <p className="text-sm font-bold truncate">{p.full_name}</p>
-                      <p className={`text-xs truncate ${dark ? "text-white/50" : "text-[#999]"}`}>{p.email}</p>
+                      <p className={`text-xs truncate ${dark ? "text-white/55" : "text-black/55"}`}>{p.email}</p>
                     </div>
                   </div>
 
@@ -241,11 +244,7 @@ export default function RideResponsesPage({ route, dark, onBack }) {
                     {p.phone && (
                       <a
                         href={`tel:${p.phone}`}
-                        className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-xl border transition-colors ${
-                          dark
-                            ? "bg-white/10 text-white border-white/30 hover:bg-white/20"
-                            : "bg-[#f0fff4] text-[#27ae60] border-[#b2f5c8] hover:bg-[#e3fbe9]"
-                        }`}
+                        className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-xl border transition-colors ${success.border} ${success.text} ${success.bg} hover:brightness-95`}
                       >
                         <PhoneIcon /> Call
                       </a>
@@ -263,14 +262,14 @@ export default function RideResponsesPage({ route, dark, onBack }) {
               ))}
             </div>
 
-            {/* Footer summary */}
+            {/* Footer summary — one bold line, same info as before */}
             <div className={`mt-6 pt-4 border-t flex items-center justify-between ${dark ? "border-white/20" : "border-[#eee]"}`}>
-              <span className={`text-sm font-bold ${dark ? "text-white/80" : "text-[#555]"}`}>
-                {count} {count === 1 ? "rider" : "riders"} accepted
+              <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
+                {count} Accepted
               </span>
               {seatsLeft !== null && (
-                <span className={`text-xs font-semibold ${dark ? "text-white/50" : "text-[#999]"}`}>
-                  Seats available: {seatsLeft}
+                <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
+                  {seatsLeft} Seat{seatsLeft === 1 ? "" : "s"} Left
                 </span>
               )}
             </div>
