@@ -120,6 +120,29 @@ function runMigrations(db) {
     }
   });
 
+  // ── Public profile fields (AccountDetailPage.jsx) ───────────────────────
+  // bio/location are new. created_at is guarded the same way in case the
+  // base users table (created before this migrations file existed) doesn't
+  // already have one — harmless no-op via the duplicate-column check if it
+  // does.
+  db.run(`ALTER TABLE users ADD COLUMN bio TEXT`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add bio column:', err);
+    }
+  });
+
+  db.run(`ALTER TABLE users ADD COLUMN location TEXT`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add location column:', err);
+    }
+  });
+
+  db.run(`ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Could not add created_at column:', err);
+    }
+  });
+
   db.run(`ALTER TABLE tickets ADD COLUMN image_url TEXT DEFAULT ''`, err => {
     if (err && !err.message.includes('duplicate column')) {
       console.error('Could not add image_url column:', err);
@@ -216,6 +239,37 @@ function runMigrations(db) {
           if (err3) console.error('Could not create messages index:', err3);
         }
       );
+    });
+  });
+
+  // ── Reviews: ratings left by one user for another ───────────────────────
+  // Powers the public profile page (AccountDetailPage.jsx) — average rating
+  // + review count for a user, independent of which listing prompted it.
+  // One row per (reviewer, reviewee) pair; leaving a second review for the
+  // same person updates it in place rather than stacking duplicates (see
+  // the ON CONFLICT upsert in profileRoutes.js). Index nested inside the
+  // CREATE TABLE callback for the same db.run() ordering reason as
+  // messages/idx_messages_conversation above.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      listing_type TEXT,
+      listing_id   TEXT,
+      reviewer_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reviewee_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rating       INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      comment      TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (reviewer_id, reviewee_id)
+    )
+  `, err => {
+    if (err) {
+      console.error('Could not create reviews table:', err);
+      return;
+    }
+
+    db.run(`CREATE INDEX IF NOT EXISTS idx_reviews_reviewee ON reviews(reviewee_id)`, err2 => {
+      if (err2) console.error('Could not create reviews index:', err2);
     });
   });
 }

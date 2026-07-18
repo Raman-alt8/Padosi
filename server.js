@@ -25,6 +25,7 @@ const serviceRoutes     = require('./routes/serviceRoutes');
 const vehicleRoutes     = require('./routes/vehicleRoutes');
 const wishlistRoutes    = require('./routes/wishlistRoutes');
 const messageRoutes     = require('./routes/messageRoutes');
+const profileRoutes     = require('./routes/profileRoutes');
 
 const app    = express();
 const server = http.createServer(app); // wraps express so Socket.io can share the same port
@@ -95,6 +96,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/conversations', messageRoutes);
+app.use('/api/users', profileRoutes);
 
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
 
