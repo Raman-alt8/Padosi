@@ -1,6 +1,6 @@
 // AccountDetailPage.jsx
 import { useEffect, useState } from "react";
-import { api } from "./utils";
+import { api } from "../utils";
 
 // Base URL for API calls — same pattern used elsewhere in the app
 const API_BASE = import.meta.env.VITE_API_URL || "";
