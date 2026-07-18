@@ -7,33 +7,37 @@ function demoEmailFor(name = "") {
 // ── Demo route roster ───────────────────────────────────────────────────
 // 5 cards per mode. Descriptions on 3 of the 5 are written to explain what
 // UI state that card demonstrates (so a recruiter clicking around
-// understands the point without reading code) — the 4th and 5th card is
-// tagged "(Standard)" and keeps an ordinary-sounding ride description, as a
+// understands the point without reading code) — the 1st card is tagged
+// "(Standard)" and keeps an ordinary-sounding ride description, as a
 // baseline "this is what a normal listing looks like" reference next to
 // the explanatory ones.
+//
+// All 4 "this is your route" cards (-9, -5, -11, -12) use ownerMode:
+// "force" — always rendering as owned by whoever's viewing, with zero
+// dependency on being logged in. This was originally split into "force"
+// (always yours) vs "dynamic" (only yours if actually logged in), but
+// dynamic mode isn't useful for a cold recruiter demo — most visitors to a
+// live link won't sign in first — so everything "yours" is force mode now.
 //
 // "Offering a ride" (mode: partner)
 //   -1       → someone else's ride, fresh — (Standard) baseline listing
 //   -2       → someone else's ride, fresh — explains itself
 //   -3       → someone else's ride, pending removal — explains itself
-//   -9       → you posted it, no responses yet — DYNAMIC (see ownerMode
-//              below)
+//   -9       → you posted it, no responses yet — FORCED
 //   -5       → you posted it, someone accepted — FORCED
 //
 // "Partner to share ride" (mode: ride)
 //   -4       → someone else's ride, fresh — (Standard) baseline listing
 //   -8       → someone else's ride, fresh — explains itself
 //   -10      → someone else's ride, pending removal — explains itself
-//   -11      → you posted it, no responses yet — DYNAMIC
+//   -11      → you posted it, no responses yet — FORCED
 //   -12      → you posted it, someone accepted — FORCED
 //
 // ownerMode:
-//   "force"   → always renders as yours, regardless of login. Used for the
-//               two "someone accepted" cards so a recruiter clicking around
-//               with no account still sees the full owner UI.
-//   "dynamic" → renders as yours only when someone is actually logged in
-//               (poster_id = currentUser.id); falls back to a synthetic
-//               seller for a guest, same as a plain third-party card.
+//   "force"   → always renders as yours, regardless of login. `poster_id`
+//               is set to a fixed "demo-you" id and `forceOwnerDemo: true`
+//               is threaded through to RideCard.jsx, which ORs it into
+//               isOwner.
 //   (none)    → always a synthetic seller (demoIdentities for -1..-8,
 //               `fallbackSeller` on the route for anything newer)
 const RAW_DEMO_ROUTES = [
@@ -60,7 +64,7 @@ const RAW_DEMO_ROUTES = [
     depart_time: "18:00",
     seats: 2,
     price: 0,
-    description: "A regular ride card posted by another user — Accept or Decline it just like a real listing.",
+    description: "All of these cards are force coded but this is how the site behaves if real user were to use it. I highly recommend logging in and checking it for yourself.",
     phone: "+91 90000 00004",
     mode: "partner",
     vehicle_types: ["bike"],
@@ -94,8 +98,7 @@ const RAW_DEMO_ROUTES = [
     vehicle_types: ["car"],
     gender_pref: "",
     accepted_count: 0,
-    ownerMode: "dynamic",
-    fallbackSeller: { id: "demo-seller-9", name: "Devansh Rao" },
+    ownerMode: "force",
   },
   {
     id: -5,
@@ -172,8 +175,7 @@ const RAW_DEMO_ROUTES = [
     vehicle_types: [],
     gender_pref: "no_preference",
     accepted_count: 0,
-    ownerMode: "dynamic",
-    fallbackSeller: { id: "demo-seller-11", name: "Ishaan Verma" },
+    ownerMode: "force",
   },
   {
     id: -12,
@@ -216,7 +218,7 @@ function daysAgoISO(days) {
 }
 
 // Picks who "posted" a route. See the ownerMode comment on RAW_DEMO_ROUTES
-// above for what each mode does.
+// above for what force mode does.
 function sellerFor(route, currentUser) {
   if (route.ownerMode === "force") {
     return {
@@ -224,19 +226,13 @@ function sellerFor(route, currentUser) {
       name: currentUser?.name || currentUser?.full_name || currentUser?.username || "You",
     };
   }
-  if (route.ownerMode === "dynamic" && currentUser) {
-    return {
-      id: currentUser.id,
-      name: currentUser.name || currentUser.full_name || currentUser.username || "You",
-    };
-  }
   return route.fallbackSeller || demoSellerFor(route.id);
 }
 
 // currentUser: pass the real logged-in user object (or null/undefined for a
-// guest). Drives the "dynamic" routes and just the display name on the
-// "force" routes — every other field on affected routes is still static
-// demo data.
+// guest). At this point it only affects the display *name* on the 4 forced
+// "yours" cards (uses your real name if logged in, "You" otherwise) — it no
+// longer decides whether those cards render as yours at all.
 export function getDemoRoutes(currentUser) {
   return RAW_DEMO_ROUTES.map((route) => {
     const seller = sellerFor(route, currentUser);
