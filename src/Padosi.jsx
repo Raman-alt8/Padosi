@@ -12,7 +12,7 @@ import WishlistPage from "./Components/WishlistPage";
 import { SocketProvider } from "./Components/SocketContext";
 import ChatPage from "./Components/ChatPage";
 import AccountDetailPage from "./Components/AccountDetailPage";
-import RideCompletePage from "./Components/RideCompletePage";
+import RideCompletePage from "./Components/Ride Share Button/RideCompletePage";
 
 // ─── Toast ───────────────────────────────────────────────────
 function Toast({ message, dark }) {
