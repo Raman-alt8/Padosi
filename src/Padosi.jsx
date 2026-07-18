@@ -11,6 +11,7 @@ import { useWishlist, WishlistProvider } from "./Components/WishlistContext";
 import WishlistPage from "./Components/WishlistPage";
 import { SocketProvider } from "./Components/SocketContext";
 import ChatPage from "./Components/ChatPage";
+import AccountDetailPage from "./Components/AccountDetailPage";
 
 // ─── Toast ───────────────────────────────────────────────────
 function Toast({ message, dark }) {
@@ -301,6 +302,11 @@ export default function App() {
           {/* Opens on "padosi:openChat" (fired by MessageSellerButton) or
               "padosi:openInbox" — same self-managed-overlay pattern as WishlistPage. */}
           <ChatPage currentUser={currentUser} dark={darkMode} showToast={showToast} />
+
+          {/* Opens on "padosi:openProfile" (fired by RideDetailPage's driver
+              row, and any other listing page that wants to show a poster's
+              profile) — same self-managed-overlay pattern as WishlistPage/ChatPage. */}
+          <AccountDetailPage currentUser={currentUser} dark={darkMode} />
 
           <Toast message={toastMsg} dark={darkMode} />
         </div>
