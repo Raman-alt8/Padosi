@@ -281,16 +281,25 @@ export default function RideCard({
               No activity in {PENDING_AFTER_DAYS} days.<br />
               Deletes in ~{hoursLeft}h.
             </p>
-            <button
-              onClick={(e) => { e.stopPropagation(); onConfirmActive?.(r.id); }}
-              className={`shrink-0 text-xs font-bold py-2 px-3 rounded-lg cursor-pointer border transition-colors ${
-                dark
-                  ? "border-red-400 text-white bg-red-500/10 hover:bg-red-500/20"
-                  : "border-red-300 text-red-700 bg-white hover:bg-red-100"
-              }`}
-            >
-              I'm here
-            </button>
+            {/* "I'm here" is an owner-only action on real routes (only the
+                poster can confirm their own listing is still active), so it
+                stays owner-gated in demo mode too. Non-owner demo pending
+                cards (e.g. -3, -10) still show the banner/message above —
+                that's just illustrating what the state looks like — but
+                shouldn't expose an action a real non-owner viewer would
+                never have. */}
+            {isOwner && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onConfirmActive?.(r.id); }}
+                className={`shrink-0 text-xs font-bold py-2 px-3 rounded-lg cursor-pointer border transition-colors ${
+                  dark
+                    ? "border-red-400 text-white bg-red-500/10 hover:bg-red-500/20"
+                    : "border-red-300 text-red-700 bg-white hover:bg-red-100"
+                }`}
+              >
+                I'm here
+              </button>
+            )}
           </div>
         )}
 

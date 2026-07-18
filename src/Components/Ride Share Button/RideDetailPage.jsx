@@ -81,12 +81,18 @@ export default function RideDetailPage({
   // Hooks must run every render regardless of `open`/`route`, so the
   // early-return below stays after these rather than before.
   const daysSince = route ? daysSinceActivity(route) : 0;
-  const isOwnerRoute = !!route && route.poster_id === currentUser?.id;
-  // Demo routes have a synthetic poster_id and no "log in as this seller"
-  // flow, so isOwnerRoute is never true for them — surface the pending
-  // banner to anyone viewing a demo route instead, same exception as
-  // RideCard's showsPendingState. The rest of the owner-only UI (Edit/
-  // Remove) still checks isOwnerRoute, not this.
+  // `forceOwnerDemo` (see rideShareDemoData.js, ownerMode: "force") must be
+  // honored here the same way RideCard.jsx honors it — otherwise a route
+  // that renders as "Your route" in the card list (with Edit/Remove, the
+  // accepted-count badge, etc.) would flip to looking like a stranger's
+  // route (Accept/Decline) the moment its detail page is opened, since its
+  // synthetic poster_id ("demo-you") never matches a real currentUser.id.
+  const isOwnerRoute = !!route && (route.poster_id === currentUser?.id || !!route.forceOwnerDemo);
+  // Non-owner demo routes (e.g. the "someone else's ride, pending removal"
+  // samples) still surface the pending banner as an illustration of that
+  // state, same exception as RideCard's showsPendingState — but the "I'm
+  // here" action below stays gated to isOwnerRoute specifically, since a
+  // real non-owner viewer would never have that button.
   const showsPendingState = isOwnerRoute || !!route?.isDemo;
   const isPending = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
   const isExpired = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
@@ -189,7 +195,7 @@ export default function RideDetailPage({
             )}
           </div>
 
-          {/* ── Pending-removal warning — poster only ── */}
+          {/* ── Pending-removal warning ── */}
           {isPending && (
             <>
               <div className={`rounded-2xl border-l-4 overflow-hidden ${
@@ -200,18 +206,24 @@ export default function RideDetailPage({
                   <div className="min-w-0">
                     <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>Pending removal</p>
                     <p className={`text-xs mt-0.5 ${dark ? "text-white/60" : "text-[#666]"}`}>
-                      No activity in {PENDING_AFTER_DAYS} days — this route will be removed in about {hoursLeft} hour{hoursLeft === 1 ? "" : "s"} unless you confirm you're still here.
+                      No activity in {PENDING_AFTER_DAYS} days — this route will be removed in about {hoursLeft} hour{hoursLeft === 1 ? "" : "s"} unless {isOwner ? "you confirm you're" : "the poster confirms they're"} still here.
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => onConfirmActive?.(route.id)}
-                  className={`w-full flex items-center justify-center gap-1.5 text-sm font-bold py-3 border-t cursor-pointer transition-colors ${
-                    dark ? "border-red-500/30 text-white hover:bg-red-500/10" : "border-red-200 text-red-700 hover:bg-red-100"
-                  }`}
-                >
-                  I'm here — keep this route active
-                </button>
+                {/* Owner-only action, same as RideCard.jsx: a real non-owner
+                    viewer would never see this button, so non-owner demo
+                    pending routes (-3, -10) show the banner above but not
+                    this. */}
+                {isOwner && (
+                  <button
+                    onClick={() => onConfirmActive?.(route.id)}
+                    className={`w-full flex items-center justify-center gap-1.5 text-sm font-bold py-3 border-t cursor-pointer transition-colors ${
+                      dark ? "border-red-500/30 text-white hover:bg-red-500/10" : "border-red-200 text-red-700 hover:bg-red-100"
+                    }`}
+                  >
+                    I'm here — keep this route active
+                  </button>
+                )}
               </div>
               <JourneyConnector height={32} dark={dark} isRide={isRide} />
             </>
