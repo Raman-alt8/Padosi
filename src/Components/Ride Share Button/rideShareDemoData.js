@@ -4,6 +4,42 @@ function demoEmailFor(name = "") {
   return `${name.toLowerCase().replace(/\s+/g, ".")}@example.com`;
 }
 
+// Hardcoded "days since last activity" per demo route, purely so the
+// pending-removal warning (see PENDING_AFTER_DAYS / DELETE_AFTER_DAYS in
+// RideCard.jsx and RideDetailPage.jsx) has something real to render in demo
+// mode, instead of everyone always looking "just active". Recomputed
+// relative to "now" every time getDemoRoutes() runs (see daysAgoISO below),
+// so the demo stays in the same state forever rather than drifting as real
+// time passes.
+//
+//   0.0–3.9  → fresh, no warning at all
+//   4.0–4.9  → pending: red glow on the card + warning banner in detail +
+//              "I'm here" button (poster-only — see note below)
+//   5.0+     → left out on purpose: an expired card just renders as a plain
+//              card with no visual cue, since real deletion is meant to be
+//              enforced server-side, so it's not useful to look at in demo
+//
+// NOTE: the pending state only ever shows to the poster (isOwner), same as
+// in production. Since these demo routes' poster_id comes from
+// demoSellerFor(route.id) — a synthetic seller, not whoever is currently
+// browsing — routes -3 and -5 will only show the warning if the logged-in
+// demo user happens to be that specific seller. Everyone else just sees an
+// ordinary card, which is the correct/expected behavior.
+const DEMO_DAYS_SINCE_ACTIVITY = {
+  "-1": 0,
+  "-2": 1,
+  "-3": 4.2,
+  "-4": 0.5,
+  "-5": 4.8,
+  "-6": 2,
+  "-7": 0,
+  "-8": 3,
+};
+
+function daysAgoISO(days) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 const RAW_DEMO_ROUTES = [
   {
     id: -1,
@@ -122,6 +158,8 @@ const RAW_DEMO_ROUTES = [
 export function getDemoRoutes() {
   return RAW_DEMO_ROUTES.map((route) => {
     const seller = demoSellerFor(route.id);
+    const daysAgo = DEMO_DAYS_SINCE_ACTIVITY[route.id] ?? 0;
+    const created_at = daysAgoISO(daysAgo);
     return {
       ...route,
       isDemo: true,
@@ -132,6 +170,8 @@ export function getDemoRoutes() {
         email: demoEmailFor(seller.name),
         phone: route.phone,
       },
+      created_at,
+      last_active_at: created_at, // no demo "I'm here" confirmations yet
     };
   });
 }
