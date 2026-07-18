@@ -58,10 +58,6 @@ export default function RideDetailPage({
       : vehicles[0] === "car" ? "Car" : "Bike";
   const VehicleIcon = vehicles.length === 1 && vehicles[0] === "bike" ? IconBike : IconCar;
 
-  // Hero tile: frequency + departure combined into one larger, primary
-  // fact — the point of this pass is that Departure reads roughly twice
-  // the weight of the smaller facts below it, instead of every fact being
-  // visually equal.
   const heroTile = { icon: IconClock, label: "Departure", value: route.depart_time || "—", sub: freqLabel(route.freq) };
 
   const smallTiles = mode === "partner"
@@ -217,7 +213,10 @@ export default function RideDetailPage({
 
           {/* ── Driver ── */}
           <p className={`text-[11px] font-bold uppercase tracking-wider mb-2.5 ${accentText(dark, isRide)}`}>Driver</p>
-          <div className={`rounded-2xl p-4 flex items-center gap-3.5 ${cardCls(dark)}`}>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("padosi:openProfile", { detail: { userId: route.poster_id } }))}
+            className={`w-full text-left rounded-2xl p-4 flex items-center gap-3.5 cursor-pointer transition-colors ${cardCls(dark)}`}
+          >
             <span className={`w-12 h-12 rounded-full text-sm font-bold flex items-center justify-center shrink-0 ${
               dark ? "bg-white/10 text-white" : "bg-[#f0f0f5] text-[#555]"
             }`}>
@@ -225,9 +224,9 @@ export default function RideDetailPage({
             </span>
             <div className="min-w-0">
               <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>{route.poster_name}</p>
-              <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>Neighbourhood poster</p>
+              <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>Neighbourhood poster · View profile</p>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
