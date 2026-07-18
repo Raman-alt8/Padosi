@@ -34,6 +34,11 @@ function HeartIcon({ filled }) {
 //   onHideAccepted    — (routeId) => void
 //   onViewResponses   — (route) => void — opens the poster-facing "who
 //                        accepted this route" page
+//
+// The poster avatar/name in the footer fires "padosi:openProfile" (same
+// event AccountDetailPage listens for at the App root), same pattern as the
+// driver row in RideDetailPage — stopPropagation so it doesn't also trigger
+// onOpenDetail underneath it.
 export default function RideCard({
   route: r,
   currentUser,
@@ -92,6 +97,11 @@ export default function RideCard({
   // directly — so that's the only way into the responses page.
   const handleCardClick = () => {
     onOpenDetail(r);
+  };
+
+  const openPosterProfile = (e) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("padosi:openProfile", { detail: { userId: r.poster_id } }));
   };
 
   return (
@@ -222,8 +232,14 @@ export default function RideCard({
       <div className={`pt-3 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>
 
         <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center ${
+          <button
+            onClick={openPosterProfile}
+            aria-label={`View ${r.poster_name}'s profile`}
+            className={`flex items-center gap-2 -m-1 p-1 rounded-full cursor-pointer transition-colors ${
+              dark ? "hover:bg-white/10" : "hover:bg-black/5"
+            }`}
+          >
+            <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center shrink-0 ${
               dark ? "border-white text-white" : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
             }`}>
               {initials(r.poster_name || "")}
@@ -231,7 +247,7 @@ export default function RideCard({
             <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
               {r.poster_name}
             </span>
-          </div>
+          </button>
           <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
             {r.price > 0 ? `₹${r.price}` : "Free"}
             <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
