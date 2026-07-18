@@ -1,4 +1,5 @@
 // RideCard.jsx
+import { useEffect } from "react";
 import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 
 // Simple line-style heart, filled + tinted when a route is saved. Same shape
@@ -10,6 +11,42 @@ function HeartIcon({ filled }) {
       <path d="M12 21s-6.7-4.3-9.3-8.2C1 10 1.6 6.7 4.4 5.2 6.6 4 9.2 4.7 12 7.5 14.8 4.7 17.4 4 19.6 5.2c2.8 1.5 3.4 4.8 1.7 7.6C18.7 16.7 12 21 12 21z" />
     </svg>
   );
+}
+
+// Small triangular warning icon for the "pending removal" badge/banner.
+// Defined locally the same way HeartIcon is above, rather than added to a
+// shared icon file we don't have visibility into for this change.
+function WarningIcon({ className = "w-3.5 h-3.5" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86 1.82 18a1.5 1.5 0 0 0 1.29 2.26h17.78A1.5 1.5 0 0 0 22.18 18L13.71 3.86a1.5 1.5 0 0 0-2.42 0Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
+// ─── Inactivity / auto-expiry ──────────────────────────────────────────────
+// A poster's own route that's seen no activity in a while starts warning
+// that it's about to be cleaned up, and gives them a one-tap way to keep it
+// alive. This block (and its twin in RideDetailPage) is the only source of
+// the timing rules, so if the thresholds ever change they only need editing
+// in these two spots — ideally this'd move into rideHelpers.js so it's not
+// duplicated at all, but that file wasn't included in this pass.
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const PENDING_AFTER_DAYS = 4; // warning + glow appears once this many days pass with no activity
+const DELETE_AFTER_DAYS = 5;  // auto-expires once this many days pass with no activity
+
+// Days since the route last had activity — an explicit "I'm here"
+// confirmation if one's ever been given, otherwise the original post date.
+// Assumes the route object carries `created_at` (set on post) and
+// `last_active_at` (set whenever the poster confirms, initially equal to
+// created_at). Missing dates are treated as "just active" rather than
+// flagged, so older data without these fields doesn't suddenly look expired.
+function daysSinceActivity(route) {
+  const last = route.last_active_at || route.created_at;
+  if (!last) return 0;
+  return (Date.now() - new Date(last).getTime()) / MS_PER_DAY;
 }
 
 // ─── Ride Card ────────────────────────────────────────────────────────────
@@ -34,6 +71,19 @@ function HeartIcon({ filled }) {
 //   onHideAccepted    — (routeId) => void
 //   onViewResponses   — (route) => void — opens the poster-facing "who
 //                        accepted this route" page
+//   onConfirmActive   — (routeId) => void — poster taps "I'm here"; parent
+//                        should persist a fresh last_active_at (now) so the
+//                        pending state clears
+//   onAutoExpire      — (routeId) => void — fired once the route crosses
+//                        DELETE_AFTER_DAYS with no confirmation. Client-side
+//                        this is only a best-effort nudge (it only fires
+//                        while someone has the card open), so real deletion
+//                        should still be enforced by a server-side scheduled
+//                        job using the same created_at/last_active_at fields
+//
+// Note: the pending/glow/"I'm here" UI is poster-only for real routes, but
+// demo routes (r.isDemo) show it to anyone browsing — see showsPendingState
+// below for why.
 //
 // The poster avatar/name in the footer fires "padosi:openProfile" (same
 // event AccountDetailPage listens for at the App root), same pattern as the
@@ -53,6 +103,8 @@ export default function RideCard({
   onDecline,
   onHideAccepted,
   onViewResponses,
+  onConfirmActive,
+  onAutoExpire,
 }) {
   const isOwner   = r.poster_id === currentUser?.id;
   const mode      = modeOf(r);
@@ -70,6 +122,33 @@ export default function RideCard({
   // reads as "something happened here" at a glance in the grid, separate
   // from the plain "Your route" cards with no responses yet.
   const hasAccepted = isOwner && acceptedCount > 0;
+
+  // Inactivity state — poster-only, same reasoning as hasAccepted above.
+  // isPending wins visually over hasAccepted below: a stale-but-accepted
+  // route still needs to be rescued first.
+  //
+  // Demo routes carry a synthetic poster_id (see demoIdentities), so isOwner
+  // is never true for them no matter who's browsing — there's no "log in as
+  // this demo seller" flow. Rather than let that make the whole feature
+  // invisible in demo mode, demo routes surface the pending state for
+  // anyone viewing them. Every other owner-only affordance below (Edit/
+  // Remove, the "Your route" badge, "N accepted") still checks the real
+  // isOwner, not this — a demo route still reads as "someone else's route
+  // you can accept," just with the pending banner visible too.
+  const showsPendingState = isOwner || r.isDemo;
+  const daysSince  = daysSinceActivity(r);
+  const isPending  = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
+  const isExpired  = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
+  const hoursLeft  = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
+
+  // Best-effort: if the poster happens to have this card open once it
+  // crosses the expiry line with no confirmation, ask the parent to remove
+  // it the same way onDelete would. See the onAutoExpire prop note above.
+  useEffect(() => {
+    if (isExpired) {
+      onAutoExpire?.(r.id);
+    }
+  }, [isExpired, r.id, onAutoExpire]);
 
   const vehicleTag = vehicles.length === 0
     ? { icon: "🚘", text: "Any vehicle" }
@@ -118,18 +197,30 @@ export default function RideCard({
     <div
       onClick={handleCardClick}
       className={`relative overflow-hidden rounded-2xl border p-5 pt-4 flex flex-col gap-3.5 cursor-pointer hover:-translate-y-1 transition-all ${
-        hasAccepted
+        isPending
           ? dark
-            ? "bg-black border-white shadow-[0_6px_24px_rgba(255,255,255,0.14)] hover:shadow-[0_14px_36px_rgba(255,255,255,0.2)] ring-1 ring-white/40"
-            : "bg-white border-[#b2f5c8] shadow-[0_6px_22px_rgba(39,174,96,0.16)] hover:shadow-[0_14px_34px_rgba(39,174,96,0.22)] ring-1 ring-[#b2f5c8]"
-          : dark
-            ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
-            : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
+            ? "bg-black border-red-500/60 shadow-[0_0_26px_rgba(248,113,113,0.22)] ring-1 ring-red-500/40 hover:shadow-[0_0_36px_rgba(248,113,113,0.3)]"
+            : "bg-white border-red-200 shadow-[0_0_22px_rgba(220,38,38,0.14)] ring-1 ring-red-200 hover:shadow-[0_0_30px_rgba(220,38,38,0.2)]"
+          : hasAccepted
+            ? dark
+              ? "bg-black border-white shadow-[0_6px_24px_rgba(255,255,255,0.14)] hover:shadow-[0_14px_36px_rgba(255,255,255,0.2)] ring-1 ring-white/40"
+              : "bg-white border-[#b2f5c8] shadow-[0_6px_22px_rgba(39,174,96,0.16)] hover:shadow-[0_14px_34px_rgba(39,174,96,0.22)] ring-1 ring-[#b2f5c8]"
+            : dark
+              ? "bg-black border-white shadow-[0_6px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_32px_rgba(255,255,255,0.1)]"
+              : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
       }`}
     >
-      {/* Celebratory top strip — only for owner cards with an acceptance.
-          Absolutely positioned, so it doesn't affect card height/layout. */}
-      {hasAccepted && (
+      {/* Top strip — celebratory (green) when a route has an acceptance,
+          or a dim red warning strip once it's pending removal. Pending
+          takes priority since it's the more urgent state. Absolutely
+          positioned either way, so it never affects card height/layout. */}
+      {isPending ? (
+        <div className={`absolute top-0 left-0 right-0 h-1 ${
+          dark
+            ? "bg-gradient-to-r from-red-500/10 via-red-500/70 to-red-500/10"
+            : "bg-gradient-to-r from-red-200 via-red-500 to-red-200"
+        }`} />
+      ) : hasAccepted && (
         <div className={`absolute top-0 left-0 right-0 h-1 ${
           dark
             ? "bg-gradient-to-r from-white/20 via-white to-white/20"
@@ -179,6 +270,15 @@ export default function RideCard({
               : "border-[#ff2d55] text-[#ff2d55] bg-[#fff0f3]"
           }`}>
             Your route
+          </span>
+        )}
+        {isPending && (
+          <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border ${
+            dark
+              ? "border-red-400 text-red-300 bg-black/60"
+              : "border-red-300 text-red-600 bg-red-50"
+          }`}>
+            <WarningIcon /> Pending removal
           </span>
         )}
         {isOwner && acceptedCount > 0 && (
@@ -263,6 +363,27 @@ export default function RideCard({
             <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>
           </span>
         </div>
+
+        {isPending && (
+          <div className={`rounded-xl border px-3 py-2.5 mb-2 flex items-center justify-between gap-2.5 ${
+            dark ? "bg-red-950/20 border-red-500/40" : "bg-red-50 border-red-200"
+          }`}>
+            <p className={`text-[11px] leading-snug ${dark ? "text-red-300" : "text-red-600"}`}>
+              No activity in {PENDING_AFTER_DAYS} days.<br />
+              Deletes in ~{hoursLeft}h.
+            </p>
+            <button
+              onClick={(e) => { e.stopPropagation(); onConfirmActive?.(r.id); }}
+              className={`shrink-0 text-xs font-bold py-2 px-3 rounded-lg cursor-pointer border transition-colors ${
+                dark
+                  ? "border-red-400 text-white bg-red-500/10 hover:bg-red-500/20"
+                  : "border-red-300 text-red-700 bg-white hover:bg-red-100"
+              }`}
+            >
+              I'm here
+            </button>
+          </div>
+        )}
 
         {isOwner ? (
           <div className="flex flex-col gap-2">

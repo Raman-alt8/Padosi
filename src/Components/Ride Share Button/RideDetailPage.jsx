@@ -1,4 +1,5 @@
 // RideDetailPage.jsx
+import { useEffect } from "react";
 import RouteMiniMap from "./RouteMiniMap";
 import {
   IconArrowLeft, IconArrowRight, IconArrowDown, IconHeart,
@@ -16,6 +17,33 @@ import {
 // instead of re-implementing its own version of each. See rideVisuals.jsx
 // for the implementation notes that used to live here.
 
+// Small triangular warning icon for the pending-removal banner. Defined
+// locally the same way RideCard defines its own HeartIcon, rather than
+// added to RideIcons.js sight-unseen.
+function WarningIcon({ className = "w-5 h-5" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86 1.82 18a1.5 1.5 0 0 0 1.29 2.26h17.78A1.5 1.5 0 0 0 22.18 18L13.71 3.86a1.5 1.5 0 0 0-2.42 0Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
+// ─── Inactivity / auto-expiry ──────────────────────────────────────────────
+// Same rules as RideCard.jsx — kept in sync by hand since rideHelpers.js
+// wasn't included in this pass. If it's touched here, mirror the change
+// there too (and ideally move both copies into rideHelpers.js).
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const PENDING_AFTER_DAYS = 4; // warning appears once this many days pass with no activity
+const DELETE_AFTER_DAYS = 5;  // auto-expires once this many days pass with no activity
+
+function daysSinceActivity(route) {
+  const last = route.last_active_at || route.created_at;
+  if (!last) return 0;
+  return (Date.now() - new Date(last).getTime()) / MS_PER_DAY;
+}
+
 // ─── Ride Detail Page ─────────────────────────────────────────────────────
 // Full-screen overlay opened by tapping a route card. Every action still
 // calls back into RideSharePage's existing handlers — no props changed in
@@ -26,6 +54,13 @@ import {
 // estimated distance/duration line were all dropped — none of those fields
 // are set by RidePostFormPage or exist in the ride_routes schema
 // (db/migrations.js), so they'd always render empty anyway.
+//
+// onConfirmActive / onAutoExpire mirror the new RideCard props: the former
+// fires when the poster taps "I'm here" (parent should persist a fresh
+// last_active_at), the latter fires once the route crosses DELETE_AFTER_DAYS
+// with nobody having confirmed. See RideCard.jsx for the fuller note on why
+// the client-side auto-expire is only a best-effort nudge, not the source
+// of truth for actual deletion.
 export default function RideDetailPage({
   open,
   route,
@@ -37,19 +72,41 @@ export default function RideDetailPage({
   onAccept,
   onDecline,
   onHideAccepted,
+  onConfirmActive,
+  onAutoExpire,
   isWishlisted,
   toggleWishlist,
   buildWishlistEntry,
 }) {
+  // Hooks must run every render regardless of `open`/`route`, so the
+  // early-return below stays after these rather than before.
+  const daysSince = route ? daysSinceActivity(route) : 0;
+  const isOwnerRoute = !!route && route.poster_id === currentUser?.id;
+  // Demo routes have a synthetic poster_id and no "log in as this seller"
+  // flow, so isOwnerRoute is never true for them — surface the pending
+  // banner to anyone viewing a demo route instead, same exception as
+  // RideCard's showsPendingState. The rest of the owner-only UI (Edit/
+  // Remove) still checks isOwnerRoute, not this.
+  const showsPendingState = isOwnerRoute || !!route?.isDemo;
+  const isPending = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
+  const isExpired = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
+
+  useEffect(() => {
+    if (isExpired) {
+      onAutoExpire?.(route.id);
+    }
+  }, [isExpired, route?.id, onAutoExpire]);
+
   if (!open || !route) return null;
 
-  const isOwner   = route.poster_id === currentUser?.id;
+  const isOwner   = isOwnerRoute;
   const mode      = modeOf(route);
   const isRide    = mode === "ride";
   const vehicles  = vehicleTypesOf(route);
   const genderTag = genderLabel(route.gender_pref);
   const saved     = isWishlisted("ride", route.id);
   const accepted  = route.my_response === "accepted";
+  const hoursLeft = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
 
   const vehicleValue = vehicles.length === 0
     ? "Any vehicle"
@@ -118,12 +175,47 @@ export default function RideDetailPage({
                 Your route
               </span>
             )}
+            {isPending && (
+              <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${
+                dark ? "bg-red-500/10 text-red-300" : "bg-red-50 text-red-600"
+              }`}>
+                <WarningIcon className="w-3.5 h-3.5" /> Pending removal
+              </span>
+            )}
             {route.isDemo && (
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-600">
                 Sample
               </span>
             )}
           </div>
+
+          {/* ── Pending-removal warning — poster only ── */}
+          {isPending && (
+            <>
+              <div className={`rounded-2xl border-l-4 overflow-hidden ${
+                dark ? "bg-red-950/20 border-red-500" : "bg-red-50 border-red-500"
+              }`}>
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  <WarningIcon className={`w-5 h-5 shrink-0 ${dark ? "text-red-400" : "text-red-600"}`} />
+                  <div className="min-w-0">
+                    <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>Pending removal</p>
+                    <p className={`text-xs mt-0.5 ${dark ? "text-white/60" : "text-[#666]"}`}>
+                      No activity in {PENDING_AFTER_DAYS} days — this route will be removed in about {hoursLeft} hour{hoursLeft === 1 ? "" : "s"} unless you confirm you're still here.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onConfirmActive?.(route.id)}
+                  className={`w-full flex items-center justify-center gap-1.5 text-sm font-bold py-3 border-t cursor-pointer transition-colors ${
+                    dark ? "border-red-500/30 text-white hover:bg-red-500/10" : "border-red-200 text-red-700 hover:bg-red-100"
+                  }`}
+                >
+                  I'm here — keep this route active
+                </button>
+              </div>
+              <JourneyConnector height={32} dark={dark} isRide={isRide} />
+            </>
+          )}
 
           {/* ── Hero: the journey itself ── */}
           <div className="text-center py-2">

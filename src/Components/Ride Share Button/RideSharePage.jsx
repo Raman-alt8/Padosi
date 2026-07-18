@@ -186,6 +186,13 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [demoDeclined, setDemoDeclined] = useState(() => new Set());
   const [demoAccepted, setDemoAccepted] = useState(() => new Set());
 
+  // Same pattern, for the pending-removal "I'm here" confirmation: demo
+  // routes have no backend to PATCH a real last_active_at onto, so we track
+  // "confirmed active, and when" locally and splice it over the hardcoded
+  // demo timestamp in visibleRoutes below (see rideShareDemoData.js for
+  // where those hardcoded days-ago values live).
+  const [demoConfirmedActive, setDemoConfirmedActive] = useState(() => new Map());
+
   // ── Accept overlay state ────────────────────────────────────────────────
   const [acceptOpen, setAcceptOpen]   = useState(false);
   const [acceptRoute, setAcceptRoute] = useState(null);
@@ -199,6 +206,16 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   // one source of truth for what each action does.
   const [detailOpen, setDetailOpen]   = useState(false);
   const [detailRoute, setDetailRoute] = useState(null);
+
+  // Tracks which route (if any) the detail overlay currently has open, kept
+  // in sync via the effect just below. handleAutoExpire reads this through
+  // a ref rather than a dependency so its own identity can stay stable
+  // (empty dep array) — see the comment on handleAutoExpire for why that
+  // matters.
+  const detailRouteIdRef = useRef(null);
+  useEffect(() => {
+    detailRouteIdRef.current = detailRoute?.id ?? null;
+  }, [detailRoute]);
 
   const openDetail = (route) => {
     setDetailRoute(route);
@@ -354,7 +371,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     setRoutes(prev => prev.filter(r => r.id !== routeId));
   };
 
-  const handleDelete = async (routeId) => {
+  // `silent` is used by handleAutoExpire below — an auto-expiry isn't
+  // something the poster asked for in the moment, so it skips the
+  // "🗑️ Route removed" toast a manual delete gets.
+  const handleDelete = async (routeId, { silent = false } = {}) => {
     if (routeId < 0) return;
     try {
       const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}`, {
@@ -363,16 +383,92 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       });
       if (!res.ok) {
         const data = await readJsonSafely(res);
-        showToast(`⚠️ ${data.error || "Could not remove route."}`);
+        if (!silent) showToast(`⚠️ ${data.error || "Could not remove route."}`);
         return;
       }
       setRoutes(prev => prev.filter(r => r.id !== routeId));
-      showToast("🗑️ Route removed");
+      if (!silent) showToast("🗑️ Route removed");
+    } catch (err) {
+      console.error(err);
+      if (!silent) showToast("⚠️ Network error. Please try again.");
+    }
+  };
+
+  // Poster tapped "I'm here" on a pending route (RideCard or
+  // RideDetailPage). Demo routes have no backend to PATCH, so their
+  // confirmation just lives in demoConfirmedActive and gets merged into the
+  // route object in visibleRoutes below. Real routes update optimistically
+  // so the glow/badge clears immediately, then roll back if the request
+  // fails.
+  //
+  // NOTE: `/api/ride-routes/:id/confirm-active` is a placeholder endpoint —
+  // swap in whatever your backend actually exposes for bumping
+  // last_active_at.
+  const handleConfirmActive = async (routeId) => {
+    if (routeId < 0) {
+      setDemoConfirmedActive(prev => new Map(prev).set(routeId, new Date().toISOString()));
+      showToast("✅ Marked as active — sticking around a while longer.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    let previous;
+    setRoutes(prev => {
+      previous = prev;
+      return prev.map(r => (r.id === routeId ? { ...r, last_active_at: now } : r));
+    });
+
+    try {
+      const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/confirm-active`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await readJsonSafely(res);
+        showToast(`⚠️ ${data.error || "Could not confirm — please try again."}`);
+        setRoutes(previous);
+        return;
+      }
+      showToast("✅ Marked as active — sticking around a while longer.");
     } catch (err) {
       console.error(err);
       showToast("⚠️ Network error. Please try again.");
+      setRoutes(previous);
     }
   };
+
+  // Fires once a route crosses DELETE_AFTER_DAYS client-side with no "I'm
+  // here" confirmation (see RideCard.jsx / RideDetailPage.jsx). This is
+  // only a best-effort nudge — it only fires while someone actually has the
+  // card open — so real deletion should still be enforced by a
+  // server-side scheduled job against the same last_active_at field.
+  //
+  // Wrapped in useCallback with an empty dep array (using the functional
+  // form of setRoutes, plus a ref for the currently-open detail route) so
+  // its identity never changes across renders. RideCard/RideDetailPage put
+  // this in a useEffect dependency array; if it were a fresh function every
+  // render, that effect would re-fire — and re-delete — on every unrelated
+  // parent re-render for as long as the route stayed expired.
+  const handleAutoExpire = useCallback((routeId) => {
+    if (routeId < 0) return; // demo routes are hardcoded under the expiry line on purpose
+
+    setRoutes(prev => {
+      if (!prev.some(r => r.id === routeId)) return prev; // already gone — avoid a duplicate DELETE
+      fetch(`${API_BASE}/api/ride-routes/${routeId}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).catch((err) => console.error(err));
+      return prev.filter(r => r.id !== routeId);
+    });
+
+    // If the poster happened to be looking at this exact route's detail
+    // page when it expired, back them out rather than leaving the overlay
+    // open on a route that no longer exists in `routes`.
+    if (detailRouteIdRef.current === routeId) {
+      setDetailOpen(false);
+      setDetailRoute(null);
+    }
+  }, []);
 
   const visibleRoutes = useMemo(() => {
     const demo = DEMO_ROUTES
@@ -380,9 +476,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
       .map(d => ({
         ...d,
         my_response: demoAccepted.has(d.id) ? "accepted" : undefined,
+        last_active_at: demoConfirmedActive.get(d.id) || d.last_active_at,
       }));
     return [...routes, ...demo];
-  }, [routes, demoDeclined, demoAccepted]);
+  }, [routes, demoDeclined, demoAccepted, demoConfirmedActive]);
 
   const searchMatched = visibleRoutes.filter(r => {
     const q = String(search || "").trim().toLowerCase();
@@ -547,6 +644,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                 onDecline={handleDecline}
                 onHideAccepted={handleHideAccepted}
                 onViewResponses={openResponses}
+                onConfirmActive={handleConfirmActive}
+                onAutoExpire={handleAutoExpire}
               />
             ))}
           </div>
@@ -594,6 +693,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           onAccept={(route) => { closeDetail(); openAccept(route); }}
           onDecline={handleDecline}
           onHideAccepted={handleHideAccepted}
+          onConfirmActive={handleConfirmActive}
+          onAutoExpire={handleAutoExpire}
           isWishlisted={isWishlisted}
           toggleWishlist={toggleWishlist}
           buildWishlistEntry={buildWishlistEntry}
