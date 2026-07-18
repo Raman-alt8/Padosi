@@ -12,6 +12,7 @@ import WishlistPage from "./Components/WishlistPage";
 import { SocketProvider } from "./Components/SocketContext";
 import ChatPage from "./Components/ChatPage";
 import AccountDetailPage from "./Components/AccountDetailPage";
+import RideCompletePage from "./Components/RideCompletePage";
 
 // ─── Toast ───────────────────────────────────────────────────
 function Toast({ message, dark }) {
@@ -307,6 +308,12 @@ export default function App() {
               row, and any other listing page that wants to show a poster's
               profile) — same self-managed-overlay pattern as WishlistPage/ChatPage. */}
           <AccountDetailPage currentUser={currentUser} dark={darkMode} />
+
+          {/* Opens on "padosi:openRideComplete" (fired by RideCard.jsx /
+              RideDetailPage.jsx when a poster taps "Complete Ride" on a
+              route someone accepted) — same self-managed-overlay pattern
+              as WishlistPage/ChatPage/AccountDetailPage. */}
+          <RideCompletePage dark={darkMode} />
 
           <Toast message={toastMsg} dark={darkMode} />
         </div>

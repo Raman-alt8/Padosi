@@ -200,14 +200,9 @@ export default function RideCard({
             🎉 {acceptedCount} accepted
           </span>
         )}
-        {r.isDemo && (
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border border-purple-300 text-purple-600 bg-purple-50">
-            Sample
-          </span>
-        )}
       </div>
 
-      <div className="pr-11">
+      <div className="pr-11 flex items-center justify-between gap-2">
         <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${
           mode === "ride"
             ? "border-blue-300 text-blue-600 bg-blue-50"
@@ -215,6 +210,11 @@ export default function RideCard({
         }`}>
           {mode === "ride" ? "🙋 Partner to share ride" : "🧑‍🤝‍🧑 Offering a ride"}
         </span>
+        {r.isDemo && (
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border border-purple-300 text-purple-600 bg-purple-50 shrink-0">
+            Sample
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2.5 pr-11">
@@ -328,16 +328,39 @@ export default function RideCard({
               >
                 ✏️ Edit
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}
-                className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
-                  dark
-                    ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
-                    : "border-[#eee] text-[#bbb] bg-white hover:border-[#ddd] hover:text-[#999]"
-                }`}
-              >
-                🗑️ Remove
-              </button>
+              {acceptedCount > 0 ? (
+                // A route with an accepted rider represents a ride that
+                // actually happened, not just a stale listing — "Complete
+                // Ride" still removes it the same way Remove does, but also
+                // opens a short thank-you page instead of just vanishing.
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(r.id);
+                    window.dispatchEvent(new CustomEvent("padosi:openRideComplete", {
+                      detail: { fromPlace: r.from_place, toPlace: r.to_place },
+                    }));
+                  }}
+                  className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
+                    dark
+                      ? "border-white/60 text-white bg-black hover:bg-white/10"
+                      : "border-[#b2f5c8] text-[#27ae60] bg-[#f0fff4] hover:border-[#27ae60]"
+                  }`}
+                >
+                  ✅ Complete Ride
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}
+                  className={`flex-1 text-xs py-2 rounded-xl font-bold cursor-pointer border transition-colors ${
+                    dark
+                      ? "border-white/40 text-white/50 bg-black hover:border-white hover:text-white"
+                      : "border-[#eee] text-[#bbb] bg-white hover:border-[#ddd] hover:text-[#999]"
+                  }`}
+                >
+                  🗑️ Remove
+                </button>
+              )}
             </div>
           </div>
 

@@ -113,6 +113,10 @@ export default function RideDetailPage({
   const saved     = isWishlisted("ride", route.id);
   const accepted  = route.my_response === "accepted";
   const hoursLeft = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
+  // Mirrors RideCard.jsx's acceptedCount — used to decide whether the
+  // owner's footer shows "Complete Ride" (a real ride happened) or plain
+  // "Remove" (nothing came of the listing).
+  const acceptedCount = isOwner ? (route.accepted_count || 0) : 0;
 
   const vehicleValue = vehicles.length === 0
     ? "Any vehicle"
@@ -351,14 +355,31 @@ export default function RideDetailPage({
               >
                 <IconPencil className="w-4 h-4" /> Edit
               </button>
-              <button
-                onClick={() => { onDelete(route.id); onClose(); }}
-                className={`px-4 inline-flex items-center justify-center gap-1.5 text-sm py-3 rounded-xl font-bold cursor-pointer transition-colors ${
-                  dark ? "text-white/50 hover:text-white hover:bg-white/5" : "text-[#aaa] hover:text-[#777] hover:bg-black/5"
-                }`}
-              >
-                <IconTrash className="w-4 h-4" /> Remove
-              </button>
+              {acceptedCount > 0 ? (
+                <button
+                  onClick={() => {
+                    onDelete(route.id);
+                    onClose();
+                    window.dispatchEvent(new CustomEvent("padosi:openRideComplete", {
+                      detail: { fromPlace: route.from_place, toPlace: route.to_place },
+                    }));
+                  }}
+                  className={`px-4 inline-flex items-center justify-center gap-1.5 text-sm py-3 rounded-xl font-bold cursor-pointer transition-colors ${
+                    dark ? "text-white hover:bg-white/10" : "text-[#27ae60] hover:bg-[#f0fff4]"
+                  }`}
+                >
+                  <IconCheck className="w-4 h-4" /> Complete Ride
+                </button>
+              ) : (
+                <button
+                  onClick={() => { onDelete(route.id); onClose(); }}
+                  className={`px-4 inline-flex items-center justify-center gap-1.5 text-sm py-3 rounded-xl font-bold cursor-pointer transition-colors ${
+                    dark ? "text-white/50 hover:text-white hover:bg-white/5" : "text-[#aaa] hover:text-[#777] hover:bg-black/5"
+                  }`}
+                >
+                  <IconTrash className="w-4 h-4" /> Remove
+                </button>
+              )}
             </div>
           ) : accepted ? (
             <button
