@@ -2,9 +2,6 @@
 import { useEffect } from "react";
 import { initials, freqLabel, genderLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 
-// Simple line-style heart, filled + tinted when a route is saved. Same shape
-// as the heart used on ServiceListingsAllPage/WishlistPage, for a consistent
-// icon app-wide.
 function HeartIcon({ filled }) {
   return (
     <svg viewBox="0 0 24 24" className="w-4 h-4" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={filled ? 0 : 2}>
@@ -13,9 +10,6 @@ function HeartIcon({ filled }) {
   );
 }
 
-// Small triangular warning icon for the "pending removal" badge/banner.
-// Defined locally the same way HeartIcon is above, rather than added to a
-// shared icon file we don't have visibility into for this change.
 function WarningIcon({ className = "w-3.5 h-3.5" }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -26,69 +20,16 @@ function WarningIcon({ className = "w-3.5 h-3.5" }) {
   );
 }
 
-// ─── Inactivity / auto-expiry ──────────────────────────────────────────────
-// A poster's own route that's seen no activity in a while starts warning
-// that it's about to be cleaned up, and gives them a one-tap way to keep it
-// alive. This block (and its twin in RideDetailPage) is the only source of
-// the timing rules, so if the thresholds ever change they only need editing
-// in these two spots — ideally this'd move into rideHelpers.js so it's not
-// duplicated at all, but that file wasn't included in this pass.
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const PENDING_AFTER_DAYS = 4; // warning + glow appears once this many days pass with no activity
-const DELETE_AFTER_DAYS = 5;  // auto-expires once this many days pass with no activity
+const PENDING_AFTER_DAYS = 4;
+const DELETE_AFTER_DAYS = 5;
 
-// Days since the route last had activity — an explicit "I'm here"
-// confirmation if one's ever been given, otherwise the original post date.
-// Assumes the route object carries `created_at` (set on post) and
-// `last_active_at` (set whenever the poster confirms, initially equal to
-// created_at). Missing dates are treated as "just active" rather than
-// flagged, so older data without these fields doesn't suddenly look expired.
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;
   if (!last) return 0;
   return (Date.now() - new Date(last).getTime()) / MS_PER_DAY;
 }
 
-// ─── Ride Card ────────────────────────────────────────────────────────────
-// One route card in the grid. Owns its own tag/footer layout, but every
-// action (wishlist toggle, accept, decline, edit, delete, hide-from-view,
-// opening the detail overlay) is delegated back to the handler props
-// RideSharePage passes in — same single source of truth those handlers
-// always had when this JSX lived inline in the map().
-//
-// Props:
-//   route             — the route object being rendered
-//   currentUser       — { id, ... } or null, used to compute isOwner
-//   dark              — boolean, theme flag
-//   isWishlisted      — (type, id) => boolean, from useWishlist
-//   toggleWishlist    — (entry) => void, from useWishlist
-//   buildWishlistEntry— (route) => wishlist entry shape
-//   onOpenDetail      — (route) => void — opens the full-screen detail view
-//   onEdit            — (route) => void — opens the post/edit form
-//   onDelete          — (routeId) => void
-//   onAccept          — (route) => void — opens the accept overlay
-//   onDecline         — (routeId) => void
-//   onHideAccepted    — (routeId) => void
-//   onViewResponses   — (route) => void — opens the poster-facing "who
-//                        accepted this route" page
-//   onConfirmActive   — (routeId) => void — poster taps "I'm here"; parent
-//                        should persist a fresh last_active_at (now) so the
-//                        pending state clears
-//   onAutoExpire      — (routeId) => void — fired once the route crosses
-//                        DELETE_AFTER_DAYS with no confirmation. Client-side
-//                        this is only a best-effort nudge (it only fires
-//                        while someone has the card open), so real deletion
-//                        should still be enforced by a server-side scheduled
-//                        job using the same created_at/last_active_at fields
-//
-// Note: the pending/glow/"I'm here" UI is poster-only for real routes, but
-// demo routes (r.isDemo) show it to anyone browsing — see showsPendingState
-// below for why.
-//
-// The poster avatar/name in the footer fires "padosi:openProfile" (same
-// event AccountDetailPage listens for at the App root), same pattern as the
-// driver row in RideDetailPage — stopPropagation so it doesn't also trigger
-// onOpenDetail underneath it.
 export default function RideCard({
   route: r,
   currentUser,
@@ -106,44 +47,26 @@ export default function RideCard({
   onConfirmActive,
   onAutoExpire,
 }) {
-  const isOwner   = r.poster_id === currentUser?.id;
+  // `forceOwnerDemo` lets a specific demo route (see rideShareDemoData.js,
+  // ownerMode: "force") always render the owner UI regardless of who's
+  // logged in — used for recruiter/demo browsing where there's no real
+  // account to match against.
+  const isOwner   = r.poster_id === currentUser?.id || !!r.forceOwnerDemo;
   const mode      = modeOf(r);
   const vehicles  = vehicleTypesOf(r);
   const genderTag = genderLabel(r.gender_pref);
   const saved     = isWishlisted("ride", r.id);
 
-  // Only meaningful for the poster's own routes — how many people have
-  // accepted so far. Drives the "N accepted" badge/button below and which
-  // page tapping the card opens.
   const acceptedCount = isOwner ? (r.accepted_count || 0) : 0;
 
-  // A card of the poster's own that has at least one acceptance gets a
-  // distinct celebratory treatment (accent border/glow + top strip) so it
-  // reads as "something happened here" at a glance in the grid, separate
-  // from the plain "Your route" cards with no responses yet.
   const hasAccepted = isOwner && acceptedCount > 0;
 
-  // Inactivity state — poster-only, same reasoning as hasAccepted above.
-  // isPending wins visually over hasAccepted below: a stale-but-accepted
-  // route still needs to be rescued first.
-  //
-  // Demo routes carry a synthetic poster_id (see demoIdentities), so isOwner
-  // is never true for them no matter who's browsing — there's no "log in as
-  // this demo seller" flow. Rather than let that make the whole feature
-  // invisible in demo mode, demo routes surface the pending state for
-  // anyone viewing them. Every other owner-only affordance below (Edit/
-  // Remove, the "Your route" badge, "N accepted") still checks the real
-  // isOwner, not this — a demo route still reads as "someone else's route
-  // you can accept," just with the pending banner visible too.
   const showsPendingState = isOwner || r.isDemo;
   const daysSince  = daysSinceActivity(r);
   const isPending  = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
   const isExpired  = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
   const hoursLeft  = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
 
-  // Best-effort: if the poster happens to have this card open once it
-  // crosses the expiry line with no confirmation, ask the parent to remove
-  // it the same way onDelete would. See the onAutoExpire prop note above.
   useEffect(() => {
     if (isExpired) {
       onAutoExpire?.(r.id);
@@ -170,18 +93,10 @@ export default function RideCard({
         { icon: "🚻", text: genderTag || "Any gender" },
       ];
 
-  // Tapping the card body always opens the normal read-only detail view.
-  // The one exception is the explicit "N accepted — View responses" button
-  // in the footer below, which stops propagation and calls onViewResponses
-  // directly — so that's the only way into the responses page.
   const handleCardClick = () => {
     onOpenDetail(r);
   };
 
-  // Demo/sample routes carry a synthetic poster_id (see demoIdentities /
-  // getDemoRoutes) that doesn't exist in the real users table, so we pass
-  // along enough info for AccountDetailPage to render a local sample
-  // profile instead of calling the backend and 404ing.
   const openPosterProfile = (e) => {
     e.stopPropagation();
     window.dispatchEvent(new CustomEvent("padosi:openProfile", {
@@ -210,10 +125,6 @@ export default function RideCard({
               : "bg-white border-[#eee] shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)]"
       }`}
     >
-      {/* Top strip — celebratory (green) when a route has an acceptance,
-          or a dim red warning strip once it's pending removal. Pending
-          takes priority since it's the more urgent state. Absolutely
-          positioned either way, so it never affects card height/layout. */}
       {isPending ? (
         <div className={`absolute top-0 left-0 right-0 h-1 ${
           dark
@@ -228,7 +139,6 @@ export default function RideCard({
         }`} />
       )}
 
-      {/* Top-right stack */}
       <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
         <div className="flex items-center gap-1.5">
           <button
@@ -338,7 +248,6 @@ export default function RideCard({
         {r.description || "No additional details."}
       </p>
 
-      {/* Footer */}
       <div className={`pt-3 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>
 
         <div className="flex items-center justify-between gap-2 mb-3">

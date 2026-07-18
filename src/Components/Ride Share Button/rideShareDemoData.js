@@ -4,42 +4,22 @@ function demoEmailFor(name = "") {
   return `${name.toLowerCase().replace(/\s+/g, ".")}@example.com`;
 }
 
-// Hardcoded "days since last activity" per demo route, purely so the
-// pending-removal warning (see PENDING_AFTER_DAYS / DELETE_AFTER_DAYS in
-// RideCard.jsx and RideDetailPage.jsx) has something real to render in demo
-// mode, instead of everyone always looking "just active". Recomputed
-// relative to "now" every time getDemoRoutes() runs (see daysAgoISO below),
-// so the demo stays in the same state forever rather than drifting as real
-// time passes.
+// ── Demo route roster ───────────────────────────────────────────────────
+//   -1, -2   → someone else's ride, freshly posted — no special state
+//   -3       → someone else's ride, pending removal (see PENDING_AFTER_DAYS /
+//              DELETE_AFTER_DAYS in RideCard.jsx / RideDetailPage.jsx)
+//   -4       → "you posted this, no responses yet" — DYNAMIC: only renders
+//              as yours when someone is actually logged in (poster_id =
+//              currentUser.id). Falls back to an ordinary demo seller for a
+//              signed-out guest.
+//   -5       → "someone accepted your route" — FORCED: always renders as
+//              yours regardless of login, via `forceOwnerDemo` (RideCard.jsx
+//              ORs this into isOwner). Doesn't depend on any real account,
+//              so a recruiter clicking around with no login still sees the
+//              full owner UI (Edit/Remove + "N accepted — View responses").
 //
-//   0.0–3.9  → fresh, no warning at all
-//   4.0–4.9  → pending: red glow on the card + warning banner in detail +
-//              "I'm here" button (poster-only — see note below)
-//   5.0+     → left out on purpose: an expired card just renders as a plain
-//              card with no visual cue, since real deletion is meant to be
-//              enforced server-side, so it's not useful to look at in demo
-//
-// NOTE: the pending state only ever shows to the poster (isOwner), same as
-// in production. Since these demo routes' poster_id comes from
-// demoSellerFor(route.id) — a synthetic seller, not whoever is currently
-// browsing — routes -3 and -5 will only show the warning if the logged-in
-// demo user happens to be that specific seller. Everyone else just sees an
-// ordinary card, which is the correct/expected behavior.
-const DEMO_DAYS_SINCE_ACTIVITY = {
-  "-1": 0,
-  "-2": 1,
-  "-3": 4.2,
-  "-4": 0.5,
-  "-5": 4.8,
-  "-6": 2,
-  "-7": 0,
-  "-8": 3,
-};
-
-function daysAgoISO(days) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-}
-
+// Swap `ownerMode` below ("dynamic" vs "force") if you want to flip which
+// of the two behaves which way.
 const RAW_DEMO_ROUTES = [
   {
     id: -1,
@@ -91,11 +71,13 @@ const RAW_DEMO_ROUTES = [
     depart_time: "10:00",
     seats: 2,
     price: 20,
-    description: "Weekend shopping run, looking for someone already headed that way.",
+    description: "This is what a route you've posted looks like before anyone responds.",
     phone: "+91 90000 00010",
     mode: "ride",
     vehicle_types: [],
     gender_pref: "female",
+    accepted_count: 0,
+    ownerMode: "dynamic",
   },
   {
     id: -5,
@@ -105,73 +87,74 @@ const RAW_DEMO_ROUTES = [
     depart_time: "09:00",
     seats: 3,
     price: 25,
-    description: "Weekday college commute, punctual departure every time.",
+    description: "This is what a route you've posted looks like once someone accepts it.",
     phone: "+91 90000 00011",
     mode: "partner",
     vehicle_types: ["car"],
     gender_pref: "no_preference",
-  },
-  {
-    id: -6,
-    from_place: "Vidhyadhar Nagar",
-    to_place: "Sanganer Airport",
-    freq: "weekend",
-    depart_time: "05:30",
-    seats: 1,
-    price: 150,
-    description: "Early morning airport drop, occasional trips only.",
-    phone: "+91 90000 00012",
-    mode: "partner",
-    vehicle_types: ["car"],
-    gender_pref: "",
-  },
-  {
-    id: -7,
-    from_place: "Tonk Road",
-    to_place: "Amrapali Circle",
-    freq: "full_week",
-    depart_time: "19:30",
-    seats: 3,
-    price: 15,
-    description: "Evening return commute, bike-friendly boot space.",
-    phone: "+91 90000 00013",
-    mode: "partner",
-    vehicle_types: ["bike"],
-    gender_pref: "",
-  },
-  {
-    id: -8,
-    from_place: "Raja Park",
-    to_place: "SMS Hospital",
-    freq: "weekday",
-    depart_time: "08:00",
-    seats: 2,
-    price: 20,
-    description: "Regular hospital visit, looking for a lift rather than driving myself.",
-    phone: "+91 90000 00014",
-    mode: "ride",
-    vehicle_types: [],
-    gender_pref: "no_preference",
+    accepted_count: 2,
+    ownerMode: "force",
   },
 ];
 
-export function getDemoRoutes() {
+// Hardcoded "days since last activity" per demo route — see RideCard.jsx /
+// RideDetailPage.jsx for how this drives the pending-removal warning.
+const DEMO_DAYS_SINCE_ACTIVITY = {
+  "-1": 0,
+  "-2": 0.5,
+  "-3": 4.5,   // pending
+  "-4": 0.2,   // yours, fresh — not pending
+  "-5": 1,     // yours, fresh — not pending
+};
+
+function daysAgoISO(days) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+// Picks who "posted" a route:
+//   ownerMode "force"   → a fixed identity that always reads as yours,
+//                         regardless of who (if anyone) is logged in
+//   ownerMode "dynamic" → the real logged-in user, if there is one —
+//                         otherwise falls back to a synthetic seller
+//   (none)              → always a synthetic seller
+function sellerFor(route, currentUser) {
+  if (route.ownerMode === "force") {
+    return {
+      id: "demo-you",
+      name: currentUser?.name || currentUser?.full_name || currentUser?.username || "You",
+    };
+  }
+  if (route.ownerMode === "dynamic" && currentUser) {
+    return {
+      id: currentUser.id,
+      name: currentUser.name || currentUser.full_name || currentUser.username || "You",
+    };
+  }
+  return demoSellerFor(route.id);
+}
+
+// currentUser: pass the real logged-in user object (or null/undefined for a
+// guest). Drives -4 (dynamic) and just the display name on -5 (force) —
+// every other field on these two routes is still static demo data.
+export function getDemoRoutes(currentUser) {
   return RAW_DEMO_ROUTES.map((route) => {
-    const seller = demoSellerFor(route.id);
+    const seller = sellerFor(route, currentUser);
     const daysAgo = DEMO_DAYS_SINCE_ACTIVITY[route.id] ?? 0;
     const created_at = daysAgoISO(daysAgo);
+
     return {
       ...route,
       isDemo: true,
+      forceOwnerDemo: route.ownerMode === "force",
       poster_id: seller.id,
       poster_name: seller.name,
       poster_contact: {
         name: seller.name,
-        email: demoEmailFor(seller.name),
+        email: route.ownerMode && currentUser?.email ? currentUser.email : demoEmailFor(seller.name),
         phone: route.phone,
       },
       created_at,
-      last_active_at: created_at, // no demo "I'm here" confirmations yet
+      last_active_at: created_at,
     };
   });
 }
