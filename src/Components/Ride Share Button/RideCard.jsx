@@ -232,22 +232,39 @@ export default function RideCard({
       <div className={`pt-3 border-t ${dark ? "border-white/20" : "border-[#eee]"}`}>
 
         <div className="flex items-center justify-between gap-2 mb-3">
-          <button
-            onClick={openPosterProfile}
-            aria-label={`View ${r.poster_name}'s profile`}
-            className={`flex items-center gap-2 -m-1 p-1 rounded-full cursor-pointer transition-colors ${
-              dark ? "hover:bg-white/10" : "hover:bg-black/5"
-            }`}
-          >
-            <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center shrink-0 ${
-              dark ? "border-white text-white" : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
-            }`}>
-              {initials(r.poster_name || "")}
-            </span>
-            <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
-              {r.poster_name}
-            </span>
-          </button>
+          {r.isDemo ? (
+            // Sample routes have a synthetic poster_id (see demoIdentities /
+            // getDemoRoutes) that doesn't exist in the real users table, so
+            // this stays a plain, non-interactive avatar+name — no profile
+            // overlay to open, no 404 from the backend.
+            <div className="flex items-center gap-2 p-1">
+              <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center shrink-0 ${
+                dark ? "border-white text-white" : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
+              }`}>
+                {initials(r.poster_name || "")}
+              </span>
+              <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
+                {r.poster_name}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={openPosterProfile}
+              aria-label={`View ${r.poster_name}'s profile`}
+              className={`flex items-center gap-2 -m-1 p-1 rounded-full cursor-pointer transition-colors ${
+                dark ? "hover:bg-white/10" : "hover:bg-black/5"
+              }`}
+            >
+              <span className={`w-7 h-7 rounded-full border text-xs font-bold flex items-center justify-center shrink-0 ${
+                dark ? "border-white text-white" : "border-[#ddd] text-[#555] bg-[#f6f7fb]"
+              }`}>
+                {initials(r.poster_name || "")}
+              </span>
+              <span className={`text-xs font-semibold ${dark ? "text-white/70" : "text-[#777]"}`}>
+                {r.poster_name}
+              </span>
+            </button>
+          )}
           <span className={`text-sm font-black ${dark ? "text-white" : "text-[#111]"}`}>
             {r.price > 0 ? `₹${r.price}` : "Free"}
             <span className={`text-xs font-normal ${dark ? "text-white/40" : "text-[#bbb]"}`}>/seat</span>

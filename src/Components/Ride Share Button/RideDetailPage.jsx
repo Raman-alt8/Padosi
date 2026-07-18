@@ -213,20 +213,38 @@ export default function RideDetailPage({
 
           {/* ── Driver ── */}
           <p className={`text-[11px] font-bold uppercase tracking-wider mb-2.5 ${accentText(dark, isRide)}`}>Driver</p>
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent("padosi:openProfile", { detail: { userId: route.poster_id } }))}
-            className={`w-full text-left rounded-2xl p-4 flex items-center gap-3.5 cursor-pointer transition-colors ${cardCls(dark)}`}
-          >
-            <span className={`w-12 h-12 rounded-full text-sm font-bold flex items-center justify-center shrink-0 ${
-              dark ? "bg-white/10 text-white" : "bg-[#f0f0f5] text-[#555]"
-            }`}>
-              {initials(route.poster_name || "")}
-            </span>
-            <div className="min-w-0">
-              <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>{route.poster_name}</p>
-              <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>Neighbourhood poster · View profile</p>
+          {route.isDemo ? (
+            // Sample routes have a synthetic poster_id (see demoIdentities /
+            // getDemoRoutes) that doesn't exist in the real users table, so
+            // this stays a plain, non-interactive row — no profile overlay
+            // to open, no 404 from the backend.
+            <div className={`w-full text-left rounded-2xl p-4 flex items-center gap-3.5 ${cardCls(dark)}`}>
+              <span className={`w-12 h-12 rounded-full text-sm font-bold flex items-center justify-center shrink-0 ${
+                dark ? "bg-white/10 text-white" : "bg-[#f0f0f5] text-[#555]"
+              }`}>
+                {initials(route.poster_name || "")}
+              </span>
+              <div className="min-w-0">
+                <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>{route.poster_name}</p>
+                <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>Neighbourhood poster</p>
+              </div>
             </div>
-          </button>
+          ) : (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("padosi:openProfile", { detail: { userId: route.poster_id } }))}
+              className={`w-full text-left rounded-2xl p-4 flex items-center gap-3.5 cursor-pointer transition-colors ${cardCls(dark)}`}
+            >
+              <span className={`w-12 h-12 rounded-full text-sm font-bold flex items-center justify-center shrink-0 ${
+                dark ? "bg-white/10 text-white" : "bg-[#f0f0f5] text-[#555]"
+              }`}>
+                {initials(route.poster_name || "")}
+              </span>
+              <div className="min-w-0">
+                <p className={`text-sm font-bold ${dark ? "text-white" : "text-[#111]"}`}>{route.poster_name}</p>
+                <p className={`text-xs mt-0.5 ${dark ? "text-white/40" : "text-[#aaa]"}`}>Neighbourhood poster · View profile</p>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 
