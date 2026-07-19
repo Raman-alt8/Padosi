@@ -5,19 +5,20 @@ function demoEmailFor(name = "") {
 }
 
 // ── Demo route roster ───────────────────────────────────────────────────
-// 5 cards per mode. Descriptions on 3 of the 5 are written to explain what
-// UI state that card demonstrates (so a recruiter clicking around
+// 6 cards per mode. Descriptions on most of them are written to explain
+// what UI state that card demonstrates (so a recruiter clicking around
 // understands the point without reading code) — the 1st card is tagged
 // "(Standard)" and keeps an ordinary-sounding ride description, as a
 // baseline "this is what a normal listing looks like" reference next to
 // the explanatory ones.
 //
-// All 4 "this is your route" cards (-9, -5, -11, -12) use ownerMode:
-// "force" — always rendering as owned by whoever's viewing, with zero
-// dependency on being logged in. This was originally split into "force"
-// (always yours) vs "dynamic" (only yours if actually logged in), but
-// dynamic mode isn't useful for a cold recruiter demo — most visitors to a
-// live link won't sign in first — so everything "yours" is force mode now.
+// All 6 "this is your route" cards (-9, -5, -6, -11, -12, -7) use
+// ownerMode: "force" — always rendering as owned by whoever's viewing,
+// with zero dependency on being logged in. This was originally split into
+// "force" (always yours) vs "dynamic" (only yours if actually logged in),
+// but dynamic mode isn't useful for a cold recruiter demo — most visitors
+// to a live link won't sign in first — so everything "yours" is force
+// mode now.
 //
 // "Offering a ride" (mode: partner)
 //   -1       → someone else's ride, fresh — (Standard) baseline listing
@@ -25,6 +26,8 @@ function demoEmailFor(name = "") {
 //   -3       → someone else's ride, pending removal — explains itself
 //   -9       → you posted it, no responses yet — FORCED
 //   -5       → you posted it, someone accepted — FORCED
+//   -6       → you posted it, went stale after acceptance — FORCED,
+//              renders RideRecoveryCard (see `expired` note below)
 //
 // "Partner to share ride" (mode: ride)
 //   -4       → someone else's ride, fresh — (Standard) baseline listing
@@ -32,6 +35,8 @@ function demoEmailFor(name = "") {
 //   -10      → someone else's ride, pending removal — explains itself
 //   -11      → you posted it, no responses yet — FORCED
 //   -12      → you posted it, someone accepted — FORCED
+//   -7       → you posted it, went stale after acceptance — FORCED,
+//              renders RideRecoveryCard (see `expired` note below)
 //
 // ownerMode:
 //   "force"   → always renders as yours, regardless of login. `poster_id`
@@ -40,6 +45,26 @@ function demoEmailFor(name = "") {
 //               isOwner.
 //   (none)    → always a synthetic seller (demoIdentities for -1..-8,
 //               `fallbackSeller` on the route for anything newer)
+//
+// expired: true → getDemoRoutes below also stamps `expired_at` on this
+//               route, unconditionally (not computed from any real
+//               staleness) — same "hardcoded regardless of real time or
+//               login" spirit as ownerMode: "force" above. RideSharePage's
+//               grid checks `route.expired_at` directly and renders
+//               RideRecoveryCard.jsx in place of RideCard.jsx whenever
+//               it's set, same contract a real route gets from actually
+//               hitting POST /:id/expire on the backend. Note this is
+//               display-only: nothing client-side ever calls that
+//               endpoint automatically for real routes yet (RideCard.jsx /
+//               RideDetailPage.jsx compute isAcceptedExpired and would
+//               fire onAcceptedExpire once a real route goes 10+ days
+//               unconfirmed after acceptance, but RideSharePage.jsx
+//               doesn't pass that prop down, so it's still a no-op for
+//               real routes — same as before. Demo routes are additionally
+//               hard-excluded from that computation entirely via the
+//               `!isDemo` guard on isAcceptedExpired, so they can only
+//               ever end up "expired" through this explicit flag, never
+//               through the clock).
 const RAW_DEMO_ROUTES = [
   // ── "Offering a ride" (mode: partner) ──────────────────────────────
   {
@@ -115,6 +140,23 @@ const RAW_DEMO_ROUTES = [
     gender_pref: "no_preference",
     accepted_count: 2,
     ownerMode: "force",
+  },
+  {
+    id: -6,
+    from_place: "Adarsh Nagar",
+    to_place: "Jaipur Airport",
+    freq: "weekend",
+    depart_time: "11:00",
+    seats: 2,
+    price: 60,
+    description: "This is what one of your routes looks like once it's gone stale after someone accepted it — hidden from everyone else, with a one-tap Recover option.",
+    phone: "+91 90000 00018",
+    mode: "partner",
+    vehicle_types: ["car"],
+    gender_pref: "",
+    accepted_count: 1,
+    ownerMode: "force",
+    expired: true,
   },
 
   // ── "Partner to share ride" (mode: ride) ────────────────────────────
@@ -193,6 +235,23 @@ const RAW_DEMO_ROUTES = [
     accepted_count: 3,
     ownerMode: "force",
   },
+  {
+    id: -7,
+    from_place: "Civil Lines",
+    to_place: "Jaipur Railway Station",
+    freq: "weekday",
+    depart_time: "17:45",
+    seats: 0,
+    price: 10,
+    description: "This is what one of your ride requests looks like once it's gone stale after someone accepted it — hidden from everyone else, with a one-tap Recover option.",
+    phone: "+91 90000 00019",
+    mode: "ride",
+    vehicle_types: [],
+    gender_pref: "",
+    accepted_count: 1,
+    ownerMode: "force",
+    expired: true,
+  },
 ];
 
 // Hardcoded "days since last activity" per demo route — see
@@ -206,11 +265,13 @@ const DEMO_DAYS_SINCE_ACTIVITY = {
   "-3": 4.5,   // pending
   "-9": 0.2,   // yours, fresh
   "-5": 1,     // yours, fresh (already accepted)
+  "-6": 1,     // yours, fresh — expired look comes from `expired: true`, not this
   "-4": 0,
   "-8": 0.3,
   "-10": 4.6,  // pending
   "-11": 0.2,  // yours, fresh
   "-12": 1,    // yours, fresh (already accepted)
+  "-7": 1,     // yours, fresh — expired look comes from `expired: true`, not this
 };
 
 function daysAgoISO(days) {
@@ -258,6 +319,11 @@ export function getDemoRoutes(currentUser) {
       // never touch it again. Drives the 10-day silent auto-expiry in
       // RideCard.jsx / RideDetailPage.jsx (ACCEPTED_DELETE_AFTER_DAYS).
       accepted_at: route.accepted_count > 0 ? created_at : undefined,
+      // Unconditional, like ownerMode: "force" above — always set for
+      // `expired: true` routes regardless of real time. This is what
+      // RideSharePage.jsx's grid checks to render RideRecoveryCard.jsx
+      // instead of RideCard.jsx.
+      expired_at: route.expired ? daysAgoISO(1) : undefined,
     };
   });
 }

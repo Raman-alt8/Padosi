@@ -63,6 +63,7 @@ export default function RideCard({
   onViewResponses,
   onConfirmActive,
   onAutoExpire,
+  onAcceptedExpire,
 }) {
   // `forceOwnerDemo` lets a specific demo route (see rideShareDemoData.js,
   // ownerMode: "force") always render the owner UI regardless of who's
@@ -84,15 +85,26 @@ export default function RideCard({
   const showsPendingState = (isOwner || r.isDemo) && !hasAccepted;
   const daysSince  = daysSinceActivity(r);
   const isPending  = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
-  const isAcceptedExpired = hasAccepted && daysSinceAcceptance(r) >= ACCEPTED_DELETE_AFTER_DAYS;
-  const isExpired  = (showsPendingState && daysSince >= DELETE_AFTER_DAYS) || isAcceptedExpired;
+  // `!r.isDemo` guard: hardcoded roster cards (rideShareDemoData.js) are
+  // never real backend rows, so they must never trip the accepted-expiry
+  // clock or fire onAcceptedExpire — regardless of what accepted_at ends
+  // up being set to for demo purposes. Mirrors how RideSharePage.jsx's
+  // handleAutoExpire bails out on `routeId < 0` for the other expiry path.
+  const isAcceptedExpired = hasAccepted && !r.isDemo && daysSinceAcceptance(r) >= ACCEPTED_DELETE_AFTER_DAYS;
+  // Renamed from the old combined isExpired: this is specifically the
+  // "nobody ever responded" path, which still hard-deletes via
+  // onAutoExpire, unchanged. isAcceptedExpired is handled separately below
+  // — it soft-expires (recoverable) instead of deleting outright.
+  const isStaleExpired = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
   const hoursLeft  = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
 
   useEffect(() => {
-    if (isExpired) {
+    if (isAcceptedExpired) {
+      onAcceptedExpire?.(r.id);
+    } else if (isStaleExpired) {
       onAutoExpire?.(r.id);
     }
-  }, [isExpired, r.id, onAutoExpire]);
+  }, [isAcceptedExpired, isStaleExpired, r.id, onAcceptedExpire, onAutoExpire]);
 
   const vehicleTag = vehicles.length === 0
     ? { icon: "🚘", text: "Any vehicle" }

@@ -205,6 +205,19 @@ function runMigrations(db) {
           if (err4 && !err4.message.includes('duplicate column')) {
             console.error('Could not add accepted_at column to ride_routes:', err4);
           }
+
+          // NULL = still active (or never accepted). Non-NULL = soft-
+          // expired: the route was auto-removed 10 days after its first
+          // acceptance (see ACCEPTED_DELETE_AFTER_DAYS / rideRouteRoutes.js
+          // POST /:id/expire) but kept in the table, rather than hard-
+          // deleted, so the poster can still see and recover it. The GET /
+          // query in rideRouteRoutes.js hides any route with expired_at set
+          // from everyone except its poster.
+          db.run(`ALTER TABLE ride_routes ADD COLUMN expired_at TEXT`, err5 => {
+            if (err5 && !err5.message.includes('duplicate column')) {
+              console.error('Could not add expired_at column to ride_routes:', err5);
+            }
+          });
         });
       });
     });

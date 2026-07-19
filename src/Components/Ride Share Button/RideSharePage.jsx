@@ -5,6 +5,8 @@ import RideAcceptPage from "./RideAcceptPage";
 import RideDetailPage from "./RideDetailPage";
 import RideResponsesPage from "./RideResponsesPage";
 import RideCard from "./RideCard";
+import RideRecoveryCard from "./RideRecoveryCard";
+import RideRecoveryPage from "./RideRecoveryPage";
 import { useWishlist } from "../WishlistContext";
 import { freqLabel, vehicleTypesOf, modeOf } from "./rideHelpers";
 import { SORT_OPTIONS, BROWSE_MODES, HIDE_THRESHOLD, REVEAL_THRESHOLD, REOPEN_RESTORE_MS } from "./rideShareConfig";
@@ -186,6 +188,14 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [demoDeclined, setDemoDeclined] = useState(() => new Set());
   const [demoAccepted, setDemoAccepted] = useState(() => new Set());
 
+  // Same pattern again, for the two hardcoded "went stale" demo routes
+  // (-6, -7 — see rideShareDemoData.js). Recovering one client-side resets
+  // it to look like a fresh unmatched listing, mirroring exactly what
+  // POST /:id/recover does to a real route (clears expired_at/accepted_at,
+  // wipes accepted_count) — see visibleRoutes below for where that reset
+  // is applied.
+  const [demoRecovered, setDemoRecovered] = useState(() => new Set());
+
   // Same pattern, for the pending-removal "I'm here" confirmation: demo
   // routes have no backend to PATCH a real last_active_at onto, so we track
   // "confirmed active, and when" locally and splice it over the hardcoded
@@ -225,6 +235,24 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const closeDetail = () => {
     setDetailOpen(false);
     setDetailRoute(null);
+  };
+
+  // ── Recovery overlay state ───────────────────────────────────────────────
+  // Same controlled-overlay pattern as the detail overlay above, kept
+  // separate rather than reusing detailOpen/detailRoute — RideRecoveryCard
+  // opens RideRecoveryPage, not RideDetailPage, and the two should be able
+  // to close independently.
+  const [recoveryOpen, setRecoveryOpen]   = useState(false);
+  const [recoveryRoute, setRecoveryRoute] = useState(null);
+
+  const openRecoveryDetail = (route) => {
+    setRecoveryRoute(route);
+    setRecoveryOpen(true);
+  };
+
+  const closeRecoveryDetail = () => {
+    setRecoveryOpen(false);
+    setRecoveryRoute(null);
   };
 
   // ── Responses page state ─────────────────────────────────────────────────
@@ -470,16 +498,73 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   }, []);
 
+  // Poster tapped "Recover" on a RideRecoveryCard/RideRecoveryPage. Demo
+  // routes have no backend row to PATCH, so recovery just lives in
+  // demoRecovered and gets applied in visibleRoutes below, the same way
+  // demoAccepted/demoConfirmedActive already work. Real routes hit
+  // POST /:id/recover (see rideRouteRoutes.js) and swap in whatever it
+  // returns — that endpoint deliberately resets the route to a fresh,
+  // never-responded-to listing rather than just un-hiding it, so
+  // accepted_count is forced to 0 here since the plain `SELECT r.*` it
+  // returns doesn't include the computed accepted_count column the main
+  // GET / query does.
+  const handleRecover = async (routeId) => {
+    if (routeId < 0) {
+      setDemoRecovered(prev => new Set(prev).add(routeId));
+      closeRecoveryDetail();
+      showToast("↺ Route recovered — it's back as a fresh listing.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/ride-routes/${routeId}/recover`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await readJsonSafely(res);
+      if (!res.ok) {
+        showToast(`⚠️ ${data.error || "Could not recover route."}`);
+        return;
+      }
+      setRoutes(prev => prev.map(r =>
+        r.id === routeId ? { ...data.route, accepted_count: 0 } : r
+      ));
+      closeRecoveryDetail();
+      showToast("↺ Route recovered — it's back as a fresh listing.");
+    } catch (err) {
+      console.error(err);
+      showToast("⚠️ Network error. Please try again.");
+    }
+  };
+
+
   const visibleRoutes = useMemo(() => {
     const demo = DEMO_ROUTES
       .filter(d => !demoDeclined.has(d.id))
-      .map(d => ({
-        ...d,
-        my_response: demoAccepted.has(d.id) ? "accepted" : undefined,
-        last_active_at: demoConfirmedActive.get(d.id) || d.last_active_at,
-      }));
+      .map(d => {
+        if (demoRecovered.has(d.id)) {
+          // Mirrors POST /:id/recover on the backend: clear expired_at and
+          // accepted_at, zero out accepted_count/my_response, and act like
+          // it was just posted — a genuine fresh start, not just un-hiding
+          // the old accepted state.
+          const now = new Date().toISOString();
+          return {
+            ...d,
+            expired_at: undefined,
+            accepted_at: undefined,
+            accepted_count: 0,
+            my_response: undefined,
+            created_at: now,
+            last_active_at: now,
+          };
+        }
+        return {
+          ...d,
+          my_response: demoAccepted.has(d.id) ? "accepted" : undefined,
+          last_active_at: demoConfirmedActive.get(d.id) || d.last_active_at,
+        };
+      });
     return [...routes, ...demo];
-  }, [routes, demoDeclined, demoAccepted, demoConfirmedActive]);
+  }, [routes, demoDeclined, demoAccepted, demoConfirmedActive, demoRecovered]);
 
   const searchMatched = visibleRoutes.filter(r => {
     const q = String(search || "").trim().toLowerCase();
@@ -629,24 +714,34 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                 </span>
               </div>
             ) : filtered.map(r => (
-              <RideCard
-                key={r.id}
-                route={r}
-                currentUser={currentUser}
-                dark={dark}
-                isWishlisted={isWishlisted}
-                toggleWishlist={toggleWishlist}
-                buildWishlistEntry={buildWishlistEntry}
-                onOpenDetail={openDetail}
-                onEdit={openForm}
-                onDelete={handleDelete}
-                onAccept={openAccept}
-                onDecline={handleDecline}
-                onHideAccepted={handleHideAccepted}
-                onViewResponses={openResponses}
-                onConfirmActive={handleConfirmActive}
-                onAutoExpire={handleAutoExpire}
-              />
+              r.expired_at ? (
+                <RideRecoveryCard
+                  key={r.id}
+                  route={r}
+                  dark={dark}
+                  onOpenDetail={openRecoveryDetail}
+                  onRecover={handleRecover}
+                />
+              ) : (
+                <RideCard
+                  key={r.id}
+                  route={r}
+                  currentUser={currentUser}
+                  dark={dark}
+                  isWishlisted={isWishlisted}
+                  toggleWishlist={toggleWishlist}
+                  buildWishlistEntry={buildWishlistEntry}
+                  onOpenDetail={openDetail}
+                  onEdit={openForm}
+                  onDelete={handleDelete}
+                  onAccept={openAccept}
+                  onDecline={handleDecline}
+                  onHideAccepted={handleHideAccepted}
+                  onViewResponses={openResponses}
+                  onConfirmActive={handleConfirmActive}
+                  onAutoExpire={handleAutoExpire}
+                />
+              )
             ))}
           </div>
         )}
@@ -698,6 +793,16 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           isWishlisted={isWishlisted}
           toggleWishlist={toggleWishlist}
           buildWishlistEntry={buildWishlistEntry}
+        />
+      )}
+
+      {recoveryOpen && recoveryRoute && (
+        <RideRecoveryPage
+          open={recoveryOpen}
+          route={recoveryRoute}
+          dark={dark}
+          onClose={closeRecoveryDetail}
+          onRecover={handleRecover}
         />
       )}
 

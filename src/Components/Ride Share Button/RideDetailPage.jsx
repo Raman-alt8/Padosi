@@ -86,6 +86,7 @@ export default function RideDetailPage({
   onHideAccepted,
   onConfirmActive,
   onAutoExpire,
+  onAcceptedExpire,
   isWishlisted,
   toggleWishlist,
   buildWishlistEntry,
@@ -114,14 +115,24 @@ export default function RideDetailPage({
   // accepted isn't an abandoned listing.
   const showsPendingState = (isOwnerRoute || !!route?.isDemo) && !hasAccepted;
   const isPending = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
-  const isAcceptedExpired = hasAccepted && daysSinceAcceptance(route) >= ACCEPTED_DELETE_AFTER_DAYS;
-  const isExpired = (showsPendingState && daysSince >= DELETE_AFTER_DAYS) || isAcceptedExpired;
+  // `!route?.isDemo` guard: hardcoded roster cards (rideShareDemoData.js)
+  // are never real backend rows, so they must never trip the
+  // accepted-expiry clock or fire onAcceptedExpire here either — mirrors
+  // the same guard added to RideCard.jsx.
+  const isAcceptedExpired = hasAccepted && !route?.isDemo && daysSinceAcceptance(route) >= ACCEPTED_DELETE_AFTER_DAYS;
+  // Renamed from the old combined isExpired — see RideCard.jsx for the
+  // full note. isStaleExpired still hard-deletes via onAutoExpire;
+  // isAcceptedExpired now soft-expires via onAcceptedExpire instead, so
+  // the poster gets a recovery card rather than the route just vanishing.
+  const isStaleExpired = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
 
   useEffect(() => {
-    if (isExpired) {
+    if (isAcceptedExpired) {
+      onAcceptedExpire?.(route.id);
+    } else if (isStaleExpired) {
       onAutoExpire?.(route.id);
     }
-  }, [isExpired, route?.id, onAutoExpire]);
+  }, [isAcceptedExpired, isStaleExpired, route?.id, onAcceptedExpire, onAutoExpire]);
 
   if (!open || !route) return null;
 

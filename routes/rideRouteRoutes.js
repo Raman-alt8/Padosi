@@ -83,6 +83,7 @@ router.get('/', requireAuth, async (req, res) => {
          r.description,
          r.created_at,
          r.accepted_at,
+         r.expired_at,
          r.poster_id,
          u.full_name       AS poster_name,
          rr.response       AS my_response,
@@ -92,9 +93,10 @@ router.get('/', requireAuth, async (req, res) => {
        JOIN users u ON u.id = r.poster_id
        LEFT JOIN ride_route_responses rr
          ON rr.route_id = r.id AND rr.user_id = ?
-       WHERE (rr.response IS NULL OR rr.response != 'declined')
+       WHERE (r.expired_at IS NULL OR r.poster_id = ?)
+         AND (rr.response IS NULL OR rr.response != 'declined')
        ORDER BY r.created_at DESC`,
-      [req.user.id]
+      [req.user.id, req.user.id]
     );
 
     const routes = rows.map(r => ({
@@ -357,6 +359,103 @@ router.post('/:id/decline', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Decline ride-route error:', err);
     res.status(500).json({ error: 'Could not decline route.' });
+  }
+});
+
+// POST /api/ride-routes/:id/expire
+// Soft-expire — called by the poster's own client (RideCard.jsx /
+// RideDetailPage.jsx) once ACCEPTED_DELETE_AFTER_DAYS has passed since
+// accepted_at with nobody confirming activity. Unlike DELETE below, this
+// doesn't remove the row: it just stamps expired_at, which the GET /
+// query above uses to hide the route from everyone except the poster, so
+// it can be shown as a recovery card instead of vanishing outright. Same
+// "best-effort nudge, not source of truth" caveat as onAutoExpire — a
+// real cron-based sweep would be the more reliable long-term version of
+// this check, since it currently only fires when the poster happens to
+// have the route rendered in their own browser.
+router.post('/:id/expire', requireAuth, async (req, res) => {
+  const routeId = req.params.id;
+
+  try {
+    const route = await db.getAsync(
+      'SELECT id, poster_id FROM ride_routes WHERE id = ?', [routeId]
+    );
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found.' });
+    }
+    if (route.poster_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the route poster can expire this route.' });
+    }
+
+    // "AND expired_at IS NULL" makes this idempotent — a second call (e.g.
+    // from a re-render before the frontend has caught up to the new state)
+    // is a harmless no-op instead of re-stamping the timestamp.
+    await db.runAsync(
+      `UPDATE ride_routes SET expired_at = ?
+       WHERE id = ? AND poster_id = ? AND expired_at IS NULL`,
+      [new Date().toISOString(), routeId, req.user.id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Expire ride-route error:', err);
+    res.status(500).json({ error: 'Could not expire route.' });
+  }
+});
+
+// POST /api/ride-routes/:id/recover
+// Poster-only. Brings an expired route back — but as a genuine fresh
+// start rather than just un-hiding it: clears expired_at and accepted_at,
+// and wipes every existing accept/decline response on the route, so it
+// re-enters the pool as a brand-new unmatched listing (subject to the
+// normal 4/5-day pending cycle again, and acceptable by anyone, including
+// whoever had accepted it before). This is a deliberate design choice —
+// see the note in the conversation this was built from if that ever needs
+// revisiting for a quieter "just reset the 10-day clock, keep the
+// acceptance" version instead.
+router.post('/:id/recover', requireAuth, async (req, res) => {
+  const routeId = req.params.id;
+
+  try {
+    const route = await db.getAsync(
+      'SELECT id, poster_id, expired_at FROM ride_routes WHERE id = ?', [routeId]
+    );
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found.' });
+    }
+    if (route.poster_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the route poster can recover this route.' });
+    }
+    if (!route.expired_at) {
+      return res.status(400).json({ error: 'This route has not expired.' });
+    }
+
+    await db.runAsync(
+      `UPDATE ride_routes SET expired_at = NULL, accepted_at = NULL
+       WHERE id = ? AND poster_id = ?`,
+      [routeId, req.user.id]
+    );
+
+    // Fresh start: clear prior responses so accepted_count/my_response
+    // reset to 0/null for everyone — the route looks exactly like a newly
+    // posted, never-responded-to listing again.
+    await db.runAsync(
+      `DELETE FROM ride_route_responses WHERE route_id = ?`,
+      [routeId]
+    );
+
+    const recovered = await db.getAsync(
+      `SELECT r.*, u.full_name AS poster_name
+       FROM ride_routes r JOIN users u ON u.id = r.poster_id
+       WHERE r.id = ?`,
+      [routeId]
+    );
+    recovered.vehicle_types = JSON.parse(recovered.vehicle_types || '[]');
+
+    res.json({ route: recovered });
+  } catch (err) {
+    console.error('Recover ride-route error:', err);
+    res.status(500).json({ error: 'Could not recover route.' });
   }
 });
 
