@@ -239,7 +239,23 @@ export default function RideResponsesPage({ route, dark, onBack }) {
                     Accepted ✓
                   </span>
 
-                  <div className="flex items-center gap-3 mb-3 pr-20">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.dispatchEvent(new CustomEvent("padosi:openProfile", {
+                        detail: {
+                          userId: p.id,
+                          isDemo: !!route.isDemo,
+                          demoProfile: route.isDemo ? { full_name: p.full_name } : undefined,
+                        },
+                      }));
+                    }}
+                    aria-label={`View ${p.full_name}'s profile`}
+                    className={`w-full text-left flex items-center gap-3 mb-3 pr-20 -m-1 p-1 rounded-xl cursor-pointer transition-colors ${
+                      dark ? "hover:bg-white/10" : "hover:bg-black/5"
+                    }`}
+                  >
                     <span className={`w-12 h-12 flex-shrink-0 rounded-full border-2 text-base font-bold flex items-center justify-center bg-gradient-to-br ${
                       dark
                         ? "from-white/20 to-white/5 border-white text-white"
@@ -252,7 +268,7 @@ export default function RideResponsesPage({ route, dark, onBack }) {
                       <p className={`text-sm font-bold truncate ${dark ? "text-white" : "text-[#111]"}`}>{p.full_name}</p>
                       <p className={`text-xs truncate ${dark ? "text-white/55" : "text-black/55"}`}>{p.email}</p>
                     </div>
-                  </div>
+                  </button>
 
                   <p className={`text-xs mb-3 flex items-center gap-1.5 ${dark ? "text-white/60" : "text-[#777]"}`}>
                     <PhoneIcon /> {p.phone || "Phone not shared"}
