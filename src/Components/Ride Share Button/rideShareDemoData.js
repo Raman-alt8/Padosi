@@ -254,6 +254,64 @@ const RAW_DEMO_ROUTES = [
   },
 ];
 
+// ── Demo "who accepted" responses ───────────────────────────────────────
+// RideResponsesPage.jsx normally fetches GET /api/ride-routes/:id/responses,
+// but the two demo cards that show an accepted state (-5 "yours, someone
+// accepted" and -12, its ride-mode counterpart) have negative ids that
+// don't exist in the real DB, so that fetch would just 404. For isDemo
+// routes, RideResponsesPage.jsx reads straight from this map instead.
+//
+// Two reviewer accounts (Priya Nair, Karan Verma) carry a rating + review
+// and are reused on both cards. -12 needs a 3rd entry to match its
+// accepted_count of 3 — rather than inventing a 3rd review, that slot
+// (Devansh Rathore) is left without a rating/review on purpose, to
+// illustrate that not everyone leaves one. RideResponsesPage.jsx only
+// renders the rating/review block when a response actually has one.
+export const DEMO_RIDE_RESPONSES = {
+  "-5": [
+    {
+      id: "demo-resp-1",
+      full_name: "Priya Nair",
+      email: "priya.nair@example.com",
+      phone: "+91 90000 00021",
+      rating: 5,
+      review: "Right on time and super friendly — would ride together again.",
+    },
+    {
+      id: "demo-resp-2",
+      full_name: "Karan Verma",
+      email: "karan.verma@example.com",
+      phone: "+91 90000 00022",
+      rating: 4,
+      review: "Smooth ride, dropped a few minutes late but no big deal.",
+    },
+  ],
+  "-12": [
+    {
+      id: "demo-resp-1",
+      full_name: "Priya Nair",
+      email: "priya.nair@example.com",
+      phone: "+91 90000 00021",
+      rating: 5,
+      review: "Right on time and super friendly — would ride together again.",
+    },
+    {
+      id: "demo-resp-2",
+      full_name: "Karan Verma",
+      email: "karan.verma@example.com",
+      phone: "+91 90000 00022",
+      rating: 4,
+      review: "Smooth ride, dropped a few minutes late but no big deal.",
+    },
+    {
+      id: "demo-resp-3",
+      full_name: "Devansh Rathore",
+      email: "devansh.rathore@example.com",
+      phone: "+91 90000 00023",
+    },
+  ],
+};
+
 // Hardcoded "days since last activity" per demo route — see
 // PENDING_AFTER_DAYS / DELETE_AFTER_DAYS in RideCard.jsx / RideDetailPage.jsx.
 //   0.0–3.9  → fresh, no warning
