@@ -41,7 +41,7 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
       className={`relative overflow-hidden rounded-2xl border border-dashed p-5 pt-4 flex flex-col gap-3.5 cursor-pointer transition-all duration-500 ease-out hover:-translate-y-1 ${
         settled ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1.5"
       } ${
-        dark ? "bg-black/60 border-red-400/25 saturate-[0.8]" : "bg-white/70 border-red-200/70 saturate-[0.9]"
+        dark ? "bg-black/60 border-blue-400/25 saturate-[0.8]" : "bg-white/70 border-blue-200/70 saturate-[0.9]"
       }`}
       style={{
         backgroundImage: dark
@@ -51,7 +51,7 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
     >
       <div className="flex items-center justify-between gap-2">
         <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap border ${
-          dark ? "border-red-400/40 text-red-300 bg-red-400/10" : "border-red-200 text-red-600 bg-red-50"
+          dark ? "border-blue-400/40 text-blue-300 bg-blue-400/10" : "border-blue-200 text-blue-600 bg-blue-50"
         }`}>
           <FlatlineIcon className="w-3.5 h-3.5" /> Lapsed
         </span>
@@ -72,7 +72,7 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
         </div>
       </div>
 
-      <p className={`text-[11px] font-bold uppercase tracking-wide ${dark ? "text-red-300/80" : "text-red-600/90"}`}>
+      <p className={`text-[11px] font-bold uppercase tracking-wide ${dark ? "text-blue-300/80" : "text-blue-600/90"}`}>
         Lapsed after 10 days
       </p>
 
@@ -85,7 +85,7 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
         className={`w-full text-xs font-bold py-2.5 rounded-xl cursor-pointer border transition-all active:scale-[0.98] ${
           dark
             ? "border-white bg-white text-black hover:shadow-[0_6px_18px_rgba(255,255,255,0.18)]"
-            : "border-red-500 bg-red-500 text-white hover:bg-red-600 hover:shadow-[0_6px_18px_rgba(220,38,38,0.25)]"
+            : "border-blue-500 bg-blue-500 text-white hover:bg-blue-600 hover:shadow-[0_6px_18px_rgba(37,99,235,0.25)]"
         }`}
       >
         ↺ Renew Route

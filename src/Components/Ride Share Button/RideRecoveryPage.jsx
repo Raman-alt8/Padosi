@@ -125,10 +125,10 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
                 signal that's gone quiet and stopped radiating, echoing
                 the flatline shape at its center. */}
             <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-              <span className={`absolute inset-0 rounded-full border ${dark ? "border-red-400/10" : "border-red-300/20"}`} />
-              <span className={`absolute inset-3 rounded-full border ${dark ? "border-red-400/15" : "border-red-300/30"}`} />
+              <span className={`absolute inset-0 rounded-full border ${dark ? "border-blue-400/10" : "border-blue-300/20"}`} />
+              <span className={`absolute inset-3 rounded-full border ${dark ? "border-blue-400/15" : "border-blue-300/30"}`} />
               <div className={`relative w-14 h-14 rounded-full flex items-center justify-center ${
-                dark ? "bg-red-400/10 text-red-300" : "bg-red-50 text-red-600"
+                dark ? "bg-blue-400/10 text-blue-300" : "bg-blue-50 text-blue-600"
               }`}>
                 <FlatlineIcon />
               </div>
@@ -179,7 +179,7 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
                     <div className="flex flex-col items-center">
                       <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
                         step.final
-                          ? dark ? "bg-red-400 text-black" : "bg-red-500 text-white"
+                          ? dark ? "bg-blue-400 text-black" : "bg-blue-500 text-white"
                           : dark ? "bg-white/15 text-white/70" : "bg-[#eee] text-[#888]"
                       }`}>
                         <CheckIcon />
@@ -188,7 +188,7 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
                     </div>
                     <div className={isLast ? "pb-1" : "pb-4"}>
                       <p className={`text-sm font-bold ${
-                        step.final ? (dark ? "text-red-300" : "text-red-600") : dark ? "text-white/70" : "text-[#555]"
+                        step.final ? (dark ? "text-blue-300" : "text-blue-600") : dark ? "text-white/70" : "text-[#555]"
                       }`}>
                         {step.label}
                       </p>
@@ -213,7 +213,7 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
             <button
               onClick={() => onRecover(route.id)}
               className={`mt-6 w-full py-3 rounded-xl font-bold text-sm cursor-pointer border-none transition-all active:scale-[0.98] hover:opacity-90 ${
-                dark ? "bg-white text-black" : "bg-red-500 text-white"
+                dark ? "bg-white text-black" : "bg-blue-500 text-white"
               }`}
             >
               ↺ Renew Route
