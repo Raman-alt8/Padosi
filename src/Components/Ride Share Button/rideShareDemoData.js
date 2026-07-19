@@ -261,12 +261,8 @@ const RAW_DEMO_ROUTES = [
 // don't exist in the real DB, so that fetch would just 404. For isDemo
 // routes, RideResponsesPage.jsx reads straight from this map instead.
 //
-// Two reviewer accounts (Priya Nair, Karan Verma) carry a rating + review
-// and are reused on both cards. -12 needs a 3rd entry to match its
-// accepted_count of 3 — rather than inventing a 3rd review, that slot
-// (Devansh Rathore) is left without a rating/review on purpose, to
-// illustrate that not everyone leaves one. RideResponsesPage.jsx only
-// renders the rating/review block when a response actually has one.
+// This is a "who accepted, so you can call/chat/pick one of them" list, not
+// a review tab, so entries are just contact info — no rating/review here.
 export const DEMO_RIDE_RESPONSES = {
   "-5": [
     {
@@ -274,16 +270,12 @@ export const DEMO_RIDE_RESPONSES = {
       full_name: "Priya Nair",
       email: "priya.nair@example.com",
       phone: "+91 90000 00021",
-      rating: 5,
-      review: "Right on time and super friendly — would ride together again.",
     },
     {
       id: "demo-resp-2",
       full_name: "Karan Verma",
       email: "karan.verma@example.com",
       phone: "+91 90000 00022",
-      rating: 4,
-      review: "Smooth ride, dropped a few minutes late but no big deal.",
     },
   ],
   "-12": [
@@ -292,16 +284,12 @@ export const DEMO_RIDE_RESPONSES = {
       full_name: "Priya Nair",
       email: "priya.nair@example.com",
       phone: "+91 90000 00021",
-      rating: 5,
-      review: "Right on time and super friendly — would ride together again.",
     },
     {
       id: "demo-resp-2",
       full_name: "Karan Verma",
       email: "karan.verma@example.com",
       phone: "+91 90000 00022",
-      rating: 4,
-      review: "Smooth ride, dropped a few minutes late but no big deal.",
     },
     {
       id: "demo-resp-3",

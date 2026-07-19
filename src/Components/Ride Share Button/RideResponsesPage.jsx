@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { initials, freqLabel, modeOf } from "./rideHelpers";
 import { accentText, accentChipCls, cardCls } from "./rideVisuals";
-import { IconArrowLeft, IconUsers, IconStar } from "./RideIcons";
+import { IconArrowLeft, IconUsers } from "./RideIcons";
 import { DEMO_RIDE_RESPONSES } from "./rideShareDemoData";
 import MessageSellerButton from "../MessageSellerButton";
 
@@ -23,27 +23,6 @@ function ChatIcon() {
     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </svg>
-  );
-}
-
-// 5-star row, filled up to the (rounded) rating. Amber/gold in both themes
-// since it's a rating signal, not a mode accent — same reasoning as
-// successAccent below staying green regardless of route mode.
-function StarRating({ rating, dark }) {
-  return (
-    <span className="inline-flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <IconStar
-          key={n}
-          filled={n <= Math.round(rating)}
-          className={`w-3.5 h-3.5 ${
-            n <= Math.round(rating)
-              ? (dark ? "text-[#ffd43b]" : "text-[#f5a623]")
-              : (dark ? "text-white/15" : "text-[#e2e2e2]")
-          }`}
-        />
-      ))}
-    </span>
   );
 }
 
@@ -274,28 +253,6 @@ export default function RideResponsesPage({ route, dark, onBack }) {
                       <p className={`text-xs truncate ${dark ? "text-white/55" : "text-black/55"}`}>{p.email}</p>
                     </div>
                   </div>
-
-                  {/* Rating/review — only ever set on demo responses right
-                      now (see DEMO_RIDE_RESPONSES in rideShareDemoData.js);
-                      no equivalent columns exist on the real responses
-                      table yet, so this quietly renders nothing for real
-                      data until that lands. Not every response has one
-                      even in the demo set — Devansh Rathore's response on
-                      the -12 demo card intentionally has neither, to show
-                      what an unreviewed response looks like too. */}
-                  {p.rating != null && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <StarRating rating={p.rating} dark={dark} />
-                      <span className={`text-xs font-bold ${dark ? "text-white/70" : "text-[#555]"}`}>
-                        {Number(p.rating).toFixed(1)}
-                      </span>
-                    </div>
-                  )}
-                  {p.review && (
-                    <p className={`text-xs italic leading-relaxed mb-3 ${dark ? "text-white/60" : "text-[#777]"}`}>
-                      “{p.review}”
-                    </p>
-                  )}
 
                   <p className={`text-xs mb-3 flex items-center gap-1.5 ${dark ? "text-white/60" : "text-[#777]"}`}>
                     <PhoneIcon /> {p.phone || "Phone not shared"}
