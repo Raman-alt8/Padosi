@@ -82,6 +82,7 @@ router.get('/', requireAuth, async (req, res) => {
          r.price,
          r.description,
          r.created_at,
+         r.accepted_at,
          r.poster_id,
          u.full_name       AS poster_name,
          rr.response       AS my_response,
@@ -295,6 +296,21 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
        VALUES (?, ?, 'accepted')
        ON CONFLICT(user_id, route_id) DO UPDATE SET response = 'accepted'`,
       [req.user.id, routeId]
+    );
+
+    // Stamp accepted_at the first time this route is ever accepted by
+    // anyone, and never again — the "accepted_at IS NULL" guard makes this
+    // a no-op on every later acceptance (a 2nd/3rd person accepting, or
+    // someone re-accepting after a decline), so the 10-day accepted-route
+    // expiry clock on the frontend (RideCard.jsx / RideDetailPage.jsx,
+    // ACCEPTED_DELETE_AFTER_DAYS) always counts from the true first
+    // acceptance rather than resetting. Generated in JS as an ISO string
+    // rather than using SQLite's CURRENT_TIMESTAMP, since that format
+    // isn't reliably parsed by `new Date(...)` the same way everywhere.
+    await db.runAsync(
+      `UPDATE ride_routes SET accepted_at = ?
+       WHERE id = ? AND accepted_at IS NULL`,
+      [new Date().toISOString(), routeId]
     );
 
     const poster = await db.getAsync(

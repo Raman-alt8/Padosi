@@ -37,11 +37,23 @@ function WarningIcon({ className = "w-5 h-5" }) {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const PENDING_AFTER_DAYS = 4; // warning appears once this many days pass with no activity
 const DELETE_AFTER_DAYS = 5;  // auto-expires once this many days pass with no activity
+// Accepted routes skip the pending cycle above entirely and get their own
+// longer, silent expiry instead — see the note by showsPendingState below.
+const ACCEPTED_DELETE_AFTER_DAYS = 10;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;
   if (!last) return 0;
   return (Date.now() - new Date(last).getTime()) / MS_PER_DAY;
+}
+
+// Distinct from daysSinceActivity — see RideCard.jsx for the full note.
+// Counts from route.accepted_at (set once, on first acceptance), not from
+// last_active_at/created_at. Returns 0 if accepted_at isn't set yet, so an
+// accepted route never auto-expires until the backend actually provides it.
+function daysSinceAcceptance(route) {
+  if (!route.accepted_at) return 0;
+  return (Date.now() - new Date(route.accepted_at).getTime()) / MS_PER_DAY;
 }
 
 // ─── Ride Detail Page ─────────────────────────────────────────────────────
@@ -88,14 +100,22 @@ export default function RideDetailPage({
   // route (Accept/Decline) the moment its detail page is opened, since its
   // synthetic poster_id ("demo-you") never matches a real currentUser.id.
   const isOwnerRoute = !!route && (route.poster_id === currentUser?.id || !!route.forceOwnerDemo);
+  // Hoisted above the early return (unlike RideCard.jsx, where it's already
+  // naturally at the top) because showsPendingState below now needs it, and
+  // the useEffect that reads isExpired has to run before `if (!open ||
+  // !route) return null;` per the hooks-order comment above.
+  const acceptedCount = isOwnerRoute ? (route?.accepted_count || 0) : 0;
+  const hasAccepted = isOwnerRoute && acceptedCount > 0;
   // Non-owner demo routes (e.g. the "someone else's ride, pending removal"
   // samples) still surface the pending banner as an illustration of that
-  // state, same exception as RideCard's showsPendingState — but the "I'm
-  // here" action below stays gated to isOwnerRoute specifically, since a
-  // real non-owner viewer would never have that button.
-  const showsPendingState = isOwnerRoute || !!route?.isDemo;
+  // state, same exception as RideCard's showsPendingState — but accepted
+  // routes skip the pending cycle entirely and get their own longer, silent
+  // expiry (ACCEPTED_DELETE_AFTER_DAYS) instead, since a route someone
+  // accepted isn't an abandoned listing.
+  const showsPendingState = (isOwnerRoute || !!route?.isDemo) && !hasAccepted;
   const isPending = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
-  const isExpired = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
+  const isAcceptedExpired = hasAccepted && daysSinceAcceptance(route) >= ACCEPTED_DELETE_AFTER_DAYS;
+  const isExpired = (showsPendingState && daysSince >= DELETE_AFTER_DAYS) || isAcceptedExpired;
 
   useEffect(() => {
     if (isExpired) {
@@ -113,10 +133,8 @@ export default function RideDetailPage({
   const saved     = isWishlisted("ride", route.id);
   const accepted  = route.my_response === "accepted";
   const hoursLeft = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
-  // Mirrors RideCard.jsx's acceptedCount — used to decide whether the
-  // owner's footer shows "Complete Ride" (a real ride happened) or plain
-  // "Remove" (nothing came of the listing).
-  const acceptedCount = isOwner ? (route.accepted_count || 0) : 0;
+  // acceptedCount / hasAccepted are computed above, before the early
+  // return, since showsPendingState needs them.
 
   const vehicleValue = vehicles.length === 0
     ? "Any vehicle"

@@ -191,6 +191,21 @@ function runMigrations(db) {
         if (err3 && !err3.message.includes('duplicate column')) {
           console.error('Could not add vehicle_types column to ride_routes:', err3);
         }
+
+        // Set once, in rideRouteRoutes.js's POST /:id/accept, the first
+        // time a route is ever accepted by anyone — never updated again
+        // after that, even if more people accept or someone re-accepts
+        // post-decline. Powers the 10-day "accepted route" auto-expiry on
+        // the frontend (RideCard.jsx / RideDetailPage.jsx,
+        // ACCEPTED_DELETE_AFTER_DAYS), which needs to count from the true
+        // first acceptance rather than general listing activity. NULL
+        // means "never accepted yet" — SQLite gives us that distinction
+        // for free, so no separate boolean flag is needed alongside it.
+        db.run(`ALTER TABLE ride_routes ADD COLUMN accepted_at TEXT`, err4 => {
+          if (err4 && !err4.message.includes('duplicate column')) {
+            console.error('Could not add accepted_at column to ride_routes:', err4);
+          }
+        });
       });
     });
   });

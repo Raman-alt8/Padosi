@@ -23,11 +23,28 @@ function WarningIcon({ className = "w-3.5 h-3.5" }) {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const PENDING_AFTER_DAYS = 4;
 const DELETE_AFTER_DAYS = 5;
+// Once someone's accepted a route, it's no longer an abandoned listing, so
+// it doesn't follow the urgent 4/5-day "still interested?" cycle above —
+// it just quietly disappears after this many days instead, with no warning
+// banner in between.
+const ACCEPTED_DELETE_AFTER_DAYS = 10;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;
   if (!last) return 0;
   return (Date.now() - new Date(last).getTime()) / MS_PER_DAY;
+}
+
+// Distinct from daysSinceActivity: this counts from the moment a route was
+// first accepted (route.accepted_at), not from whatever last touched
+// last_active_at/created_at. Requires the backend to set accepted_at once,
+// on first acceptance, and never update it again — see the note on
+// isAcceptedExpired below. If accepted_at isn't present yet (backend not
+// updated), this returns 0 so an accepted route simply never auto-expires,
+// rather than expiring on the wrong clock.
+function daysSinceAcceptance(route) {
+  if (!route.accepted_at) return 0;
+  return (Date.now() - new Date(route.accepted_at).getTime()) / MS_PER_DAY;
 }
 
 export default function RideCard({
@@ -61,10 +78,14 @@ export default function RideCard({
 
   const hasAccepted = isOwner && acceptedCount > 0;
 
-  const showsPendingState = isOwner || r.isDemo;
+  // Accepted routes skip the pending/warning cycle entirely — see
+  // ACCEPTED_DELETE_AFTER_DAYS above — and get their own longer, silent
+  // expiry instead.
+  const showsPendingState = (isOwner || r.isDemo) && !hasAccepted;
   const daysSince  = daysSinceActivity(r);
   const isPending  = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
-  const isExpired  = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
+  const isAcceptedExpired = hasAccepted && daysSinceAcceptance(r) >= ACCEPTED_DELETE_AFTER_DAYS;
+  const isExpired  = (showsPendingState && daysSince >= DELETE_AFTER_DAYS) || isAcceptedExpired;
   const hoursLeft  = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
 
   useEffect(() => {

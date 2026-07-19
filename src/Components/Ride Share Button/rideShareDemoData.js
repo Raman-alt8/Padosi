@@ -252,6 +252,12 @@ export function getDemoRoutes(currentUser) {
       },
       created_at,
       last_active_at: created_at,
+      // Set only for routes that already have an acceptance in the demo
+      // roster (accepted_count > 0) — mirrors what the backend needs to do
+      // for real routes: set accepted_at once, on first acceptance, and
+      // never touch it again. Drives the 10-day silent auto-expiry in
+      // RideCard.jsx / RideDetailPage.jsx (ACCEPTED_DELETE_AFTER_DAYS).
+      accepted_at: route.accepted_count > 0 ? created_at : undefined,
     };
   });
 }
