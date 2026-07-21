@@ -21,13 +21,20 @@ function WarningIcon({ className = "w-3.5 h-3.5" }) {
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const PENDING_AFTER_DAYS = 4;
-const DELETE_AFTER_DAYS = 5;
+const PENDING_AFTER_DAYS = 15; // warning appears once this many days pass with no activity
+const DELETE_AFTER_DAYS = 18;  // auto-expires once this many days pass with no activity
 // Once someone's accepted a route, it's no longer an abandoned listing, so
-// it doesn't follow the urgent 4/5-day "still interested?" cycle above —
+// it doesn't follow the urgent 15/18-day "still interested?" cycle above —
 // it just quietly disappears after this many days instead, with no warning
 // banner in between.
 const ACCEPTED_DELETE_AFTER_DAYS = 10;
+// A second, later threshold off the same accepted_at clock: 2 days after
+// the soft-expire above (12 days after acceptance, not 2 days after
+// whenever the soft-expire actually fired — measuring both off accepted_at
+// keeps them from drifting apart if the poster doesn't open the app
+// between the two). Past this point there's no more recovering the route —
+// see onAcceptedHardExpire below and POST /:id/purge in rideRouteRoutes.js.
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;
@@ -64,6 +71,7 @@ export default function RideCard({
   onConfirmActive,
   onAutoExpire,
   onAcceptedExpire,
+  onAcceptedHardExpire,
 }) {
   // `forceOwnerDemo` lets a specific demo route (see rideShareDemoData.js,
   // ownerMode: "force") always render the owner UI regardless of who's
@@ -91,6 +99,15 @@ export default function RideCard({
   // up being set to for demo purposes. Mirrors how RideSharePage.jsx's
   // handleAutoExpire bails out on `routeId < 0` for the other expiry path.
   const isAcceptedExpired = hasAccepted && !r.isDemo && daysSinceAcceptance(r) >= ACCEPTED_DELETE_AFTER_DAYS;
+  // Same demo guard, same accepted_at clock, just the later threshold.
+  // Deliberately independent of isAcceptedExpired/expired_at — see the
+  // comment on ACCEPTED_HARD_DELETE_AFTER_DAYS above for why this counts
+  // from accepted_at rather than from whenever the soft-expire happened to
+  // fire. In practice this rarely fires from RideCard itself: once
+  // isAcceptedExpired trips, RideSharePage.jsx swaps this route to
+  // RideRecoveryCard, which carries its own copy of this same check so the
+  // clock keeps running while the card isn't a RideCard anymore.
+  const isAcceptedHardExpired = hasAccepted && !r.isDemo && daysSinceAcceptance(r) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
   // Renamed from the old combined isExpired: this is specifically the
   // "nobody ever responded" path, which still hard-deletes via
   // onAutoExpire, unchanged. isAcceptedExpired is handled separately below
@@ -99,12 +116,18 @@ export default function RideCard({
   const hoursLeft  = isPending ? Math.max(0, Math.ceil((DELETE_AFTER_DAYS - daysSince) * 24)) : 0;
 
   useEffect(() => {
-    if (isAcceptedExpired) {
+    // Hard-expiry takes priority: if a route somehow crosses both
+    // thresholds before the poster's browser ever renders it in between
+    // (e.g. they don't open the app for 15 days straight), there's no
+    // point soft-expiring it first just to immediately purge it next.
+    if (isAcceptedHardExpired) {
+      onAcceptedHardExpire?.(r.id);
+    } else if (isAcceptedExpired) {
       onAcceptedExpire?.(r.id);
     } else if (isStaleExpired) {
       onAutoExpire?.(r.id);
     }
-  }, [isAcceptedExpired, isStaleExpired, r.id, onAcceptedExpire, onAutoExpire]);
+  }, [isAcceptedHardExpired, isAcceptedExpired, isStaleExpired, r.id, onAcceptedHardExpire, onAcceptedExpire, onAutoExpire]);
 
   const vehicleTag = vehicles.length === 0
     ? { icon: "🚘", text: "Any vehicle" }

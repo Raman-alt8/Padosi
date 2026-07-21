@@ -98,6 +98,27 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/conversations', messageRoutes);
 app.use('/api/users', profileRoutes);
 
+// ─── Scheduled jobs ────────────────────────────────────────────────────────
+// Ride-route sweep (rideRouteRoutes.js, sweepAcceptedRideRoutes): the
+// client-triggered /expire and /purge endpoints only fire while a poster
+// happens to have the route open in their own browser, so this runs the
+// same check independently on a timer — soft-expire at 10 days, hard-
+// delete at 30 — regardless of whether anyone opens the app again.
+//
+// The 5s startup delay before the first run is deliberate: runMigrations(db)
+// above fires a chain of nested ALTER TABLE callbacks (see the comments in
+// db/migrations.js on why they're nested rather than sibling calls), so on
+// a brand-new database the ride_routes.accepted_at/expired_at columns
+// might not exist yet in the first instant after boot. 5s is comfortably
+// more than that chain ever takes to settle. Every hour after that runs on
+// a plain setInterval.
+setTimeout(() => {
+  rideRouteRoutes.sweepAcceptedRideRoutes().catch(err => console.error('Ride-route sweep failed:', err));
+  setInterval(() => {
+    rideRouteRoutes.sweepAcceptedRideRoutes().catch(err => console.error('Ride-route sweep failed:', err));
+  }, 60 * 60 * 1000);
+}, 5000);
+
 // ─── 404 fallback for unmatched /api/* routes ─────────────────────────────────
 
 app.use('/api', (req, res) => {

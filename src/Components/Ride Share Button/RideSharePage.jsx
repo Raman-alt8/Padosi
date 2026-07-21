@@ -245,6 +245,14 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   const [recoveryOpen, setRecoveryOpen]   = useState(false);
   const [recoveryRoute, setRecoveryRoute] = useState(null);
 
+  // Same reasoning as detailRouteIdRef above — lets handleAcceptedHardExpire
+  // read the currently-open recovery route without needing it in its own
+  // dependency array.
+  const recoveryRouteIdRef = useRef(null);
+  useEffect(() => {
+    recoveryRouteIdRef.current = recoveryRoute?.id ?? null;
+  }, [recoveryRoute]);
+
   const openRecoveryDetail = (route) => {
     setRecoveryRoute(route);
     setRecoveryOpen(true);
@@ -498,7 +506,71 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     }
   }, []);
 
-  // Poster tapped "Recover" on a RideRecoveryCard/RideRecoveryPage. Demo
+  // Fires once a route crosses ACCEPTED_DELETE_AFTER_DAYS since accepted_at
+  // with no one having confirmed activity (see RideCard.jsx /
+  // RideDetailPage.jsx, isAcceptedExpired). Unlike handleAutoExpire, this
+  // doesn't delete the route — it POSTs /:id/expire, which just stamps
+  // expired_at, then mirrors that locally. The render check further down
+  // (`r.expired_at ? RideRecoveryCard : RideCard`) picks the change up
+  // automatically once state updates, same as handleRecover swapping the
+  // other way. Same "best-effort nudge" caveat as handleAutoExpire — only
+  // fires while the poster actually has the route rendered.
+  //
+  // useCallback with an empty dep array for the same reason as
+  // handleAutoExpire: RideCard/RideDetailPage put this in a useEffect
+  // dependency array, so a fresh function identity every render would
+  // re-fire (and re-POST) on every unrelated parent re-render.
+  const handleAcceptedExpire = useCallback((routeId) => {
+    if (routeId < 0) return; // demo routes are hardcoded under the expiry line on purpose
+
+    setRoutes(prev => {
+      const route = prev.find(r => r.id === routeId);
+      if (!route || route.expired_at) return prev; // already gone or already expired — avoid a duplicate POST
+      fetch(`${API_BASE}/api/ride-routes/${routeId}/expire`, {
+        method: "POST",
+        credentials: "include",
+      }).catch((err) => console.error(err));
+      return prev.map(r =>
+        r.id === routeId ? { ...r, expired_at: new Date().toISOString() } : r
+      );
+    });
+  }, []);
+
+  // Fires once a route crosses ACCEPTED_HARD_DELETE_AFTER_DAYS since
+  // accepted_at (see RideCard.jsx / RideDetailPage.jsx, isAcceptedHardExpired
+  // — and RideRecoveryCard.jsx / RideRecoveryPage.jsx, isHardExpired, which
+  // keep this same clock running once a route has already soft-expired).
+  // This is the point of no return: POST /:id/purge actually removes the
+  // row, no recovering it afterward. Same shape as handleAutoExpire, since
+  // both end with the route disappearing from `routes` and the detail
+  // overlay closing if it happened to be open on this exact route.
+  const handleAcceptedHardExpire = useCallback((routeId) => {
+    if (routeId < 0) return; // demo routes are hardcoded under the expiry line on purpose
+
+    setRoutes(prev => {
+      if (!prev.some(r => r.id === routeId)) return prev; // already gone — avoid a duplicate purge
+      fetch(`${API_BASE}/api/ride-routes/${routeId}/purge`, {
+        method: "POST",
+        credentials: "include",
+      }).catch((err) => console.error(err));
+      return prev.filter(r => r.id !== routeId);
+    });
+
+    // If the poster happened to be looking at this exact route (either the
+    // normal detail overlay or the recovery-page overlay) when it got
+    // purged, back them out rather than leaving it open on a route that no
+    // longer exists.
+    if (detailRouteIdRef.current === routeId) {
+      setDetailOpen(false);
+      setDetailRoute(null);
+    }
+    if (recoveryRouteIdRef.current === routeId) {
+      setRecoveryOpen(false);
+      setRecoveryRoute(null);
+    }
+  }, []);
+
+
   // routes have no backend row to PATCH, so recovery just lives in
   // demoRecovered and gets applied in visibleRoutes below, the same way
   // demoAccepted/demoConfirmedActive already work. Real routes hit
@@ -721,6 +793,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                   dark={dark}
                   onOpenDetail={openRecoveryDetail}
                   onRecover={handleRecover}
+                  onAcceptedHardExpire={handleAcceptedHardExpire}
                 />
               ) : (
                 <RideCard
@@ -740,6 +813,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
                   onViewResponses={openResponses}
                   onConfirmActive={handleConfirmActive}
                   onAutoExpire={handleAutoExpire}
+                  onAcceptedExpire={handleAcceptedExpire}
+                  onAcceptedHardExpire={handleAcceptedHardExpire}
                 />
               )
             ))}
@@ -790,6 +865,8 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           onHideAccepted={handleHideAccepted}
           onConfirmActive={handleConfirmActive}
           onAutoExpire={handleAutoExpire}
+          onAcceptedExpire={handleAcceptedExpire}
+          onAcceptedHardExpire={handleAcceptedHardExpire}
           isWishlisted={isWishlisted}
           toggleWishlist={toggleWishlist}
           buildWishlistEntry={buildWishlistEntry}
@@ -803,6 +880,7 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
           dark={dark}
           onClose={closeRecoveryDetail}
           onRecover={handleRecover}
+          onAcceptedHardExpire={handleAcceptedHardExpire}
         />
       )}
 

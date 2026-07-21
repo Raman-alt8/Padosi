@@ -3,6 +3,17 @@ import { useEffect, useState } from "react";
 import { modeOf, freqLabel } from "./rideHelpers";
 import { IconArrowLeft } from "./RideIcons";
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+// Same 12-day-from-accepted_at threshold as RideRecoveryCard.jsx — see
+// RideCard.jsx for the full reasoning. Kept in sync by hand, same as the
+// FlatlineIcon duplication noted below.
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
+
+function daysSinceAcceptance(route) {
+  if (!route?.accepted_at) return 0;
+  return (Date.now() - new Date(route.accepted_at).getTime()) / MS_PER_DAY;
+}
+
 // Same flatline icon as RideRecoveryCard.jsx, scaled up — kept in sync by
 // hand since these two files don't share an icon module in this pass. If
 // it's touched here, mirror the change there too.
@@ -64,7 +75,7 @@ function formatDate(iso) {
 // RideCompletePage, which needed to be reachable from anywhere). The
 // header below intentionally mirrors RideDetailPage's header shape so
 // this reads as part of the same family of overlays.
-export default function RideRecoveryPage({ open, route, dark, onClose, onRecover }) {
+export default function RideRecoveryPage({ open, route, dark, onClose, onRecover, onAcceptedHardExpire }) {
   // Hooks run every render regardless of open/route, same reasoning as the
   // days-since-activity hooks in RideDetailPage.jsx — the early return
   // below has to come after this, not before.
@@ -74,6 +85,18 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
     const raf = requestAnimationFrame(() => setSettled(true));
     return () => cancelAnimationFrame(raf);
   }, [open, route?.id]);
+
+  // Same guard/reasoning as RideRecoveryCard.jsx — keeps the 30-day clock
+  // running while a lapsed route is open in this full-screen view too,
+  // rather than only while it's sitting as a card in the grid. Hoisted
+  // above the early return below for the same hooks-order reason as the
+  // effect above; no-ops via `!!route` when the overlay is closed.
+  const isHardExpired = !!route && !route.isDemo && daysSinceAcceptance(route) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
+  useEffect(() => {
+    if (isHardExpired) {
+      onAcceptedHardExpire?.(route.id);
+    }
+  }, [isHardExpired, route?.id, onAcceptedHardExpire]);
 
   if (!open || !route) return null;
 

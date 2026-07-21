@@ -403,6 +403,50 @@ router.post('/:id/expire', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/ride-routes/:id/purge
+// Hard-delete — called by the poster's own client (RideCard.jsx /
+// RideDetailPage.jsx, or RideRecoveryCard.jsx / RideRecoveryPage.jsx once
+// the route has already soft-expired) once
+// ACCEPTED_HARD_DELETE_AFTER_DAYS (12 days since accepted_at) has passed.
+// Unlike /expire above, this is the point of no return: the row is
+// actually removed, not just hidden. Ownership check + the explicit
+// delete of ride_route_responses first mirror /recover above, rather than
+// assuming an ON DELETE CASCADE exists between the two tables. Same
+// "best-effort nudge, not source of truth" caveat as /expire and
+// handleAutoExpire — a real cron-based sweep would be the more reliable
+// long-term version, since this only fires when the poster happens to
+// have the route rendered in their own browser.
+router.post('/:id/purge', requireAuth, async (req, res) => {
+  const routeId = req.params.id;
+
+  try {
+    const route = await db.getAsync(
+      'SELECT id, poster_id FROM ride_routes WHERE id = ?', [routeId]
+    );
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found.' });
+    }
+    if (route.poster_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the route poster can delete this route.' });
+    }
+
+    await db.runAsync(
+      `DELETE FROM ride_route_responses WHERE route_id = ?`,
+      [routeId]
+    );
+
+    await db.runAsync(
+      'DELETE FROM ride_routes WHERE id = ? AND poster_id = ?',
+      [routeId, req.user.id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Purge ride-route error:', err);
+    res.status(500).json({ error: 'Could not delete route.' });
+  }
+});
+
 // POST /api/ride-routes/:id/recover
 // Poster-only. Brings an expired route back — but as a genuine fresh
 // start rather than just un-hiding it: clears expired_at and accepted_at,
@@ -458,5 +502,60 @@ router.post('/:id/recover', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Could not recover route.' });
   }
 });
+
+// ── Scheduled sweep: accepted-route expiry/purge ────────────────────────
+// The client-triggered /expire and /purge endpoints above only ever fire
+// while the poster happens to have the route rendered in their own
+// browser (see the "best-effort nudge" comments on those two) — a poster
+// who never reopens the app leaves an accepted route sitting there
+// forever, past both thresholds. This function is called on a timer from
+// server.js instead, independent of any request, so the 10-day soft-expire
+// and 30-day hard-delete actually happen on schedule.
+//
+// Day math is done in JS against accepted_at rather than with SQLite's own
+// date functions, for the same reason noted on POST /:id/accept above:
+// accepted_at is a JS-generated ISO string, and `new Date(...)` is what's
+// reliably parsing it here, not something SQL-side needs to also get right.
+const ACCEPTED_DELETE_AFTER_DAYS      = 10;
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+async function sweepAcceptedRideRoutes() {
+  const rows = await db.allAsync(
+    `SELECT id, accepted_at, expired_at FROM ride_routes WHERE accepted_at IS NOT NULL`
+  );
+
+  let expiredCount = 0;
+  let purgedCount  = 0;
+
+  for (const row of rows) {
+    const daysSince = (Date.now() - new Date(row.accepted_at).getTime()) / MS_PER_DAY;
+
+    if (daysSince >= ACCEPTED_HARD_DELETE_AFTER_DAYS) {
+      // Same explicit-delete-of-dependents pattern as /purge above, rather
+      // than assuming an ON DELETE CASCADE exists on ride_route_responses.
+      await db.runAsync(`DELETE FROM ride_route_responses WHERE route_id = ?`, [row.id]);
+      await db.runAsync(`DELETE FROM ride_routes WHERE id = ?`, [row.id]);
+      purgedCount++;
+    } else if (daysSince >= ACCEPTED_DELETE_AFTER_DAYS && !row.expired_at) {
+      await db.runAsync(
+        `UPDATE ride_routes SET expired_at = ? WHERE id = ? AND expired_at IS NULL`,
+        [new Date().toISOString(), row.id]
+      );
+      expiredCount++;
+    }
+  }
+
+  if (expiredCount || purgedCount) {
+    console.log(`[ride-routes sweep] soft-expired ${expiredCount}, purged ${purgedCount}`);
+  }
+}
+
+// Attached to the router itself (a Router instance is just a function, so
+// this is a harmless extra property) rather than changing what
+// module.exports is — server.js does `app.use('/api/ride-routes',
+// rideRouteRoutes)`, which needs the export to stay the router itself, not
+// wrapped in an object.
+router.sweepAcceptedRideRoutes = sweepAcceptedRideRoutes;
 
 module.exports = router;

@@ -35,11 +35,15 @@ function WarningIcon({ className = "w-5 h-5" }) {
 // wasn't included in this pass. If it's touched here, mirror the change
 // there too (and ideally move both copies into rideHelpers.js).
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const PENDING_AFTER_DAYS = 4; // warning appears once this many days pass with no activity
-const DELETE_AFTER_DAYS = 5;  // auto-expires once this many days pass with no activity
+const PENDING_AFTER_DAYS = 15; // warning appears once this many days pass with no activity
+const DELETE_AFTER_DAYS = 18;  // auto-expires once this many days pass with no activity
 // Accepted routes skip the pending cycle above entirely and get their own
 // longer, silent expiry instead — see the note by showsPendingState below.
 const ACCEPTED_DELETE_AFTER_DAYS = 10;
+// Later threshold off the same accepted_at clock — see RideCard.jsx for
+// the full note on why this counts from accepted_at rather than from
+// whenever the soft-expire actually fired.
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;
@@ -87,6 +91,7 @@ export default function RideDetailPage({
   onConfirmActive,
   onAutoExpire,
   onAcceptedExpire,
+  onAcceptedHardExpire,
   isWishlisted,
   toggleWishlist,
   buildWishlistEntry,
@@ -120,6 +125,9 @@ export default function RideDetailPage({
   // accepted-expiry clock or fire onAcceptedExpire here either — mirrors
   // the same guard added to RideCard.jsx.
   const isAcceptedExpired = hasAccepted && !route?.isDemo && daysSinceAcceptance(route) >= ACCEPTED_DELETE_AFTER_DAYS;
+  // Same demo guard, same accepted_at clock, later threshold — see
+  // RideCard.jsx for why this is independent of isAcceptedExpired.
+  const isAcceptedHardExpired = hasAccepted && !route?.isDemo && daysSinceAcceptance(route) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
   // Renamed from the old combined isExpired — see RideCard.jsx for the
   // full note. isStaleExpired still hard-deletes via onAutoExpire;
   // isAcceptedExpired now soft-expires via onAcceptedExpire instead, so
@@ -127,12 +135,15 @@ export default function RideDetailPage({
   const isStaleExpired = showsPendingState && daysSince >= DELETE_AFTER_DAYS;
 
   useEffect(() => {
-    if (isAcceptedExpired) {
+    // Hard-expiry takes priority — see RideCard.jsx for why.
+    if (isAcceptedHardExpired) {
+      onAcceptedHardExpire?.(route.id);
+    } else if (isAcceptedExpired) {
       onAcceptedExpire?.(route.id);
     } else if (isStaleExpired) {
       onAutoExpire?.(route.id);
     }
-  }, [isAcceptedExpired, isStaleExpired, route?.id, onAcceptedExpire, onAutoExpire]);
+  }, [isAcceptedHardExpired, isAcceptedExpired, isStaleExpired, route?.id, onAcceptedHardExpire, onAcceptedExpire, onAutoExpire]);
 
   if (!open || !route) return null;
 
