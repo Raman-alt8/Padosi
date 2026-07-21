@@ -362,6 +362,42 @@ router.post('/:id/decline', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/ride-routes/:id/confirm-active
+// Poster-only. Fired when the poster taps "I'm here" on a pending route
+// (RideCard.jsx / RideDetailPage.jsx, PENDING_AFTER_DAYS/DELETE_AFTER_DAYS
+// cycle). Bumps last_active_at to now, which is what daysSinceActivity on
+// the frontend reads — so this resets the 15/18-day pending/delete clock
+// back to 0, exactly like a route that was just posted. Only applies to
+// the unaccepted "still interested?" cycle: it has no effect on the
+// accepted_at-based soft-expire/hard-delete clock below, which is
+// deliberately untouched by activity confirmation.
+router.post('/:id/confirm-active', requireAuth, async (req, res) => {
+  const routeId = req.params.id;
+
+  try {
+    const route = await db.getAsync(
+      'SELECT id, poster_id FROM ride_routes WHERE id = ?', [routeId]
+    );
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found.' });
+    }
+    if (route.poster_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the route poster can confirm this route is active.' });
+    }
+
+    await db.runAsync(
+      `UPDATE ride_routes SET last_active_at = ?
+       WHERE id = ? AND poster_id = ?`,
+      [new Date().toISOString(), routeId, req.user.id]
+    );
+
+    res.json({ success: true, last_active_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('Confirm-active ride-route error:', err);
+    res.status(500).json({ error: 'Could not confirm route as active.' });
+  }
+});
+
 // POST /api/ride-routes/:id/expire
 // Soft-expire — called by the poster's own client (RideCard.jsx /
 // RideDetailPage.jsx) once ACCEPTED_DELETE_AFTER_DAYS has passed since
@@ -407,7 +443,7 @@ router.post('/:id/expire', requireAuth, async (req, res) => {
 // Hard-delete — called by the poster's own client (RideCard.jsx /
 // RideDetailPage.jsx, or RideRecoveryCard.jsx / RideRecoveryPage.jsx once
 // the route has already soft-expired) once
-// ACCEPTED_HARD_DELETE_AFTER_DAYS (12 days since accepted_at) has passed.
+// ACCEPTED_HARD_DELETE_AFTER_DAYS (11 days since accepted_at) has passed.
 // Unlike /expire above, this is the point of no return: the row is
 // actually removed, not just hidden. Ownership check + the explicit
 // delete of ride_route_responses first mirror /recover above, rather than
@@ -448,21 +484,24 @@ router.post('/:id/purge', requireAuth, async (req, res) => {
 });
 
 // POST /api/ride-routes/:id/recover
-// Poster-only. Brings an expired route back — but as a genuine fresh
-// start rather than just un-hiding it: clears expired_at and accepted_at,
-// and wipes every existing accept/decline response on the route, so it
-// re-enters the pool as a brand-new unmatched listing (subject to the
-// normal 4/5-day pending cycle again, and acceptable by anyone, including
-// whoever had accepted it before). This is a deliberate design choice —
-// see the note in the conversation this was built from if that ever needs
-// revisiting for a quieter "just reset the 10-day clock, keep the
-// acceptance" version instead.
+// Poster-only. Un-hides an expired route and puts it back exactly where
+// it was the moment it soft-expired — NOT a fresh start. Only expired_at
+// is cleared; accepted_at is left untouched and every existing
+// accept/decline response is kept, so accepted_count/my_response come
+// back unchanged for everyone who'd already responded. Recovering does
+// not pause, extend, or restart the deletion clock: that clock still runs
+// off the original accepted_at, so a route recovered at (say) day 10.5
+// still gets hard-deleted at ACCEPTED_HARD_DELETE_AFTER_DAYS (11) —
+// recovery only buys back visibility, never extra time. The guard below
+// blocks recovering something that's already past that deadline, so this
+// endpoint can't be used to sneak a route past the point /purge or the
+// sweep would otherwise have removed it at.
 router.post('/:id/recover', requireAuth, async (req, res) => {
   const routeId = req.params.id;
 
   try {
     const route = await db.getAsync(
-      'SELECT id, poster_id, expired_at FROM ride_routes WHERE id = ?', [routeId]
+      'SELECT id, poster_id, expired_at, accepted_at FROM ride_routes WHERE id = ?', [routeId]
     );
     if (!route) {
       return res.status(404).json({ error: 'Route not found.' });
@@ -474,27 +513,31 @@ router.post('/:id/recover', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'This route has not expired.' });
     }
 
+    const daysSinceAcceptance = route.accepted_at
+      ? (Date.now() - new Date(route.accepted_at).getTime()) / MS_PER_DAY
+      : 0;
+    if (daysSinceAcceptance >= ACCEPTED_HARD_DELETE_AFTER_DAYS) {
+      return res.status(400).json({ error: 'This route is past its recovery window and can no longer be recovered.' });
+    }
+
     await db.runAsync(
-      `UPDATE ride_routes SET expired_at = NULL, accepted_at = NULL
+      `UPDATE ride_routes SET expired_at = NULL
        WHERE id = ? AND poster_id = ?`,
       [routeId, req.user.id]
     );
 
-    // Fresh start: clear prior responses so accepted_count/my_response
-    // reset to 0/null for everyone — the route looks exactly like a newly
-    // posted, never-responded-to listing again.
-    await db.runAsync(
-      `DELETE FROM ride_route_responses WHERE route_id = ?`,
-      [routeId]
-    );
-
     const recovered = await db.getAsync(
-      `SELECT r.*, u.full_name AS poster_name
+      `SELECT
+         r.*,
+         u.full_name AS poster_name,
+         (SELECT COUNT(*) FROM ride_route_responses rr2
+           WHERE rr2.route_id = r.id AND rr2.response = 'accepted') AS accepted_count
        FROM ride_routes r JOIN users u ON u.id = r.poster_id
        WHERE r.id = ?`,
       [routeId]
     );
     recovered.vehicle_types = JSON.parse(recovered.vehicle_types || '[]');
+    recovered.accepted_count = Number(recovered.accepted_count) || 0;
 
     res.json({ route: recovered });
   } catch (err) {
@@ -510,14 +553,20 @@ router.post('/:id/recover', requireAuth, async (req, res) => {
 // who never reopens the app leaves an accepted route sitting there
 // forever, past both thresholds. This function is called on a timer from
 // server.js instead, independent of any request, so the 10-day soft-expire
-// and 30-day hard-delete actually happen on schedule.
+// and 11-day hard-delete actually happen on schedule.
 //
 // Day math is done in JS against accepted_at rather than with SQLite's own
 // date functions, for the same reason noted on POST /:id/accept above:
 // accepted_at is a JS-generated ISO string, and `new Date(...)` is what's
 // reliably parsing it here, not something SQL-side needs to also get right.
+//
+// Purging is keyed only on accepted_at, never on expired_at — so recovery
+// (POST /:id/recover above, which clears expired_at but deliberately
+// leaves accepted_at alone) can't push this deadline back. A route
+// recovered at day 10.5 still gets purged here at day 11, same as if it
+// had never been recovered at all.
 const ACCEPTED_DELETE_AFTER_DAYS      = 10;
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 async function sweepAcceptedRideRoutes() {
@@ -551,11 +600,68 @@ async function sweepAcceptedRideRoutes() {
   }
 }
 
+// ── Scheduled sweep: unaccepted stale-route deletion ────────────────────
+// Mirrors sweepAcceptedRideRoutes above, but for the *other* lifecycle —
+// PENDING_AFTER_DAYS/DELETE_AFTER_DAYS on RideCard.jsx / RideDetailPage.jsx,
+// the "still interested?" cycle a route follows before anyone's accepted
+// it. handleAutoExpire in RideSharePage.jsx already says outright that its
+// own DELETE call is only a best-effort nudge that fires while the poster
+// happens to have the card open — a poster who never reopens the app was,
+// until this function existed, leaving stale routes sitting past 18 days
+// forever, since nothing server-side was checking them. This closes that
+// gap the same way the accepted-route sweep does: called on the same timer
+// from server.js, independent of any request.
+//
+// `accepted_at IS NULL` scopes this to routes that have never been
+// accepted — the moment a route is accepted it switches to the other
+// clock/sweep above and permanently stops following this one (see
+// showsPendingState in RideCard.jsx). last_active_at falls back to
+// created_at when NULL, same as daysSinceActivity on the frontend — a
+// route that's never had its activity confirmed via POST
+// /:id/confirm-active just counts from when it was first posted.
+//
+// There's no soft-expire/recoverable middle state on this path (that's
+// specific to the accepted-route clock, via expired_at) — a route that's
+// gone PENDING_AFTER_DAYS/DELETE_AFTER_DAYS days without activity just
+// gets deleted outright once it crosses DELETE_AFTER_DAYS, same as
+// DELETE /:id above.
+const PENDING_AFTER_DAYS = 15;
+const DELETE_AFTER_DAYS  = 18;
+
+async function sweepStaleRideRoutes() {
+  const rows = await db.allAsync(
+    `SELECT id, created_at, last_active_at FROM ride_routes WHERE accepted_at IS NULL`
+  );
+
+  let purgedCount = 0;
+
+  for (const row of rows) {
+    const last = row.last_active_at || row.created_at;
+    if (!last) continue;
+
+    const daysSince = (Date.now() - new Date(last).getTime()) / MS_PER_DAY;
+
+    if (daysSince >= DELETE_AFTER_DAYS) {
+      // Same explicit-delete-of-dependents pattern as /purge and
+      // sweepAcceptedRideRoutes above, rather than assuming an
+      // ON DELETE CASCADE exists on ride_route_responses.
+      await db.runAsync(`DELETE FROM ride_route_responses WHERE route_id = ?`, [row.id]);
+      await db.runAsync(`DELETE FROM ride_routes WHERE id = ?`, [row.id]);
+      purgedCount++;
+    }
+  }
+
+  if (purgedCount) {
+    console.log(`[ride-routes sweep] deleted ${purgedCount} stale unaccepted route(s)`);
+  }
+}
+
 // Attached to the router itself (a Router instance is just a function, so
 // this is a harmless extra property) rather than changing what
 // module.exports is — server.js does `app.use('/api/ride-routes',
 // rideRouteRoutes)`, which needs the export to stay the router itself, not
 // wrapped in an object.
 router.sweepAcceptedRideRoutes = sweepAcceptedRideRoutes;
+router.sweepStaleRideRoutes    = sweepStaleRideRoutes;
 
 module.exports = router;

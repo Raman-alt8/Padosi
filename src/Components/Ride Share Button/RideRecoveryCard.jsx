@@ -3,13 +3,16 @@ import { useEffect, useState } from "react";
 import { modeOf } from "./rideHelpers";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-// 2 days after a route lands here (12 days after the original
+// 1 day after a route lands here (11 days after the original
 // accepted_at) it's gone for good — see RideCard.jsx for why this counts
 // from accepted_at rather than from expired_at/whenever this card first
 // mounted. This card is only ever rendered for routes that are already
 // past ACCEPTED_DELETE_AFTER_DAYS (10), so there's no separate "soft"
-// threshold to check here, just this one.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
+// threshold to check here, just this one. Tapping "Recover Route" below
+// (POST /:id/recover) un-hides the route but does not push this deadline
+// back — it never touches accepted_at, so this clock keeps running the
+// same whether or not the route gets recovered.
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
 
 function daysSinceAcceptance(route) {
   if (!route.accepted_at) return 0;
@@ -52,7 +55,7 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
   // `!r.isDemo` guard: hardcoded roster cards (rideShareDemoData.js) are
   // never real backend rows, so they must never trip this clock or fire
   // onAcceptedHardExpire — mirrors the same guard in RideCard.jsx /
-  // RideDetailPage.jsx. This is the piece that keeps the 30-day clock
+  // RideDetailPage.jsx. This is the piece that keeps the 11-day clock
   // running once a route lands here — RideCard's own copy of this check
   // stops applying the moment RideSharePage.jsx swaps a route over to this
   // component, since RideCard just isn't mounted for it anymore.
@@ -117,7 +120,7 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
             : "border-blue-500 bg-blue-500 text-white hover:bg-blue-600 hover:shadow-[0_6px_18px_rgba(37,99,235,0.25)]"
         }`}
       >
-        ↺ Renew Route
+        ↺ Recover Route
       </button>
     </div>
   );

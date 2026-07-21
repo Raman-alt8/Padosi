@@ -217,6 +217,22 @@ function runMigrations(db) {
             if (err5 && !err5.message.includes('duplicate column')) {
               console.error('Could not add expired_at column to ride_routes:', err5);
             }
+
+            // Bumped by rideRouteRoutes.js's POST /:id/confirm-active
+            // whenever the poster taps "I'm here" on a pending route.
+            // RideCard.jsx / RideDetailPage.jsx read this (falling back to
+            // created_at if it's still NULL, e.g. a route that's never had
+            // its activity confirmed) to drive the 15/18-day
+            // PENDING_AFTER_DAYS / DELETE_AFTER_DAYS "still interested?"
+            // cycle. Deliberately separate from accepted_at/expired_at
+            // above: this only affects the unaccepted-listing cycle, never
+            // the accepted-route soft-expire/hard-delete clock, and
+            // POST /:id/recover deliberately does not touch it either.
+            db.run(`ALTER TABLE ride_routes ADD COLUMN last_active_at TEXT`, err6 => {
+              if (err6 && !err6.message.includes('duplicate column')) {
+                console.error('Could not add last_active_at column to ride_routes:', err6);
+              }
+            });
           });
         });
       });

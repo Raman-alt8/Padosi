@@ -28,13 +28,16 @@ const DELETE_AFTER_DAYS = 18;  // auto-expires once this many days pass with no 
 // it just quietly disappears after this many days instead, with no warning
 // banner in between.
 const ACCEPTED_DELETE_AFTER_DAYS = 10;
-// A second, later threshold off the same accepted_at clock: 2 days after
-// the soft-expire above (12 days after acceptance, not 2 days after
+// A second, later threshold off the same accepted_at clock: 1 day after
+// the soft-expire above (11 days after acceptance, not 1 day after
 // whenever the soft-expire actually fired — measuring both off accepted_at
 // keeps them from drifting apart if the poster doesn't open the app
 // between the two). Past this point there's no more recovering the route —
 // see onAcceptedHardExpire below and POST /:id/purge in rideRouteRoutes.js.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
+// Recovering the route (POST /:id/recover) does NOT push this deadline
+// back — recovery only un-hides the route, it never touches accepted_at,
+// so this clock keeps running whether or not the route gets recovered.
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;

@@ -99,23 +99,30 @@ app.use('/api/conversations', messageRoutes);
 app.use('/api/users', profileRoutes);
 
 // ─── Scheduled jobs ────────────────────────────────────────────────────────
-// Ride-route sweep (rideRouteRoutes.js, sweepAcceptedRideRoutes): the
-// client-triggered /expire and /purge endpoints only fire while a poster
-// happens to have the route open in their own browser, so this runs the
-// same check independently on a timer — soft-expire at 10 days, hard-
-// delete at 30 — regardless of whether anyone opens the app again.
+// Ride-route sweeps (rideRouteRoutes.js): the client-triggered /expire,
+// /purge, and DELETE endpoints only fire while a poster happens to have
+// the route open in their own browser, so these run the same checks
+// independently on a timer, regardless of whether anyone opens the app
+// again:
+//   - sweepAcceptedRideRoutes: accepted routes — soft-expire at 10 days,
+//     hard-delete at 11, both counted from accepted_at.
+//   - sweepStaleRideRoutes: routes nobody's accepted yet — hard-delete at
+//     18 days of no activity (last_active_at/created_at), the same
+//     DELETE_AFTER_DAYS threshold RideCard.jsx/RideDetailPage.jsx use.
 //
 // The 5s startup delay before the first run is deliberate: runMigrations(db)
 // above fires a chain of nested ALTER TABLE callbacks (see the comments in
 // db/migrations.js on why they're nested rather than sibling calls), so on
-// a brand-new database the ride_routes.accepted_at/expired_at columns
-// might not exist yet in the first instant after boot. 5s is comfortably
-// more than that chain ever takes to settle. Every hour after that runs on
-// a plain setInterval.
+// a brand-new database the ride_routes.accepted_at/expired_at/
+// last_active_at columns might not exist yet in the first instant after
+// boot. 5s is comfortably more than that chain ever takes to settle. Every
+// hour after that runs on a plain setInterval.
 setTimeout(() => {
   rideRouteRoutes.sweepAcceptedRideRoutes().catch(err => console.error('Ride-route sweep failed:', err));
+  rideRouteRoutes.sweepStaleRideRoutes().catch(err => console.error('Ride-route stale sweep failed:', err));
   setInterval(() => {
     rideRouteRoutes.sweepAcceptedRideRoutes().catch(err => console.error('Ride-route sweep failed:', err));
+    rideRouteRoutes.sweepStaleRideRoutes().catch(err => console.error('Ride-route stale sweep failed:', err));
   }, 60 * 60 * 1000);
 }, 5000);
 

@@ -4,10 +4,10 @@ import { modeOf, freqLabel } from "./rideHelpers";
 import { IconArrowLeft } from "./RideIcons";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-// Same 12-day-from-accepted_at threshold as RideRecoveryCard.jsx — see
+// Same 11-day-from-accepted_at threshold as RideRecoveryCard.jsx — see
 // RideCard.jsx for the full reasoning. Kept in sync by hand, same as the
 // FlatlineIcon duplication noted below.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
 
 function daysSinceAcceptance(route) {
   if (!route?.accepted_at) return 0;
@@ -86,7 +86,7 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
     return () => cancelAnimationFrame(raf);
   }, [open, route?.id]);
 
-  // Same guard/reasoning as RideRecoveryCard.jsx — keeps the 30-day clock
+  // Same guard/reasoning as RideRecoveryCard.jsx — keeps the 11-day clock
   // running while a lapsed route is open in this full-screen view too,
   // rather than only while it's sitting as a card in the grid. Hoisted
   // above the early return below for the same hooks-order reason as the
@@ -223,14 +223,14 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
                 );
               })}
               <p className={`text-xs italic mt-1 ${dark ? "text-white/40" : "text-[#aaa]"}`}>
-                Renew to reopen.
+                Recover to reopen.
               </p>
             </div>
 
             <FlatlineDivider dark={dark} />
 
             <p className={`text-xs leading-relaxed ${dark ? "text-white/40" : "text-[#aaa]"}`}>
-              Renewing reopens it as a fresh, unmatched listing — open to anyone, including whoever accepted it before — with the inactivity clock reset.
+              Recovering un-hides this route and keeps everyone who already responded to it — it does not reset the deletion clock. If it's not recovered within 1 day of lapsing (11 days after acceptance), it's gone for good.
             </p>
 
             <button
@@ -239,7 +239,7 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
                 dark ? "bg-white text-black" : "bg-blue-500 text-white"
               }`}
             >
-              ↺ Renew Route
+              ↺ Recover Route
             </button>
           </div>
         </div>

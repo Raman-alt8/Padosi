@@ -42,8 +42,11 @@ const DELETE_AFTER_DAYS = 18;  // auto-expires once this many days pass with no 
 const ACCEPTED_DELETE_AFTER_DAYS = 10;
 // Later threshold off the same accepted_at clock — see RideCard.jsx for
 // the full note on why this counts from accepted_at rather than from
-// whenever the soft-expire actually fired.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 12;
+// whenever the soft-expire actually fired. Recovering the route (POST
+// /:id/recover) does not push this deadline back — it never touches
+// accepted_at, so this clock runs the same whether or not the route was
+// recovered in between.
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;

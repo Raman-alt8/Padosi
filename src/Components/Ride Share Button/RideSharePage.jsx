@@ -437,9 +437,9 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   // so the glow/badge clears immediately, then roll back if the request
   // fails.
   //
-  // NOTE: `/api/ride-routes/:id/confirm-active` is a placeholder endpoint —
-  // swap in whatever your backend actually exposes for bumping
-  // last_active_at.
+  // Hits POST /api/ride-routes/:id/confirm-active (rideRouteRoutes.js),
+  // which stamps last_active_at server-side — that's what daysSinceActivity
+  // reads, so this resets the 15/18-day pending/delete clock back to 0.
   const handleConfirmActive = async (routeId) => {
     if (routeId < 0) {
       setDemoConfirmedActive(prev => new Map(prev).set(routeId, new Date().toISOString()));
@@ -575,11 +575,9 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
   // demoRecovered and gets applied in visibleRoutes below, the same way
   // demoAccepted/demoConfirmedActive already work. Real routes hit
   // POST /:id/recover (see rideRouteRoutes.js) and swap in whatever it
-  // returns — that endpoint deliberately resets the route to a fresh,
-  // never-responded-to listing rather than just un-hiding it, so
-  // accepted_count is forced to 0 here since the plain `SELECT r.*` it
-  // returns doesn't include the computed accepted_count column the main
-  // GET / query does.
+  // returns — that endpoint un-hides the route in place (clears expired_at
+  // only) and keeps every prior response, so the accepted_count it returns
+  // is already correct and shouldn't be overwritten here.
   const handleRecover = async (routeId) => {
     if (routeId < 0) {
       setDemoRecovered(prev => new Set(prev).add(routeId));
@@ -598,10 +596,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
         return;
       }
       setRoutes(prev => prev.map(r =>
-        r.id === routeId ? { ...data.route, accepted_count: 0 } : r
+        r.id === routeId ? data.route : r
       ));
       closeRecoveryDetail();
-      showToast("↺ Route recovered — it's back as a fresh listing.");
+      showToast("↺ Route recovered — back to how it looked before it lapsed.");
     } catch (err) {
       console.error(err);
       showToast("⚠️ Network error. Please try again.");
