@@ -12,7 +12,7 @@ function demoEmailFor(name = "") {
 // baseline "this is what a normal listing looks like" reference next to
 // the explanatory ones.
 //
-// All 6 "this is your route" cards (-9, -5, -6, -11, -12, -7) use
+// All 8 "this is your route" cards (-3, -9, -5, -6, -10, -11, -12, -7) use
 // ownerMode: "force" — always rendering as owned by whoever's viewing,
 // with zero dependency on being logged in. This was originally split into
 // "force" (always yours) vs "dynamic" (only yours if actually logged in),
@@ -23,7 +23,8 @@ function demoEmailFor(name = "") {
 // "Offering a ride" (mode: partner)
 //   -1       → someone else's ride, fresh — (Standard) baseline listing
 //   -2       → someone else's ride, fresh — explains itself
-//   -3       → someone else's ride, pending removal — explains itself
+//   -3       → you posted it, pending removal — FORCED, shows the
+//              warning banner and the "I'm here" button that keeps it alive
 //   -9       → you posted it, no responses yet — FORCED
 //   -5       → you posted it, someone accepted — FORCED
 //   -6       → you posted it, went stale after acceptance — FORCED,
@@ -32,7 +33,8 @@ function demoEmailFor(name = "") {
 // "Partner to share ride" (mode: ride)
 //   -4       → someone else's ride, fresh — (Standard) baseline listing
 //   -8       → someone else's ride, fresh — explains itself
-//   -10      → someone else's ride, pending removal — explains itself
+//   -10      → you posted it, pending removal — FORCED, shows the
+//              warning banner and the "I'm here" button that keeps it alive
 //   -11      → you posted it, no responses yet — FORCED
 //   -12      → you posted it, someone accepted — FORCED
 //   -7       → you posted it, went stale after acceptance — FORCED,
@@ -103,11 +105,13 @@ const RAW_DEMO_ROUTES = [
     depart_time: "07:15",
     seats: 4,
     price: 30,
-    description: "This is what a route looks like right before it's auto-removed for inactivity — shows the warning banner and the \"I'm here\" button that keeps it alive.",
+    description: "This is what one of your routes looks like right before it's auto-removed for inactivity — shows the warning banner and the \"I'm here\" button that keeps it alive.",
     phone: "+91 90000 00009",
     mode: "partner",
     vehicle_types: ["car", "bike"],
     gender_pref: "male",
+    accepted_count: 0,
+    ownerMode: "force",
   },
   {
     id: -9,
@@ -196,12 +200,13 @@ const RAW_DEMO_ROUTES = [
     depart_time: "19:30",
     seats: 0,
     price: 15,
-    description: "This is what a ride request looks like right before it's auto-removed for inactivity — shows the warning banner and the \"I'm here\" button that keeps it alive.",
+    description: "This is what one of your ride requests looks like right before it's auto-removed for inactivity — shows the warning banner and the \"I'm here\" button that keeps it alive.",
     phone: "+91 90000 00013",
     mode: "ride",
     vehicle_types: [],
     gender_pref: "",
-    fallbackSeller: { id: "demo-seller-10", name: "Meera Joshi" },
+    accepted_count: 0,
+    ownerMode: "force",
   },
   {
     id: -11,
@@ -308,13 +313,13 @@ export const DEMO_RIDE_RESPONSES = {
 const DEMO_DAYS_SINCE_ACTIVITY = {
   "-1": 0,
   "-2": 0.5,
-  "-3": 4.5,   // pending
+  "-3": 4.5,   // yours, pending
   "-9": 0.2,   // yours, fresh
   "-5": 1,     // yours, fresh (already accepted)
   "-6": 1,     // yours, fresh — expired look comes from `expired: true`, not this
   "-4": 0,
   "-8": 0.3,
-  "-10": 4.6,  // pending
+  "-10": 4.6,  // yours, pending
   "-11": 0.2,  // yours, fresh
   "-12": 1,    // yours, fresh (already accepted)
   "-7": 1,     // yours, fresh — expired look comes from `expired: true`, not this

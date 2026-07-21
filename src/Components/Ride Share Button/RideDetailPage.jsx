@@ -114,12 +114,11 @@ export default function RideDetailPage({
   // !route) return null;` per the hooks-order comment above.
   const acceptedCount = isOwnerRoute ? (route?.accepted_count || 0) : 0;
   const hasAccepted = isOwnerRoute && acceptedCount > 0;
-  // Non-owner demo routes (e.g. the "someone else's ride, pending removal"
-  // samples) still surface the pending banner as an illustration of that
-  // state, same exception as RideCard's showsPendingState — but accepted
-  // routes skip the pending cycle entirely and get their own longer, silent
-  // expiry (ACCEPTED_DELETE_AFTER_DAYS) instead, since a route someone
-  // accepted isn't an abandoned listing.
+  // Demo routes (route.isDemo) surface the pending banner the same way
+  // owner routes do, same exception as RideCard's showsPendingState — but
+  // accepted routes skip the pending cycle entirely and get their own
+  // longer, silent expiry (ACCEPTED_DELETE_AFTER_DAYS) instead, since a
+  // route someone accepted isn't an abandoned listing.
   const showsPendingState = (isOwnerRoute || !!route?.isDemo) && !hasAccepted;
   const isPending = showsPendingState && daysSince >= PENDING_AFTER_DAYS && daysSince < DELETE_AFTER_DAYS;
   // `!route?.isDemo` guard: hardcoded roster cards (rideShareDemoData.js)
@@ -258,9 +257,7 @@ export default function RideDetailPage({
                   </div>
                 </div>
                 {/* Owner-only action, same as RideCard.jsx: a real non-owner
-                    viewer would never see this button, so non-owner demo
-                    pending routes (-3, -10) show the banner above but not
-                    this. */}
+                    viewer would never see this button. */}
                 {isOwner && (
                   <button
                     onClick={() => onConfirmActive?.(route.id)}

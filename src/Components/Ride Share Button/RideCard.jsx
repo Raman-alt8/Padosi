@@ -349,11 +349,8 @@ export default function RideCard({
             </p>
             {/* "I'm here" is an owner-only action on real routes (only the
                 poster can confirm their own listing is still active), so it
-                stays owner-gated in demo mode too. Non-owner demo pending
-                cards (e.g. -3, -10) still show the banner/message above —
-                that's just illustrating what the state looks like — but
-                shouldn't expose an action a real non-owner viewer would
-                never have. */}
+                stays owner-gated in demo mode too — a real non-owner viewer
+                would never see this button. */}
             {isOwner && (
               <button
                 onClick={(e) => { e.stopPropagation(); onConfirmActive?.(r.id); }}
