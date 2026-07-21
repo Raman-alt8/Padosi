@@ -306,20 +306,23 @@ export const DEMO_RIDE_RESPONSES = {
 };
 
 // Hardcoded "days since last activity" per demo route — see
-// PENDING_AFTER_DAYS / DELETE_AFTER_DAYS in RideCard.jsx / RideDetailPage.jsx.
-//   0.0–3.9  → fresh, no warning
-//   4.0–4.9  → pending: red glow + "I'm here" banner
-//   5.0+     → left out on purpose, see original notes
+// PENDING_AFTER_DAYS / DELETE_AFTER_DAYS in RideCard.jsx / RideDetailPage.jsx
+// (currently 15 / 18 — keep these two in sync if those constants change).
+//   0–14.9   → fresh, no warning
+//   15–17.9  → pending: red glow + "I'm here" banner
+//   18+      → would auto-expire, but nothing here uses that range —
+//              `expired: true` routes get the expired look unconditionally
+//              instead, regardless of the number below
 const DEMO_DAYS_SINCE_ACTIVITY = {
   "-1": 0,
   "-2": 0.5,
-  "-3": 4.5,   // yours, pending
+  "-3": 16,    // yours, pending
   "-9": 0.2,   // yours, fresh
   "-5": 1,     // yours, fresh (already accepted)
   "-6": 1,     // yours, fresh — expired look comes from `expired: true`, not this
   "-4": 0,
   "-8": 0.3,
-  "-10": 4.6,  // yours, pending
+  "-10": 16,   // yours, pending
   "-11": 0.2,  // yours, fresh
   "-12": 1,    // yours, fresh (already accepted)
   "-7": 1,     // yours, fresh — expired look comes from `expired: true`, not this
