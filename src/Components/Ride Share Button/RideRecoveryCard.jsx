@@ -3,20 +3,23 @@ import { useEffect, useState } from "react";
 import { modeOf } from "./rideHelpers";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-// 1 day after a route lands here (11 days after the original
-// accepted_at) it's gone for good — see RideCard.jsx for why this counts
-// from accepted_at rather than from expired_at/whenever this card first
-// mounted. This card is only ever rendered for routes that are already
-// past ACCEPTED_DELETE_AFTER_DAYS (10), so there's no separate "soft"
-// threshold to check here, just this one. Tapping "Recover Route" below
-// (POST /:id/recover) un-hides the route but does not push this deadline
-// back — it never touches accepted_at, so this clock keeps running the
-// same whether or not the route gets recovered.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
+// This card only ever represents a route that's lapsed for the first time
+// and hasn't been recovered yet (route.recovered_at is NOT set — see
+// RideSharePage.jsx's render check). Once recovered, a route goes back to
+// rendering as a normal RideCard, which owns its own separate, absolute
+// day-21 deadline (see RideCard.jsx / ACCEPTED_HARD_DELETE_AFTER_DAYS
+// there) — this component never has to think about that later stage.
+//
+// So the only clock this card needs is the recovery window itself:
+// ACCEPTED_RECOVERY_WINDOW_DAYS (2) counted from expired_at, i.e. from
+// when the route actually lapsed, not from accepted_at. Tapping "Recover
+// Route" below (POST /:id/recover) clears expired_at and stamps
+// recovered_at — miss this window and the route is gone for good.
+const ACCEPTED_RECOVERY_WINDOW_DAYS = 2;
 
-function daysSinceAcceptance(route) {
-  if (!route.accepted_at) return 0;
-  return (Date.now() - new Date(route.accepted_at).getTime()) / MS_PER_DAY;
+function daysSinceExpiry(route) {
+  if (!route.expired_at) return 0;
+  return (Date.now() - new Date(route.expired_at).getTime()) / MS_PER_DAY;
 }
 
 // A little ECG-style spike settling into a flat line — the visual pun
@@ -55,11 +58,11 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
   // `!r.isDemo` guard: hardcoded roster cards (rideShareDemoData.js) are
   // never real backend rows, so they must never trip this clock or fire
   // onAcceptedHardExpire — mirrors the same guard in RideCard.jsx /
-  // RideDetailPage.jsx. This is the piece that keeps the 11-day clock
-  // running once a route lands here — RideCard's own copy of this check
-  // stops applying the moment RideSharePage.jsx swaps a route over to this
+  // RideDetailPage.jsx. This is the piece that keeps the 2-day recovery
+  // window running once a route lands here — RideCard's own checks don't
+  // apply the moment RideSharePage.jsx swaps a route over to this
   // component, since RideCard just isn't mounted for it anymore.
-  const isHardExpired = !r.isDemo && daysSinceAcceptance(r) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
+  const isHardExpired = !r.isDemo && daysSinceExpiry(r) >= ACCEPTED_RECOVERY_WINDOW_DAYS;
 
   useEffect(() => {
     if (isHardExpired) {
@@ -109,7 +112,7 @@ export default function RideRecoveryCard({ route: r, dark, onOpenDetail, onRecov
       </p>
 
       <p className={`text-xs leading-relaxed ${dark ? "text-white/40" : "text-[#999]"}`}>
-        It lapsed because no activity was confirmed within 10 days of being accepted.
+        It lapsed because no activity was confirmed within 10 days of being accepted. Recover it within {ACCEPTED_RECOVERY_WINDOW_DAYS} days or it's gone for good.
       </p>
 
       <button

@@ -28,16 +28,16 @@ const DELETE_AFTER_DAYS = 18;  // auto-expires once this many days pass with no 
 // it just quietly disappears after this many days instead, with no warning
 // banner in between.
 const ACCEPTED_DELETE_AFTER_DAYS = 10;
-// A second, later threshold off the same accepted_at clock: 1 day after
-// the soft-expire above (11 days after acceptance, not 1 day after
-// whenever the soft-expire actually fired — measuring both off accepted_at
-// keeps them from drifting apart if the poster doesn't open the app
-// between the two). Past this point there's no more recovering the route —
-// see onAcceptedHardExpire below and POST /:id/purge in rideRouteRoutes.js.
-// Recovering the route (POST /:id/recover) does NOT push this deadline
-// back — recovery only un-hides the route, it never touches accepted_at,
-// so this clock keeps running whether or not the route gets recovered.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
+// A route that's already been recovered once (route.recovered_at is set)
+// skips the 10-day check above entirely and instead gets one final,
+// absolute cutoff at this many days since the original accepted_at — see
+// onAcceptedHardExpire below and sweepAcceptedRideRoutes in
+// rideRouteRoutes.js. This only applies post-recovery: a route that
+// lapses and is *never* recovered is purged on a different, shorter clock
+// (ACCEPTED_RECOVERY_WINDOW_DAYS off expired_at — see RideRecoveryCard.jsx
+// / RideRecoveryPage.jsx, which own that check since RideSharePage.jsx
+// swaps a lapsed route over to those components, not this one).
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 21;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;
@@ -101,16 +101,23 @@ export default function RideCard({
   // clock or fire onAcceptedExpire — regardless of what accepted_at ends
   // up being set to for demo purposes. Mirrors how RideSharePage.jsx's
   // handleAutoExpire bails out on `routeId < 0` for the other expiry path.
-  const isAcceptedExpired = hasAccepted && !r.isDemo && daysSinceAcceptance(r) >= ACCEPTED_DELETE_AFTER_DAYS;
-  // Same demo guard, same accepted_at clock, just the later threshold.
-  // Deliberately independent of isAcceptedExpired/expired_at — see the
-  // comment on ACCEPTED_HARD_DELETE_AFTER_DAYS above for why this counts
-  // from accepted_at rather than from whenever the soft-expire happened to
-  // fire. In practice this rarely fires from RideCard itself: once
-  // isAcceptedExpired trips, RideSharePage.jsx swaps this route to
-  // RideRecoveryCard, which carries its own copy of this same check so the
-  // clock keeps running while the card isn't a RideCard anymore.
-  const isAcceptedHardExpired = hasAccepted && !r.isDemo && daysSinceAcceptance(r) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
+  //
+  // `!r.recovered_at` guard: a route that's already been recovered once is
+  // by definition already past ACCEPTED_DELETE_AFTER_DAYS (that's what
+  // caused the original lapse) — without this guard it would re-trip the
+  // instant it goes back to rendering as a normal RideCard after recovery,
+  // sending it straight back to RideRecoveryCard instead of living out its
+  // day-21 window. A recovered route only follows isAcceptedHardExpired
+  // below from here on.
+  const isAcceptedExpired = hasAccepted && !r.isDemo && !r.recovered_at && daysSinceAcceptance(r) >= ACCEPTED_DELETE_AFTER_DAYS;
+  // Same demo guard, same accepted_at clock, later threshold — but now
+  // also gated on `r.recovered_at`: this only ever applies to a route that
+  // has already been through one lapse-and-recover cycle (see
+  // ACCEPTED_HARD_DELETE_AFTER_DAYS above). A route that's never lapsed
+  // doesn't need this check yet — it'll hit isAcceptedExpired above first
+  // and swap over to RideRecoveryCard, which owns the never-recovered
+  // deadline separately.
+  const isAcceptedHardExpired = hasAccepted && !r.isDemo && !!r.recovered_at && daysSinceAcceptance(r) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
   // Renamed from the old combined isExpired: this is specifically the
   // "nobody ever responded" path, which still hard-deletes via
   // onAutoExpire, unchanged. isAcceptedExpired is handled separately below

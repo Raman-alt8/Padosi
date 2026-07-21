@@ -40,13 +40,12 @@ const DELETE_AFTER_DAYS = 18;  // auto-expires once this many days pass with no 
 // Accepted routes skip the pending cycle above entirely and get their own
 // longer, silent expiry instead — see the note by showsPendingState below.
 const ACCEPTED_DELETE_AFTER_DAYS = 10;
-// Later threshold off the same accepted_at clock — see RideCard.jsx for
-// the full note on why this counts from accepted_at rather than from
-// whenever the soft-expire actually fired. Recovering the route (POST
-// /:id/recover) does not push this deadline back — it never touches
-// accepted_at, so this clock runs the same whether or not the route was
-// recovered in between.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
+// Applies only once route.recovered_at is set (i.e. after a lapse-and-
+// recover cycle) — see RideCard.jsx for the full note. A route that's
+// never lapsed doesn't need this yet; a route that's lapsed and never
+// been recovered is purged on a separate, shorter clock owned by
+// RideRecoveryCard.jsx / RideRecoveryPage.jsx instead.
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 21;
 
 function daysSinceActivity(route) {
   const last = route.last_active_at || route.created_at;
@@ -126,11 +125,12 @@ export default function RideDetailPage({
   // `!route?.isDemo` guard: hardcoded roster cards (rideShareDemoData.js)
   // are never real backend rows, so they must never trip the
   // accepted-expiry clock or fire onAcceptedExpire here either — mirrors
-  // the same guard added to RideCard.jsx.
-  const isAcceptedExpired = hasAccepted && !route?.isDemo && daysSinceAcceptance(route) >= ACCEPTED_DELETE_AFTER_DAYS;
-  // Same demo guard, same accepted_at clock, later threshold — see
-  // RideCard.jsx for why this is independent of isAcceptedExpired.
-  const isAcceptedHardExpired = hasAccepted && !route?.isDemo && daysSinceAcceptance(route) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
+  // the same guard added to RideCard.jsx. `!route?.recovered_at` guard —
+  // see RideCard.jsx for why a recovered route must skip this check.
+  const isAcceptedExpired = hasAccepted && !route?.isDemo && !route?.recovered_at && daysSinceAcceptance(route) >= ACCEPTED_DELETE_AFTER_DAYS;
+  // Same demo guard, same accepted_at clock, later threshold — now also
+  // gated on route.recovered_at, see RideCard.jsx for the full reasoning.
+  const isAcceptedHardExpired = hasAccepted && !route?.isDemo && !!route?.recovered_at && daysSinceAcceptance(route) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
   // Renamed from the old combined isExpired — see RideCard.jsx for the
   // full note. isStaleExpired still hard-deletes via onAutoExpire;
   // isAcceptedExpired now soft-expires via onAcceptedExpire instead, so

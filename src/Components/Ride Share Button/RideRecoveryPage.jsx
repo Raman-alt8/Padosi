@@ -4,14 +4,14 @@ import { modeOf, freqLabel } from "./rideHelpers";
 import { IconArrowLeft } from "./RideIcons";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-// Same 11-day-from-accepted_at threshold as RideRecoveryCard.jsx — see
-// RideCard.jsx for the full reasoning. Kept in sync by hand, same as the
-// FlatlineIcon duplication noted below.
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
+// Same 2-day recovery window as RideRecoveryCard.jsx, counted from
+// expired_at — see RideRecoveryCard.jsx for the full reasoning. Kept in
+// sync by hand, same as the FlatlineIcon duplication noted below.
+const ACCEPTED_RECOVERY_WINDOW_DAYS = 2;
 
-function daysSinceAcceptance(route) {
-  if (!route?.accepted_at) return 0;
-  return (Date.now() - new Date(route.accepted_at).getTime()) / MS_PER_DAY;
+function daysSinceExpiry(route) {
+  if (!route?.expired_at) return 0;
+  return (Date.now() - new Date(route.expired_at).getTime()) / MS_PER_DAY;
 }
 
 // Same flatline icon as RideRecoveryCard.jsx, scaled up — kept in sync by
@@ -86,12 +86,13 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
     return () => cancelAnimationFrame(raf);
   }, [open, route?.id]);
 
-  // Same guard/reasoning as RideRecoveryCard.jsx — keeps the 11-day clock
-  // running while a lapsed route is open in this full-screen view too,
-  // rather than only while it's sitting as a card in the grid. Hoisted
-  // above the early return below for the same hooks-order reason as the
-  // effect above; no-ops via `!!route` when the overlay is closed.
-  const isHardExpired = !!route && !route.isDemo && daysSinceAcceptance(route) >= ACCEPTED_HARD_DELETE_AFTER_DAYS;
+  // Same guard/reasoning as RideRecoveryCard.jsx — keeps the 2-day
+  // recovery-window clock running while a lapsed route is open in this
+  // full-screen view too, rather than only while it's sitting as a card in
+  // the grid. Hoisted above the early return below for the same
+  // hooks-order reason as the effect above; no-ops via `!!route` when the
+  // overlay is closed.
+  const isHardExpired = !!route && !route.isDemo && daysSinceExpiry(route) >= ACCEPTED_RECOVERY_WINDOW_DAYS;
   useEffect(() => {
     if (isHardExpired) {
       onAcceptedHardExpire?.(route.id);
@@ -230,7 +231,7 @@ export default function RideRecoveryPage({ open, route, dark, onClose, onRecover
             <FlatlineDivider dark={dark} />
 
             <p className={`text-xs leading-relaxed ${dark ? "text-white/40" : "text-[#aaa]"}`}>
-              Recovering un-hides this route and keeps everyone who already responded to it — it does not reset the deletion clock. If it's not recovered within 1 day of lapsing (11 days after acceptance), it's gone for good.
+              Recovering un-hides this route and keeps everyone who already responded to it. If it's not recovered within {ACCEPTED_RECOVERY_WINDOW_DAYS} days of lapsing, it's gone for good — but recovering it in time keeps it live until 21 days after it was first accepted.
             </p>
 
             <button

@@ -232,6 +232,26 @@ function runMigrations(db) {
               if (err6 && !err6.message.includes('duplicate column')) {
                 console.error('Could not add last_active_at column to ride_routes:', err6);
               }
+
+              // Set once, in rideRouteRoutes.js's POST /:id/recover, the
+              // first (and only) time a lapsed route is successfully
+              // recovered — never cleared again afterwards, even though
+              // expired_at itself gets cleared back to NULL by that same
+              // request. This is what lets the hard-delete logic tell a
+              // route apart from a route that's never lapsed at all: once
+              // recovered_at is set, the route stops following the 10-day
+              // soft-expire / 2-day recovery-window cycle entirely and
+              // instead gets one final, absolute cutoff at
+              // ACCEPTED_HARD_DELETE_AFTER_DAYS (21) counted from the
+              // original accepted_at — see rideRouteRoutes.js POST
+              // /:id/recover and sweepAcceptedRideRoutes for the full
+              // state machine. NULL means "never recovered" (either still
+              // active, or currently lapsed and awaiting a decision).
+              db.run(`ALTER TABLE ride_routes ADD COLUMN recovered_at TEXT`, err7 => {
+                if (err7 && !err7.message.includes('duplicate column')) {
+                  console.error('Could not add recovered_at column to ride_routes:', err7);
+                }
+              });
             });
           });
         });

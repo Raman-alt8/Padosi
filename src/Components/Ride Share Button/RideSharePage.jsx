@@ -508,7 +508,10 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
 
   // Fires once a route crosses ACCEPTED_DELETE_AFTER_DAYS since accepted_at
   // with no one having confirmed activity (see RideCard.jsx /
-  // RideDetailPage.jsx, isAcceptedExpired). Unlike handleAutoExpire, this
+  // RideDetailPage.jsx, isAcceptedExpired) — and only for a route that
+  // hasn't already been through one lapse-and-recover cycle, since a
+  // recovered route follows the separate day-21 clock instead. Unlike
+  // handleAutoExpire, this
   // doesn't delete the route — it POSTs /:id/expire, which just stamps
   // expired_at, then mirrors that locally. The render check further down
   // (`r.expired_at ? RideRecoveryCard : RideCard`) picks the change up
@@ -536,14 +539,20 @@ export default function RideSharePage({ currentUser, showToast, dark }) {
     });
   }, []);
 
-  // Fires once a route crosses ACCEPTED_HARD_DELETE_AFTER_DAYS since
-  // accepted_at (see RideCard.jsx / RideDetailPage.jsx, isAcceptedHardExpired
-  // — and RideRecoveryCard.jsx / RideRecoveryPage.jsx, isHardExpired, which
-  // keep this same clock running once a route has already soft-expired).
-  // This is the point of no return: POST /:id/purge actually removes the
-  // row, no recovering it afterward. Same shape as handleAutoExpire, since
-  // both end with the route disappearing from `routes` and the detail
-  // overlay closing if it happened to be open on this exact route.
+  // Fires from either of two spots, each covering a different half of the
+  // accepted-route lifecycle:
+  //   - RideRecoveryCard.jsx / RideRecoveryPage.jsx, isHardExpired: a
+  //     route that lapsed and was never recovered, once
+  //     ACCEPTED_RECOVERY_WINDOW_DAYS have passed since expired_at.
+  //   - RideCard.jsx / RideDetailPage.jsx, isAcceptedHardExpired: a route
+  //     that WAS recovered, once ACCEPTED_HARD_DELETE_AFTER_DAYS have
+  //     passed since the original accepted_at (an absolute cutoff, not a
+  //     second recovery window).
+  // Either way this is the point of no return: POST /:id/purge actually
+  // removes the row, no recovering it afterward. Same shape as
+  // handleAutoExpire, since both end with the route disappearing from
+  // `routes` and the detail overlay closing if it happened to be open on
+  // this exact route.
   const handleAcceptedHardExpire = useCallback((routeId) => {
     if (routeId < 0) return; // demo routes are hardcoded under the expiry line on purpose
 

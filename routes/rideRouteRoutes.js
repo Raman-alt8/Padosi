@@ -84,6 +84,7 @@ router.get('/', requireAuth, async (req, res) => {
          r.created_at,
          r.accepted_at,
          r.expired_at,
+         r.recovered_at,
          r.poster_id,
          u.full_name       AS poster_name,
          rr.response       AS my_response,
@@ -426,9 +427,18 @@ router.post('/:id/expire', requireAuth, async (req, res) => {
     // "AND expired_at IS NULL" makes this idempotent — a second call (e.g.
     // from a re-render before the frontend has caught up to the new state)
     // is a harmless no-op instead of re-stamping the timestamp.
+    //
+    // "AND recovered_at IS NULL" stops a route that's already been through
+    // one lapse-and-recover cycle from being soft-expired a second time.
+    // Once recovered, accepted_at is still >= ACCEPTED_DELETE_AFTER_DAYS
+    // old (that's what triggered the first lapse), so without this guard
+    // the frontend's day-10 check would immediately re-trip the moment the
+    // route goes back to rendering as a normal RideCard — recovery only
+    // buys the route ACCEPTED_HARD_DELETE_AFTER_DAYS (21, absolute, see
+    // POST /:id/recover below), not a second run through the 10-day cycle.
     await db.runAsync(
       `UPDATE ride_routes SET expired_at = ?
-       WHERE id = ? AND poster_id = ? AND expired_at IS NULL`,
+       WHERE id = ? AND poster_id = ? AND expired_at IS NULL AND recovered_at IS NULL`,
       [new Date().toISOString(), routeId, req.user.id]
     );
 
@@ -440,18 +450,24 @@ router.post('/:id/expire', requireAuth, async (req, res) => {
 });
 
 // POST /api/ride-routes/:id/purge
-// Hard-delete — called by the poster's own client (RideCard.jsx /
-// RideDetailPage.jsx, or RideRecoveryCard.jsx / RideRecoveryPage.jsx once
-// the route has already soft-expired) once
-// ACCEPTED_HARD_DELETE_AFTER_DAYS (11 days since accepted_at) has passed.
-// Unlike /expire above, this is the point of no return: the row is
-// actually removed, not just hidden. Ownership check + the explicit
-// delete of ride_route_responses first mirror /recover above, rather than
-// assuming an ON DELETE CASCADE exists between the two tables. Same
-// "best-effort nudge, not source of truth" caveat as /expire and
-// handleAutoExpire — a real cron-based sweep would be the more reliable
-// long-term version, since this only fires when the poster happens to
-// have the route rendered in their own browser.
+// Hard-delete — called by the poster's own client once one of two
+// deadlines has passed (see RideRecoveryCard.jsx / RideRecoveryPage.jsx
+// for the never-recovered path, RideCard.jsx / RideDetailPage.jsx for the
+// post-recovery path):
+//   - Never recovered: ACCEPTED_RECOVERY_WINDOW_DAYS (2 days) after
+//     expired_at.
+//   - Recovered once: ACCEPTED_HARD_DELETE_AFTER_DAYS (21 days,
+//     absolute) after the original accepted_at.
+// This endpoint itself doesn't re-check which deadline applies — the
+// caller has already decided — it just deletes. Unlike /expire above,
+// this is the point of no return: the row is actually removed, not just
+// hidden. Ownership check + the explicit delete of ride_route_responses
+// first mirror /recover above, rather than assuming an ON DELETE CASCADE
+// exists between the two tables. Same "best-effort nudge, not source of
+// truth" caveat as /expire and handleAutoExpire — a real cron-based sweep
+// would be the more reliable long-term version, since this only fires
+// when the poster happens to have the route rendered in their own
+// browser. sweepAcceptedRideRoutes below is that reliable version.
 router.post('/:id/purge', requireAuth, async (req, res) => {
   const routeId = req.params.id;
 
@@ -485,17 +501,26 @@ router.post('/:id/purge', requireAuth, async (req, res) => {
 
 // POST /api/ride-routes/:id/recover
 // Poster-only. Un-hides an expired route and puts it back exactly where
-// it was the moment it soft-expired — NOT a fresh start. Only expired_at
-// is cleared; accepted_at is left untouched and every existing
-// accept/decline response is kept, so accepted_count/my_response come
-// back unchanged for everyone who'd already responded. Recovering does
-// not pause, extend, or restart the deletion clock: that clock still runs
-// off the original accepted_at, so a route recovered at (say) day 10.5
-// still gets hard-deleted at ACCEPTED_HARD_DELETE_AFTER_DAYS (11) —
-// recovery only buys back visibility, never extra time. The guard below
-// blocks recovering something that's already past that deadline, so this
-// endpoint can't be used to sneak a route past the point /purge or the
-// sweep would otherwise have removed it at.
+// it was the moment it soft-expired — NOT a fresh start: accepted_at is
+// left untouched and every existing accept/decline response is kept, so
+// accepted_count/my_response come back unchanged for everyone who'd
+// already responded.
+//
+// The recovery window itself is ACCEPTED_RECOVERY_WINDOW_DAYS (2 days)
+// counted from expired_at, not from accepted_at — a route has to be
+// recovered within 2 days of actually lapsing, however many days it took
+// to get there. The guard below blocks recovering something that's
+// already past that window, so this endpoint can't be used to sneak a
+// route past the point /purge or the sweep would otherwise have removed
+// it at.
+//
+// Unlike before, recovering now genuinely extends the route's life:
+// alongside clearing expired_at, this stamps recovered_at, which switches
+// the route onto its final, absolute deadline —
+// ACCEPTED_HARD_DELETE_AFTER_DAYS (21 days, counted from the original
+// accepted_at) — instead of the 10-day cycle repeating. See
+// sweepAcceptedRideRoutes below for how the two deadlines (never-recovered
+// vs. recovered) are actually enforced.
 router.post('/:id/recover', requireAuth, async (req, res) => {
   const routeId = req.params.id;
 
@@ -513,17 +538,15 @@ router.post('/:id/recover', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'This route has not expired.' });
     }
 
-    const daysSinceAcceptance = route.accepted_at
-      ? (Date.now() - new Date(route.accepted_at).getTime()) / MS_PER_DAY
-      : 0;
-    if (daysSinceAcceptance >= ACCEPTED_HARD_DELETE_AFTER_DAYS) {
+    const daysSinceExpiry = (Date.now() - new Date(route.expired_at).getTime()) / MS_PER_DAY;
+    if (daysSinceExpiry >= ACCEPTED_RECOVERY_WINDOW_DAYS) {
       return res.status(400).json({ error: 'This route is past its recovery window and can no longer be recovered.' });
     }
 
     await db.runAsync(
-      `UPDATE ride_routes SET expired_at = NULL
+      `UPDATE ride_routes SET expired_at = NULL, recovered_at = ?
        WHERE id = ? AND poster_id = ?`,
-      [routeId, req.user.id]
+      [new Date().toISOString(), routeId, req.user.id]
     );
 
     const recovered = await db.getAsync(
@@ -547,51 +570,75 @@ router.post('/:id/recover', requireAuth, async (req, res) => {
 });
 
 // ── Scheduled sweep: accepted-route expiry/purge ────────────────────────
-// The client-triggered /expire and /purge endpoints above only ever fire
-// while the poster happens to have the route rendered in their own
-// browser (see the "best-effort nudge" comments on those two) — a poster
+// The client-triggered /expire, /purge, and /recover endpoints above only
+// ever fire while the poster happens to have the route rendered in their
+// own browser (see the "best-effort nudge" comments on those) — a poster
 // who never reopens the app leaves an accepted route sitting there
-// forever, past both thresholds. This function is called on a timer from
-// server.js instead, independent of any request, so the 10-day soft-expire
-// and 11-day hard-delete actually happen on schedule.
+// forever, past every threshold. This function is called on a timer from
+// server.js instead, independent of any request, so the full lifecycle
+// actually happens on schedule.
 //
-// Day math is done in JS against accepted_at rather than with SQLite's own
-// date functions, for the same reason noted on POST /:id/accept above:
-// accepted_at is a JS-generated ISO string, and `new Date(...)` is what's
-// reliably parsing it here, not something SQL-side needs to also get right.
+// Day math is done in JS against accepted_at/expired_at rather than with
+// SQLite's own date functions, for the same reason noted on POST
+// /:id/accept above: both are JS-generated ISO strings, and `new Date(...)`
+// is what's reliably parsing them here, not something SQL-side needs to
+// also get right.
 //
-// Purging is keyed only on accepted_at, never on expired_at — so recovery
-// (POST /:id/recover above, which clears expired_at but deliberately
-// leaves accepted_at alone) can't push this deadline back. A route
-// recovered at day 10.5 still gets purged here at day 11, same as if it
-// had never been recovered at all.
-const ACCEPTED_DELETE_AFTER_DAYS      = 10;
-const ACCEPTED_HARD_DELETE_AFTER_DAYS = 11;
+// Every accepted route follows one of three states, checked in this order
+// so a route that's crossed more than one boundary since the last sweep
+// (e.g. the poster hasn't opened the app in weeks) lands on the furthest
+// one along rather than getting stuck re-processing an earlier stage:
+//
+//   1. Recovered (recovered_at set) — past the 10-day cycle entirely.
+//      Purged only once ACCEPTED_HARD_DELETE_AFTER_DAYS (21) have passed
+//      since the original accepted_at. This is an absolute cutoff — being
+//      recovered once does not grant another lapse/recovery cycle.
+//   2. Lapsed, never recovered (expired_at set, recovered_at NULL) —
+//      purged once ACCEPTED_RECOVERY_WINDOW_DAYS (2) have passed since
+//      expired_at itself, i.e. the poster missed the recovery window.
+//   3. Still active (neither set) — soft-expired (expired_at stamped) once
+//      ACCEPTED_DELETE_AFTER_DAYS (10) have passed since accepted_at,
+//      same as before.
+const ACCEPTED_DELETE_AFTER_DAYS      = 10; // day 10: first lapse, from accepted_at
+const ACCEPTED_RECOVERY_WINDOW_DAYS   = 2;  // grace period to recover, from expired_at
+const ACCEPTED_HARD_DELETE_AFTER_DAYS = 21; // absolute cutoff once recovered, from accepted_at
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 async function sweepAcceptedRideRoutes() {
   const rows = await db.allAsync(
-    `SELECT id, accepted_at, expired_at FROM ride_routes WHERE accepted_at IS NOT NULL`
+    `SELECT id, accepted_at, expired_at, recovered_at FROM ride_routes WHERE accepted_at IS NOT NULL`
   );
 
   let expiredCount = 0;
   let purgedCount  = 0;
 
   for (const row of rows) {
-    const daysSince = (Date.now() - new Date(row.accepted_at).getTime()) / MS_PER_DAY;
-
-    if (daysSince >= ACCEPTED_HARD_DELETE_AFTER_DAYS) {
-      // Same explicit-delete-of-dependents pattern as /purge above, rather
-      // than assuming an ON DELETE CASCADE exists on ride_route_responses.
-      await db.runAsync(`DELETE FROM ride_route_responses WHERE route_id = ?`, [row.id]);
-      await db.runAsync(`DELETE FROM ride_routes WHERE id = ?`, [row.id]);
-      purgedCount++;
-    } else if (daysSince >= ACCEPTED_DELETE_AFTER_DAYS && !row.expired_at) {
-      await db.runAsync(
-        `UPDATE ride_routes SET expired_at = ? WHERE id = ? AND expired_at IS NULL`,
-        [new Date().toISOString(), row.id]
-      );
-      expiredCount++;
+    if (row.recovered_at) {
+      // State 1: recovered — absolute day-21 cutoff off accepted_at.
+      const daysSinceAccepted = (Date.now() - new Date(row.accepted_at).getTime()) / MS_PER_DAY;
+      if (daysSinceAccepted >= ACCEPTED_HARD_DELETE_AFTER_DAYS) {
+        await db.runAsync(`DELETE FROM ride_route_responses WHERE route_id = ?`, [row.id]);
+        await db.runAsync(`DELETE FROM ride_routes WHERE id = ?`, [row.id]);
+        purgedCount++;
+      }
+    } else if (row.expired_at) {
+      // State 2: lapsed, awaiting recovery — 2-day window off expired_at.
+      const daysSinceExpired = (Date.now() - new Date(row.expired_at).getTime()) / MS_PER_DAY;
+      if (daysSinceExpired >= ACCEPTED_RECOVERY_WINDOW_DAYS) {
+        await db.runAsync(`DELETE FROM ride_route_responses WHERE route_id = ?`, [row.id]);
+        await db.runAsync(`DELETE FROM ride_routes WHERE id = ?`, [row.id]);
+        purgedCount++;
+      }
+    } else {
+      // State 3: still active — 10-day first-lapse check off accepted_at.
+      const daysSinceAccepted = (Date.now() - new Date(row.accepted_at).getTime()) / MS_PER_DAY;
+      if (daysSinceAccepted >= ACCEPTED_DELETE_AFTER_DAYS) {
+        await db.runAsync(
+          `UPDATE ride_routes SET expired_at = ? WHERE id = ? AND expired_at IS NULL`,
+          [new Date().toISOString(), row.id]
+        );
+        expiredCount++;
+      }
     }
   }
 
